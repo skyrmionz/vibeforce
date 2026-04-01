@@ -129,7 +129,19 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       }
 
       const trimmed = value.trim();
-      if (!trimmed || streaming) return;
+      if (!trimmed) return;
+
+      // If streaming, interrupt and queue the new message
+      if (streaming) {
+        setStreaming(false);
+        setCurrentResponse("");
+        setCurrentTool(null);
+        setMessages((prev) => [
+          ...prev,
+          { role: "system", content: "Interrupted." },
+        ]);
+        // Fall through to process the new message
+      }
 
       setInput("");
 
@@ -420,7 +432,14 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
           </Text>
           <TextInput
             value={input}
-            onChange={setInput}
+            onChange={(val) => {
+              // Ctrl+U sends a special character (U+0015) — clear input
+              if (val.includes('\u0015')) {
+                setInput("");
+                return;
+              }
+              setInput(val);
+            }}
             onSubmit={handleSubmit}
             placeholder={streaming ? "Type to interrupt or add context..." : "Ask Vibeforce anything... (type / for commands)"}
           />
