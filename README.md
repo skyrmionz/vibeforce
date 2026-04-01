@@ -9,7 +9,7 @@
 <p align="center">
   <strong>The Salesforce Vibe Coding Agent</strong><br/>
   Admin work · Apex development · Agentforce agents · Data Cloud · Custom apps on Heroku<br/>
-  All from your terminal. Any language. Deploy anywhere.
+  All from your terminal.
 </p>
 
 ## Install
