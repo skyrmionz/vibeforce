@@ -140,6 +140,23 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
 
   const streamToAgent = useCallback(
     async (message: string) => {
+      if (!agent) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "system",
+            content:
+              "No API key configured. Set your OpenRouter key to start chatting:\n\n" +
+              "  export OPENROUTER_API_KEY=sk-or-...\n\n" +
+              "Or pass it directly:\n\n" +
+              "  vibeforce --api-key sk-or-...\n\n" +
+              "Get a key at https://openrouter.ai/keys\n" +
+              "Slash commands still work — type / to see them.",
+          },
+        ]);
+        return;
+      }
+
       setStreaming(true);
       setCurrentResponse("");
       setCurrentTool(null);

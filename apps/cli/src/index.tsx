@@ -29,8 +29,8 @@ program
   .option("-k, --api-key <key>", "Anthropic API key")
   .option("-s, --skills-dir <path>", "Skills directory", "./skills")
   .action(async (opts) => {
-    // Resolve API key: flag > env var
-    const apiKey = opts.apiKey || process.env.ANTHROPIC_API_KEY;
+    // Resolve API key: flag > OPENROUTER_API_KEY > ANTHROPIC_API_KEY
+    const apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY;
 
     // Print the greeting
     console.log(renderGreeting({
@@ -42,10 +42,10 @@ program
     // Check for API key before creating agent
     if (!apiKey) {
       console.log(
-        "\n  ⚠  No API key found. Set ANTHROPIC_API_KEY or pass --api-key:\n" +
-        "\n    export ANTHROPIC_API_KEY=sk-ant-..." +
-        "\n    vibeforce --api-key sk-ant-...\n" +
-        "\n  You can still use / commands (type /help to see all).\n"
+        "\n  ⚠  No API key found. Get one at https://openrouter.ai/keys\n" +
+        "\n    export OPENROUTER_API_KEY=sk-or-..." +
+        "\n    vibeforce --api-key sk-or-...\n" +
+        "\n  Slash commands still work — type /help to see all.\n"
       );
     }
 

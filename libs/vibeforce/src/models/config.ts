@@ -47,19 +47,24 @@ export function resolveApiKey(key: string): string {
  */
 export function getDefaultConfig(): ModelConfig {
   return {
-    defaultModel: 'anthropic:claude-sonnet-4-20250514',
+    defaultModel: 'openrouter:anthropic/claude-sonnet-4',
     providers: {
-      anthropic: {
-        name: 'anthropic',
-        type: 'cloud',
-        apiKey: '${ANTHROPIC_API_KEY}',
-        models: ['claude-opus-4.6', 'claude-sonnet-4-20250514', 'claude-haiku-4'],
-      },
-      openai: {
-        name: 'openai',
-        type: 'cloud',
-        apiKey: '${OPENAI_API_KEY}',
-        models: ['gpt-4o', 'gpt-4-turbo'],
+      openrouter: {
+        name: 'openrouter',
+        type: 'gateway',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        apiKey: '${OPENROUTER_API_KEY}',
+        models: [
+          'anthropic/claude-sonnet-4',
+          'anthropic/claude-opus-4',
+          'anthropic/claude-haiku-4',
+          'openai/gpt-4o',
+          'openai/gpt-4-turbo',
+          'google/gemini-2.5-pro',
+          'google/gemini-2.5-flash',
+          'deepseek/deepseek-r1',
+          'meta-llama/llama-4-maverick',
+        ],
       },
     },
   };
