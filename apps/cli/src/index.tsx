@@ -31,8 +31,23 @@ program
   .option("-r, --resume <id>", "Resume a previous session by ID")
   .option("-n, --non-interactive <task>", "Run a single task without TUI and exit")
   .action(async (opts) => {
-    // Resolve API key: flag > OPENROUTER_API_KEY > ANTHROPIC_API_KEY
-    const apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY;
+    // Resolve API key: flag > env vars > config file
+    let apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY;
+
+    // Check config file for saved API key if not found in env
+    if (!apiKey) {
+      try {
+        const { readConfig, ensureConfigFile } = await import("vibeforce-core");
+        ensureConfigFile();
+        const config = readConfig();
+        for (const provider of Object.values(config.providers)) {
+          if (provider.apiKey && !provider.apiKey.startsWith("${")) {
+            apiKey = provider.apiKey;
+            break;
+          }
+        }
+      } catch { /* config not available yet */ }
+    }
 
     // Detect project context
     const ctx = await detectProjectContext(process.cwd());

@@ -116,7 +116,7 @@ const setKeyCommand: SlashCommand = {
     }
 
     try {
-      const { writeFileSync, mkdirSync, existsSync, readFileSync } = await import("node:fs");
+      const { writeFileSync, mkdirSync, existsSync } = await import("node:fs");
       const { join } = await import("node:path");
       const home = process.env.HOME ?? process.env.USERPROFILE ?? "~";
       const configDir = join(home, ".vibeforce");
@@ -124,25 +124,34 @@ const setKeyCommand: SlashCommand = {
 
       if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
 
-      let content: string;
-      if (existsSync(configPath)) {
-        content = readFileSync(configPath, "utf-8");
-        // Replace existing api_key line or add it
-        if (content.includes("api_key:")) {
-          content = content.replace(/api_key:.*$/m, `api_key: "${key}"`);
-        } else {
-          content += `\n  api_key: "${key}"\n`;
-        }
-      } else {
-        content = `default_model: "openrouter:anthropic/claude-4.6-sonnet-20260217"\nproviders:\n  openrouter:\n    type: gateway\n    base_url: "https://openrouter.ai/api/v1"\n    api_key: "${key}"\n    models:\n      - anthropic/claude-4.6-sonnet-20260217\n      - anthropic/claude-opus-4.6\n      - openai/gpt-5.4\n`;
-      }
+      // Always write a clean OpenRouter config with the key as a direct value
+      const content = [
+        `default_model: "openrouter:anthropic/claude-4.6-sonnet-20260217"`,
+        `providers:`,
+        `  openrouter:`,
+        `    type: gateway`,
+        `    base_url: "https://openrouter.ai/api/v1"`,
+        `    api_key: "${key}"`,
+        `    models:`,
+        `      - anthropic/claude-4.6-sonnet-20260217`,
+        `      - anthropic/claude-opus-4.6`,
+        `      - anthropic/claude-haiku-4`,
+        `      - openai/gpt-5.4`,
+        `      - openai/gpt-5.4-pro`,
+        `      - google/gemini-3.1-pro-preview`,
+        `      - x-ai/grok-4.20-beta`,
+        `      - deepseek/deepseek-v3.2`,
+        `      - meta-llama/llama-4-maverick`,
+        `      - qwen/qwen3.6-plus-preview:free`,
+        ``,
+      ].join("\n");
 
       writeFileSync(configPath, content, "utf-8");
 
-      // Also set it in the current process so it takes effect immediately
+      // Also set in current process
       process.env.OPENROUTER_API_KEY = key;
 
-      return `API key saved to ~/.vibeforce/models.yaml\n\nRestart vibeforce to use it, or it will be picked up on next launch.`;
+      return `API key saved. Restart vibeforce to connect.`;
     } catch (err: any) {
       return `Error saving key: ${err.message}`;
     }
