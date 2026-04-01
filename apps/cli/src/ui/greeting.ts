@@ -64,9 +64,9 @@ function renderAstro(): string[] {
     // Row 5:  navy | white | cyan face
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
     // Row 6:  glasses top bar (connects the frames across)
-    [_, N, W, D, D, D, D, D, D, D, D, D, W, _],
+    [_, N, W, D, D, D, D, D, D, D, D, W, N, _],
     // Row 7:  glasses: two lenses (cyan gaps) in dark frames
-    [_, N, W, D, D, C, C, D, D, C, C, D, W, _],
+    [_, N, W, D, C, C, D, D, C, C, D, W, N, _],
     // Row 8:  navy | white | cyan face
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
     // Row 9:  navy | white | cyan face
