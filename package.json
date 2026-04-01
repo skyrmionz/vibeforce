@@ -2,7 +2,7 @@
   "name": "vibeforce",
   "private": true,
   "version": "0.1.0",
-  "description": "Claude Code for Salesforce — the open-source vibe coding CLI agent",
+  "description": "An open-source agent harness for Salesforce development",
   "license": "MIT",
   "scripts": {
     "build": "pnpm --filter @vibeforce/core build && pnpm --filter @vibeforce/cli build",

@@ -1,7 +1,7 @@
 {
   "name": "@vibeforce/cli",
   "version": "0.1.0",
-  "description": "VibeForce CLI — Claude Code for Salesforce",
+  "description": "VibeForce CLI — an open-source agent harness for Salesforce development",
   "type": "module",
   "bin": {
     "vibeforce": "./dist/index.js"

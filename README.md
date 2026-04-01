@@ -1,6 +1,6 @@
 # VibeForce
 
-**Claude Code for Salesforce** — an open-source CLI agent that lets you vibe code anything with Salesforce.
+**An open-source agent harness for Salesforce development** — vibe code anything with Salesforce from your terminal.
 
 <p align="center">
   <img src="apps/cli/src/ui/agent-astro.png" alt="Agent Astro" width="120" />

@@ -1,13 +1,10 @@
 import chalk from "chalk";
-import terminalImage from "terminal-image";
-import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
+// Agent Astro palette (from the actual icon)
+const NAVY = "#1B2A4A";
 const CYAN = "#00A1E0";
+const WHITE = "#FFFFFF";
+const DARK = "#0D1B2A";
 
 export interface GreetingOptions {
   version?: string;
@@ -17,12 +14,81 @@ export interface GreetingOptions {
 }
 
 /**
- * Render the Agent Astro greeting with the actual PNG icon.
- * Uses terminal-image which auto-detects:
- *   - Kitty/iTerm2 → native inline image
- *   - Terminal.app → ANSI half-block fallback (▀▄ with colors)
+ * Half-block pixel helper.
+ * Each character cell renders 2 vertical pixels using ▀ with fg (top) and bg (bottom).
  */
-export async function renderGreeting(options?: GreetingOptions): Promise<string> {
+function px(top: string | null, bottom: string | null): string {
+  if (top && bottom) {
+    // Both colors: upper half = fg, lower half = bg
+    return chalk.hex(top).bgHex(bottom)("▀");
+  }
+  if (top && !bottom) {
+    // Top pixel only
+    return chalk.hex(top)("▀");
+  }
+  if (!top && bottom) {
+    // Bottom pixel only
+    return chalk.hex(bottom)("▄");
+  }
+  return " ";
+}
+
+/**
+ * Render Agent Astro as a compact pixel character (~5 lines, ~10 chars wide).
+ * Designed to match the actual Agent Astro icon:
+ *   - Dark navy circular body with small ears
+ *   - Cyan flame-shaped face
+ *   - Dark sunglasses
+ *   - White ring outline
+ *
+ * The pixel grid (10 wide x 10 tall) compresses to 5 terminal lines via half-blocks.
+ */
+function renderAstro(): string[] {
+  const N = NAVY;
+  const C = CYAN;
+  const W = WHITE;
+  const D = DARK;
+  const _ = null; // transparent (terminal bg)
+
+  // 10x10 pixel grid — each row is one pixel tall
+  // Rows are paired (0+1, 2+3, ...) and rendered as single terminal lines
+  const grid: (string | null)[][] = [
+    // Row 0: ears
+    [_, N, N, _, _, _, _, N, N, _],
+    // Row 1: top of white ring
+    [_, N, W, W, W, W, W, W, N, _],
+    // Row 2: white ring + navy fill
+    [_, W, N, N, N, N, N, N, W, _],
+    // Row 3: cyan flame top
+    [_, W, N, _, C, C, _, N, W, _],
+    // Row 4: cyan flame wide
+    [_, W, N, C, C, C, C, N, W, _],
+    // Row 5: sunglasses
+    [_, W, D, D, C, C, D, D, W, _],
+    // Row 6: cyan flame bottom
+    [_, W, N, C, C, C, C, N, W, _],
+    // Row 7: navy bottom
+    [_, W, N, N, N, N, N, N, W, _],
+    // Row 8: white ring bottom
+    [_, _, W, W, W, W, W, W, _, _],
+    // Row 9: empty (padding)
+    [_, _, _, _, _, _, _, _, _, _],
+  ];
+
+  const lines: string[] = [];
+  for (let y = 0; y < grid.length; y += 2) {
+    const topRow = grid[y]!;
+    const bottomRow = grid[y + 1] ?? Array(topRow.length).fill(null);
+    let line = "";
+    for (let x = 0; x < topRow.length; x++) {
+      line += px(topRow[x], bottomRow[x]);
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
+export function renderGreeting(options?: GreetingOptions): string {
   const dim = chalk.dim;
   const bold = chalk.bold;
   const cyan = chalk.hex(CYAN);
@@ -32,74 +98,29 @@ export async function renderGreeting(options?: GreetingOptions): Promise<string>
   const org = options?.org;
   const cwd = options?.cwd ?? process.cwd();
 
-  // Render Agent Astro PNG as terminal art
-  let imageLines: string[];
-  try {
-    // In dist/, the PNG is at ../src/ui/agent-astro.png relative to source
-    // We ship it alongside the built JS — try multiple paths
-    let imgBuffer: Buffer;
-    const paths = [
-      join(__dirname, "agent-astro.png"),           // same dir as compiled JS
-      join(__dirname, "..", "..", "src", "ui", "agent-astro.png"),  // source dir
-    ];
-    let found = false;
-    for (const p of paths) {
-      try {
-        imgBuffer = await readFile(p);
-        found = true;
-        break;
-      } catch { /* try next */ }
-    }
-    if (!found) throw new Error("Agent Astro image not found");
+  const astro = renderAstro();
 
-    const rendered = await terminalImage.buffer(imgBuffer!, {
-      height: 10,
-      preserveAspectRatio: true,
-    });
-    imageLines = rendered.split("\n");
-  } catch {
-    // Fallback: simple text if image rendering fails
-    imageLines = [
-      "",
-      cyan.bold("  ◉ VibeForce ◉"),
-      "",
-    ];
-  }
-
-  // Build right-side info panel
+  // Info panel to the right of the character
   const info = [
     "",
-    `  ${bold(cyan.bold("VibeForce")) + dim(` v${version}`)}`,
-    "",
-    `  ${bold("The Salesforce Vibe Coding Agent")}`,
+    `  ${bold(cyan("VibeForce")) + dim(` v${version}`)}`,
     "",
     `  ${dim(model)}`,
     org ? `  ${dim("org:")} ${org}` : `  ${dim("no org connected")}`,
-    `  ${dim(cwd)}`,
-    "",
   ];
 
-  // Combine: image on left, info on right
-  const maxLines = Math.max(imageLines.length, info.length);
+  // Combine character (left) + info (right)
+  const maxLines = Math.max(astro.length, info.length);
   const lines: string[] = [];
-
-  // Estimate image width for padding (terminal-image output varies)
-  const imgWidth = 24; // approximate columns the image takes
-
   for (let i = 0; i < maxLines; i++) {
-    const left = imageLines[i] ?? "";
+    const left = `    ${astro[i] ?? "          "}`;
     const right = info[i] ?? "";
-    if (right) {
-      // Pad the image line to align the info panel
-      const stripped = left.replace(/\x1b\[[0-9;]*m/g, ""); // strip ANSI for length calc
-      const padding = Math.max(0, imgWidth - stripped.length);
-      lines.push(`${left}${" ".repeat(padding)}${right}`);
-    } else {
-      lines.push(left);
-    }
+    lines.push(`${left}${right}`);
   }
 
-  lines.push(`  ${dim("? for shortcuts")}`);
+  lines.push("");
+  lines.push(`    ${dim(cwd)}`);
+  lines.push("");
 
   return "\n" + lines.join("\n") + "\n";
 }
