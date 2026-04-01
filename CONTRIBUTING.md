@@ -1,6 +1,6 @@
-# Contributing to VibeForce
+# Contributing to Vibeforce
 
-Thanks for your interest in contributing! VibeForce is an open-source project and we welcome contributions of all kinds.
+Thanks for your interest in contributing! Vibeforce is an open-source project and we welcome contributions of all kinds.
 
 ## Getting Started
 

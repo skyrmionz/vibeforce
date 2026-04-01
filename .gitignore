@@ -19,7 +19,7 @@ Thumbs.db
 *.swp
 *.swo
 
-# VibeForce local state
+# Vibeforce local state
 .vibeforce/
 
 # Playwright

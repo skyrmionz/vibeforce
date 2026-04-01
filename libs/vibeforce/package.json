@@ -1,7 +1,7 @@
 {
   "name": "@vibeforce/core",
   "version": "0.1.0",
-  "description": "VibeForce Salesforce agent library",
+  "description": "Vibeforce Salesforce agent library",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

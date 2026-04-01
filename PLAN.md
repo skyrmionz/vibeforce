@@ -1,8 +1,8 @@
-# VibeForce: Claude Code for Salesforce
+# Vibeforce: Claude Code for Salesforce
 
 ## Context
 
-No tool lets you vibe code *anything* with Salesforce — admin work, platform dev, custom apps, Agentforce agents, Data Cloud — from a terminal. VibeForce fills this gap: an open-source CLI agent that understands Salesforce deeply but writes code in **any language**, deploys anywhere, and can train org-specific models that learn your company's data and conventions.
+No tool lets you vibe code *anything* with Salesforce — admin work, platform dev, custom apps, Agentforce agents, Data Cloud — from a terminal. Vibeforce fills this gap: an open-source CLI agent that understands Salesforce deeply but writes code in **any language**, deploys anywhere, and can train org-specific models that learn your company's data and conventions.
 
 ## Feasibility Corrections (from review)
 
@@ -52,7 +52,7 @@ Layer 3: Robot Framework + CumulusCI — auto-invoked as skill when Playwright c
 
 ## CLI Greeting (Agent Astro)
 
-On launch, display Agent Astro character (Salesforce mascot astronaut) as hand-designed Unicode block art with ANSI colors (Salesforce blue + white), plus figlet-rendered "VibeForce" text. Libraries: `chalk` (ANSI styling), `figlet` (ASCII text), `gradient-string` (optional color gradients). Render via Ink (React for CLI).
+On launch, display Agent Astro character (Salesforce mascot astronaut) as hand-designed Unicode block art with ANSI colors (Salesforce blue + white), plus figlet-rendered "Vibeforce" text. Libraries: `chalk` (ANSI styling), `figlet` (ASCII text), `gradient-string` (optional color gradients). Render via Ink (React for CLI).
 
 ```
    ╭──────╮
@@ -72,7 +72,7 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 ---
 
 ### Feature 1: Core Agent Runtime
-**What**: Fork Deep Agents JS, create `createVibeForceAgent()`, wire up Ink TUI, Agent Astro greeting
+**What**: Fork Deep Agents JS, create `createVibeforceAgent()`, wire up Ink TUI, Agent Astro greeting
 **Depends on**: Nothing (foundation)
 **Key files**: `libs/deepagents/` (fork), `libs/vibeforce/src/index.ts`, `apps/cli/`
 **Deliverable**: `vibeforce` command launches, shows Agent Astro, accepts natural language, streams responses, calls tools
@@ -80,7 +80,7 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 **Sub-tasks**:
 - Fork deepagentsjs, restructure as pnpm monorepo
 - Add `@langchain/mcp-adapters` for MCP support
-- Create `libs/vibeforce` package with `createVibeForceAgent()` wrapping `createDeepAgent()`
+- Create `libs/vibeforce` package with `createVibeforceAgent()` wrapping `createDeepAgent()`
 - Build Ink TUI: Agent Astro greeting, InputBar, MessageList, Spinner
 - Wire up LLM API (Anthropic by default, model-agnostic via `init_chat_model`)
 - Implement `vibeforce config set` for API keys (store in OS keychain via `keytar`)
@@ -255,7 +255,7 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 - Docs: README, getting-started guide, command reference
 - MIT license, CONTRIBUTING guide, GitHub Actions CI
 
-## Agent Team Structure (for building VibeForce)
+## Agent Team Structure (for building Vibeforce)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -293,7 +293,7 @@ vibeforce/
 │       └── docs/            # Cached SF PDF guides
 ├── apps/
 │   └── cli/                 # Ink TUI (Agent Astro, InputBar, MessageList, ToolConfirm, OrgPicker)
-│       └── greeting.ts      # Agent Astro Unicode art + figlet "VibeForce"
+│       └── greeting.ts      # Agent Astro Unicode art + figlet "Vibeforce"
 ├── skills/                  # Reusable workflow definitions (SKILL.md files)
 ├── evals/                   # SalesforceBench + integration tests
 └── docs/                    # User-facing documentation

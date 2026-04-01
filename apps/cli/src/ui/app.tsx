@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
-import type { VibeForceAgent, VibeForceStreamEvent } from "@vibeforce/core";
+import type { VibeforceAgent, VibeforceStreamEvent } from "@vibeforce/core";
 
 interface Message {
   role: "user" | "assistant" | "tool";
@@ -10,7 +10,7 @@ interface Message {
 }
 
 interface AppProps {
-  agent: VibeForceAgent;
+  agent: VibeforceAgent;
 }
 
 export default function App({ agent }: AppProps) {
@@ -169,7 +169,7 @@ export default function App({ agent }: AppProps) {
             value={input}
             onChange={setInput}
             onSubmit={handleSubmit}
-            placeholder="Ask VibeForce anything..."
+            placeholder="Ask Vibeforce anything..."
           />
         </Box>
       )}

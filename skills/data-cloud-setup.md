@@ -6,7 +6,7 @@ trigger: When user asks to set up, configure, or manage Data Cloud
 
 # Data Cloud Setup Skill
 
-Set up and configure Salesforce Data Cloud from scratch using VibeForce tools.
+Set up and configure Salesforce Data Cloud from scratch using Vibeforce tools.
 
 ## Prerequisites
 

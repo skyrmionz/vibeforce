@@ -1,5 +1,5 @@
 /**
- * VibeForce middleware — permission model, safety, and audit logging.
+ * Vibeforce middleware — permission model, safety, and audit logging.
  *
  * All middleware follows the same signature and is composable:
  *   (call: ToolCall, next: ToolExecutor) => Promise<ToolResult>

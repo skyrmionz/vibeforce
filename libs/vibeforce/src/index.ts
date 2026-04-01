@@ -169,7 +169,7 @@ export { downloadDocs, DOC_SOURCES, DOCS_DIR } from "./docs/download-docs.js";
 
 // ── Agent Factory ────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are VibeForce, a Salesforce vibe coding agent. You help developers build, customize, and deploy Salesforce applications using natural language.
+const SYSTEM_PROMPT = `You are Vibeforce, a Salesforce vibe coding agent. You help developers build, customize, and deploy Salesforce applications using natural language.
 
 You have access to tools for reading files, writing files, editing files, executing shell commands, searching codebases, managing Salesforce orgs, browser automation, Agentforce agent building, and Data Cloud operations.
 
@@ -203,7 +203,7 @@ ${AGENTFORCE_PROMPT}
 ${DATA_CLOUD_PROMPT}
 `;
 
-export interface CreateVibeForceAgentOptions {
+export interface CreateVibeforceAgentOptions {
   /** Additional tools beyond the built-in set */
   tools?: (StructuredToolInterface | RunnableToolLike)[];
   /** Model ID — "provider:model" format (default: uses config default) */
@@ -216,16 +216,16 @@ export interface CreateVibeForceAgentOptions {
   skillsDir?: string;
 }
 
-export interface VibeForceAgent {
+export interface VibeforceAgent {
   /** The compiled LangGraph agent */
   graph: CompiledStateGraph<any, any, any, any, any>;
   /** Stream a response for a user message */
   stream: (
     message: string
-  ) => AsyncGenerator<VibeForceStreamEvent, void, unknown>;
+  ) => AsyncGenerator<VibeforceStreamEvent, void, unknown>;
 }
 
-export type VibeForceStreamEvent =
+export type VibeforceStreamEvent =
   | { type: "token"; content: string }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; content: string }
@@ -233,11 +233,11 @@ export type VibeForceStreamEvent =
   | { type: "error"; error: string };
 
 /**
- * Create a VibeForce agent with all tools and optional extras.
+ * Create a Vibeforce agent with all tools and optional extras.
  */
-export function createVibeForceAgent(
-  options: CreateVibeForceAgentOptions = {}
-): VibeForceAgent {
+export function createVibeforceAgent(
+  options: CreateVibeforceAgentOptions = {}
+): VibeforceAgent {
   const {
     tools: extraTools = [],
     model,
@@ -273,7 +273,7 @@ export function createVibeForceAgent(
 
   async function* stream(
     message: string
-  ): AsyncGenerator<VibeForceStreamEvent, void, unknown> {
+  ): AsyncGenerator<VibeforceStreamEvent, void, unknown> {
     try {
       const eventStream = graph.streamEvents(
         { messages: [{ role: "user", content: message }] },

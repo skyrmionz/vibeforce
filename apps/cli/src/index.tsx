@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import { render } from "ink";
 import React from "react";
-import { createVibeForceAgent } from "@vibeforce/core";
+import { createVibeforceAgent } from "@vibeforce/core";
 import { modelCommands } from "./commands/model.js";
 import App from "./ui/app.js";
 import { renderGreeting } from "./ui/greeting.js";
@@ -11,7 +11,7 @@ const program = new Command();
 
 program
   .name("vibeforce")
-  .description("VibeForce — The Salesforce Vibe Coding Agent")
+  .description("Vibeforce — The Salesforce Vibe Coding Agent")
   .version("0.1.0")
   .option(
     "-m, --model <model>",
@@ -36,7 +36,7 @@ program
     }));
 
     // Create the agent
-    const agent = createVibeForceAgent({
+    const agent = createVibeforceAgent({
       model: opts.model,
       apiKey: opts.apiKey,
       skillsDir: opts.skillsDir,

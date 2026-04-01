@@ -1,4 +1,4 @@
-# VibeForce
+# Vibeforce
 
 **An open-source agent harness for Salesforce development** — vibe code anything with Salesforce from your terminal.
 
@@ -32,7 +32,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 # Authenticate a Salesforce org
 sf org login web --alias my-org
 
-# Launch VibeForce
+# Launch Vibeforce
 vibeforce
 ```
 
@@ -81,7 +81,7 @@ vibeforce
 
 ## Architecture
 
-VibeForce follows a **"Write Code, Not Tools"** philosophy. Instead of needing a dedicated tool for every Salesforce operation, the agent writes source files (Apex `.cls`, Agent Script `.agent`, Flow XML, metadata XML, LWC `.js`, etc.) and deploys them via the `sf` CLI — just like a developer would.
+Vibeforce follows a **"Write Code, Not Tools"** philosophy. Instead of needing a dedicated tool for every Salesforce operation, the agent writes source files (Apex `.cls`, Agent Script `.agent`, Flow XML, metadata XML, LWC `.js`, etc.) and deploys them via the `sf` CLI — just like a developer would.
 
 ### 42 Tools
 
@@ -116,7 +116,7 @@ Pre-built workflows for complex multi-step tasks:
 
 ### Self-Extending
 
-VibeForce can handle **any** of Salesforce's ~470+ metadata types by discovering what exists, reading the docs, and writing the correct source files. When it learns something new, it saves it as a skill for future sessions.
+Vibeforce can handle **any** of Salesforce's ~470+ metadata types by discovering what exists, reading the docs, and writing the correct source files. When it learns something new, it saves it as a skill for future sessions.
 
 ### Safety Built-In
 
@@ -129,7 +129,7 @@ VibeForce can handle **any** of Salesforce's ~470+ metadata types by discovering
 
 ## Model Support
 
-VibeForce is model-agnostic. Use any LLM:
+Vibeforce is model-agnostic. Use any LLM:
 
 ```bash
 # Cloud providers

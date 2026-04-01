@@ -41,7 +41,7 @@ execute("mkdir -p force-app/main/default/connectedApps")
 For JWT bearer (server-to-server) auth, generate a self-signed certificate:
 
 ```
-execute("openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout server.key -out server.crt -subj '/CN=VibeForceConnectedApp'")
+execute("openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout server.key -out server.crt -subj '/CN=VibeforceConnectedApp'")
 ```
 
 This produces:
@@ -51,7 +51,7 @@ This produces:
 Create a certificate metadata file for deployment:
 
 ```
-write_file("force-app/main/default/certs/VibeForce_Cert.crt", <contents of server.crt>)
+write_file("force-app/main/default/certs/Vibeforce_Cert.crt", <contents of server.crt>)
 ```
 
 ### Step 3: Write Connected App Metadata
@@ -199,11 +199,11 @@ For JWT bearer flow, the Connected App must be pre-authorized for specific users
 **Option A: Via Permission Set (recommended)**
 
 ```
-write_file("force-app/main/default/permissionsets/VibeForce_API_Access.permissionset-meta.xml", `
+write_file("force-app/main/default/permissionsets/Vibeforce_API_Access.permissionset-meta.xml", `
 <?xml version="1.0" encoding="UTF-8"?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
-    <label>VibeForce API Access</label>
-    <description>Grants access to the VibeForce Connected App</description>
+    <label>Vibeforce API Access</label>
+    <description>Grants access to the Vibeforce Connected App</description>
     <hasActivationRequired>false</hasActivationRequired>
     <license>Salesforce</license>
 </PermissionSet>
@@ -213,7 +213,7 @@ write_file("force-app/main/default/permissionsets/VibeForce_API_Access.permissio
 Deploy and assign:
 ```
 execute("sf project deploy start --source-dir force-app/main/default/permissionsets --target-org {alias}")
-execute("sf org assign permset --name VibeForce_API_Access --target-org {alias}")
+execute("sf org assign permset --name Vibeforce_API_Access --target-org {alias}")
 ```
 
 **Option B: Via Admin Pre-Authorization in Setup**

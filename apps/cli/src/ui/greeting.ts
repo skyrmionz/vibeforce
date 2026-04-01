@@ -103,7 +103,7 @@ export function renderGreeting(options?: GreetingOptions): string {
   // Info panel to the right of the character
   const info = [
     "",
-    `  ${bold(cyan("VibeForce")) + dim(` v${version}`)}`,
+    `  ${bold(cyan("Vibeforce")) + dim(` v${version}`)}`,
     "",
     `  ${dim(model)}`,
     org ? `  ${dim("org:")} ${org}` : `  ${dim("no org connected")}`,
