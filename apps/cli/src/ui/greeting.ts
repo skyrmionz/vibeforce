@@ -53,24 +53,27 @@ function renderAstro(): string[] {
   const grid: (string | null)[][] = [
     // Half-block pairing: line N renders row 2N (top) + row 2N+1 (bottom)
     //
-    // Line 0: row0+row1 = ears + navy top
-    [_, N, N, _, _, _, _, _, _, _, _, N, N, _],  // row 0: ears
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],  // row 1: navy
-    // Line 1: row2+row3 = navy + white (top transition, sides stay N)
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],  // row 2: navy
-    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],  // row 3: white
-    // Line 2: row4+row5 = cyan + cyan (solid face)
-    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // row 4: cyan
-    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // row 5: cyan
-    // Line 3: row6+row7 = full dark bar (bridge) + DDD-CC-DDD (thicker frames)
-    [_, N, W, D, D, D, D, D, D, D, D, W, N, _],  // row 6: bridge bar
-    [_, N, W, D, D, D, C, C, D, D, D, W, N, _],  // row 7: DDD frames + CC lenses
-    // Line 4: row8+row9 = cyan + white (face bottom, white gap visible)
-    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // row 8: cyan
-    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],  // row 9: white (gap)
-    // Line 5: row10+row11 = white + navy (bottom transition, mirrors line 1)
-    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],  // row 10: white
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],  // row 11: navy
+    // Line 0: ears + navy
+    [_, N, N, _, _, _, _, _, _, _, _, N, N, _],
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
+    // Line 1: navy + white (top transition)
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
+    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
+    // Line 2: cyan + cyan (solid face, no gap)
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    // Line 3: bridge bar + DDD-CC-DDD frames
+    [_, N, W, D, D, D, D, D, D, D, D, W, N, _],
+    [_, N, W, D, D, D, C, C, D, D, D, W, N, _],
+    // Line 4: cyan + cyan (solid face below glasses)
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    // Line 5: white + white (thick white bar, matches navy bar thickness)
+    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
+    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
+    // Line 6: navy + navy (thick bottom bar)
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
   ];
 
   const lines: string[] = [];

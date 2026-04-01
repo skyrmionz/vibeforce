@@ -1,6 +1,6 @@
 {
   "name": "vibeforce",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Vibeforce CLI — an open-source agent harness for Salesforce development",
   "type": "module",
   "bin": {
