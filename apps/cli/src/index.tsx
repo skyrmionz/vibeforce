@@ -75,9 +75,9 @@ program
     if (!apiKey) {
       console.log(
         "\n  ⚠  No API key found. Get one at https://openrouter.ai/keys\n" +
-        "\n    export OPENROUTER_API_KEY=sk-or-..." +
-        "\n    vibeforce --api-key sk-or-...\n" +
-        "\n  Slash commands still work — type /help to see all.\n"
+        "\n  Set it right here:  /set-key sk-or-your-key-here" +
+        "\n  Or in your terminal: export OPENROUTER_API_KEY=sk-or-...\n" +
+        "\n  Slash commands still work — type / to see them.\n"
       );
     }
 

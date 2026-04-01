@@ -105,6 +105,50 @@ const modelCommand: SlashCommand = {
   },
 };
 
+const setKeyCommand: SlashCommand = {
+  name: "set-key",
+  description: "Save your OpenRouter API key (persists to ~/.vibeforce/models.yaml)",
+  type: "local",
+  execute: async (args) => {
+    const key = args.trim();
+    if (!key) {
+      return "Usage: /set-key sk-or-your-key-here\n\nGet a key at https://openrouter.ai/keys";
+    }
+
+    try {
+      const { writeFileSync, mkdirSync, existsSync, readFileSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      const home = process.env.HOME ?? process.env.USERPROFILE ?? "~";
+      const configDir = join(home, ".vibeforce");
+      const configPath = join(configDir, "models.yaml");
+
+      if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
+
+      let content: string;
+      if (existsSync(configPath)) {
+        content = readFileSync(configPath, "utf-8");
+        // Replace existing api_key line or add it
+        if (content.includes("api_key:")) {
+          content = content.replace(/api_key:.*$/m, `api_key: "${key}"`);
+        } else {
+          content += `\n  api_key: "${key}"\n`;
+        }
+      } else {
+        content = `default_model: "openrouter:anthropic/claude-4.6-sonnet-20260217"\nproviders:\n  openrouter:\n    type: gateway\n    base_url: "https://openrouter.ai/api/v1"\n    api_key: "${key}"\n    models:\n      - anthropic/claude-4.6-sonnet-20260217\n      - anthropic/claude-opus-4.6\n      - openai/gpt-5.4\n`;
+      }
+
+      writeFileSync(configPath, content, "utf-8");
+
+      // Also set it in the current process so it takes effect immediately
+      process.env.OPENROUTER_API_KEY = key;
+
+      return `API key saved to ~/.vibeforce/models.yaml\n\nRestart vibeforce to use it, or it will be picked up on next launch.`;
+    } catch (err: any) {
+      return `Error saving key: ${err.message}`;
+    }
+  },
+};
+
 const modelListCommand: SlashCommand = {
   name: "model-list",
   description: "List all available models",
@@ -1024,6 +1068,7 @@ const todosCommand: SlashCommand = {
 
 const builtInCommands: SlashCommand[] = [
   helpCommand,
+  setKeyCommand,
   modelCommand,
   modelListCommand,
   skillListCommand,

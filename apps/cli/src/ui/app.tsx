@@ -208,10 +208,10 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
           {
             role: "system",
             content:
-              "No API key configured. Set your OpenRouter key to start chatting:\n\n" +
-              "  export OPENROUTER_API_KEY=sk-or-...\n\n" +
-              "Or pass it directly:\n\n" +
-              "  vibeforce --api-key sk-or-...\n\n" +
+              "No API key configured. Use /set-key to set it now:\n\n" +
+              "  /set-key sk-or-your-key-here\n\n" +
+              "Or set it in your terminal before launching:\n\n" +
+              "  export OPENROUTER_API_KEY=sk-or-...\n  vibeforce\n\n" +
               "Get a key at https://openrouter.ai/keys\n" +
               "Slash commands still work — type / to see them.",
           },
