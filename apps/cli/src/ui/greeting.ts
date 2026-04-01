@@ -51,30 +51,36 @@ function renderAstro(): string[] {
 
   // 14x14 pixel grid — balanced proportions, thick glasses with bridge
   const grid: (string | null)[][] = [
-    //         1  2  3  4  5  6  7  8  9 10 11 12 13 14
+    // Based on v0.3.2 (Image #10) which was closest to correct
+    // Fixes: remove center bridge square, add white space before bottom bar
+    //
     // Row 0:  ears
     [_, N, N, _, _, _, _, _, _, _, _, N, N, _],
     // Row 1:  navy top bar
     [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
     // Row 2:  navy top bar row 2
     [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    // Row 3:  navy sides + white top
+    // Row 3:  white inner top
     [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
     // Row 4:  cyan face
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
-    // Row 5:  thin bridge bar connecting the two frames
-    [_, N, W, C, C, D, D, D, D, C, C, W, N, _],
-    // Row 6:  glasses: left DD, open CCCC, right DD
+    // Row 5:  cyan face
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    // Row 6:  glasses: DD on left, CCCC open center, DD on right
     [_, N, W, D, D, C, C, C, C, D, D, W, N, _],
-    // Row 7:  glasses row 2
+    // Row 7:  glasses row 2 (thick)
     [_, N, W, D, D, C, C, C, C, D, D, W, N, _],
     // Row 8:  cyan face
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
-    // Row 9:  navy sides + white bottom
+    // Row 9:  cyan face
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    // Row 10: white inner bottom
     [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
-    // Row 10: navy bottom bar
+    // Row 11: white space (gap before bottom bar)
+    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
+    // Row 12: navy bottom bar
     [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    // Row 11: navy bottom bar row 2
+    // Row 13: navy bottom bar row 2
     [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
   ];
 
