@@ -34,6 +34,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
   const [currentModel, setCurrentModel] = useState(initialModel);
   const [selectedHint, setSelectedHint] = useState(-1);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
+  const [menuJustSelected, setMenuJustSelected] = useState(false);
 
   useInput((_input, key) => {
     if (key.ctrl && _input === "c") {
@@ -48,12 +49,13 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       } else if (key.upArrow) {
         setSelectedHint((prev) => Math.max(prev - 1, 0));
       } else if (key.return && selectedHint >= 0) {
-        // Fill input with selected command
+        // Fill input with selected command and block handleSubmit
         const cmd = hints[selectedHint];
         if (cmd) {
           setInput(`/${cmd.name} `);
           setShowCommandMenu(false);
           setSelectedHint(-1);
+          setMenuJustSelected(true);
         }
       } else if (key.escape) {
         setShowCommandMenu(false);
@@ -99,6 +101,12 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
 
   const handleSubmit = useCallback(
     async (value: string) => {
+      // Skip if menu just selected a command (useInput already handled it)
+      if (menuJustSelected) {
+        setMenuJustSelected(false);
+        return;
+      }
+
       const trimmed = value.trim();
       if (!trimmed || streaming) return;
 

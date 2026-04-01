@@ -1,6 +1,6 @@
 {
   "name": "vibeforce-core",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Vibeforce Salesforce agent library",
   "type": "module",
   "main": "dist/index.js",
