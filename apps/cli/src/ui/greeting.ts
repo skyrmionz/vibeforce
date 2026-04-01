@@ -49,34 +49,32 @@ function renderAstro(): string[] {
   const D = DARK;
   const _ = null; // transparent (terminal bg)
 
-  // 16x12 pixel grid — wider face, clean glasses, no extra rows
-  // Structure: navy outer border → white inner border → wide cyan face → dark glasses with bridge
-  // Two small navy ears on top
+  // 14x14 pixel grid — balanced proportions, thick glasses with bridge
   const grid: (string | null)[][] = [
-    // Row 0:  ears
-    [_, N, N, _, _, _, _, _, _, _, _, _, _, N, N, _],
+    // Row 0:  ears (small navy on top)
+    [_, N, N, _, _, _, _, _, _, _, _, N, N, _],
     // Row 1:  navy top border
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    // Row 2:  navy | white inner border top
-    [_, N, W, W, W, W, W, W, W, W, W, W, W, W, N, _],
-    // Row 3:  navy | white | cyan face top
-    [_, N, W, C, C, C, C, C, C, C, C, C, C, W, N, _],
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
+    // Row 2:  navy top border row 2
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
+    // Row 3:  navy | white inner border top
+    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
     // Row 4:  navy | white | cyan face
-    [_, N, W, C, C, C, C, C, C, C, C, C, C, W, N, _],
-    // Row 5:  navy | white | glasses: D-D-D gap D-D-D (bridge = small dark center)
-    [_, N, W, D, D, D, C, C, C, C, D, D, D, W, N, _],
-    // Row 6:  navy | white | cyan face bottom
-    [_, N, W, C, C, C, C, C, C, C, C, C, C, W, N, _],
-    // Row 7:  navy | white | cyan face bottom
-    [_, N, W, C, C, C, C, C, C, C, C, C, C, W, N, _],
-    // Row 8:  navy | white inner border bottom
-    [_, N, W, W, W, W, W, W, W, W, W, W, W, W, N, _],
-    // Row 9:  navy outer border bottom
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    // Row 10: navy outer border bottom
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    // Row 11: empty
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    // Row 5:  navy | white | cyan face
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    // Row 6:  navy | white | glasses top: D-D-D-D-D-D-D-D (full dark bar)
+    [_, N, W, D, D, D, D, D, D, D, D, W, N, _],
+    // Row 7:  navy | white | glasses: thick frames with bridge  DD_DD_DD
+    [_, N, W, D, D, C, D, D, C, D, D, W, N, _],
+    // Row 8:  navy | white | cyan face
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    // Row 9:  navy | white | cyan face
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    // Row 10: navy | white inner border bottom
+    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
+    // Row 11: navy outer border bottom
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
   ];
 
   const lines: string[] = [];
