@@ -431,7 +431,7 @@ export async function createVibeforceAgent(
     try {
       const eventStream = graph.streamEvents(
         { messages: [{ role: "user", content: message }] },
-        { version: "v2" }
+        { version: "v2", recursionLimit: 100 }
       );
 
       for await (const event of eventStream) {

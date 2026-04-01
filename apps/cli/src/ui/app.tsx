@@ -43,6 +43,18 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       process.exit(0);
     }
 
+    // ESC to cancel streaming (interrupt the agent)
+    if (key.escape && streaming) {
+      setStreaming(false);
+      setCurrentResponse("");
+      setCurrentTool(null);
+      setMessages((prev) => [
+        ...prev,
+        { role: "system", content: "Interrupted. You can add more context or ask a new question." },
+      ]);
+      return;
+    }
+
     // Arrow key navigation for command menu
     if (showCommandMenu && hints.length > 0) {
       if (key.downArrow) {

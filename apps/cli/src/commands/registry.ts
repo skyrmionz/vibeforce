@@ -268,6 +268,28 @@ const orgCommand: SlashCommand = {
   },
 };
 
+const orgLoginCommand: SlashCommand = {
+  name: "org-login",
+  description: "Authenticate a new Salesforce org (opens browser)",
+  type: "local",
+  execute: async (args) => {
+    const alias = args.trim();
+    try {
+      const { execSync } = await import("node:child_process");
+      const aliasFlag = alias ? ` --alias ${alias}` : "";
+      execSync(`sf org login web${aliasFlag}`, {
+        stdio: "inherit",
+        timeout: 120_000,
+      });
+      return alias
+        ? `Authenticated org "${alias}". Use /org ${alias} to switch to it.`
+        : "Authenticated new org. Use /org-list to see all orgs.";
+    } catch (err: any) {
+      return `Login failed: ${err.message}`;
+    }
+  },
+};
+
 const quitCommand: SlashCommand = {
   name: "quit",
   description: "Exit the CLI",
@@ -1084,6 +1106,7 @@ const builtInCommands: SlashCommand[] = [
   skillAddCommand,
   toolListCommand,
   orgCommand,
+  orgLoginCommand,
   quitCommand,
   exitCommand,
   clearCommand,
