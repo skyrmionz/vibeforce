@@ -158,16 +158,22 @@ export class ModelRegistry {
       }
 
       case 'gateway': {
-        // Gateways (LiteLLM, etc.) also use OpenAI-compatible API
+        // Gateways (LiteLLM, OpenRouter, etc.) use OpenAI-compatible API
         if (!provider.baseUrl) {
           throw new Error(
             `Gateway provider "${provider.name}" requires a baseUrl`
           );
         }
+        if (!apiKey || apiKey === '' || apiKey === 'not-needed') {
+          throw new Error(
+            `No API key for provider "${provider.name}". ` +
+            `Use /set-key to save your OpenRouter key, or set OPENROUTER_API_KEY.`
+          );
+        }
         return new ChatOpenAI({
           model: modelName,
           configuration: { baseURL: provider.baseUrl },
-          apiKey: apiKey ?? 'not-needed',
+          apiKey,
         });
       }
 

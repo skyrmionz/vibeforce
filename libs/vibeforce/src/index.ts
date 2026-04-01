@@ -4,10 +4,13 @@
  * Exports: tools, middleware, models, prompts, skills, docs, and the agent factory.
  */
 
+import { randomUUID } from "node:crypto";
+import { appendFileSync, mkdirSync, existsSync } from "node:fs";
+import { dirname } from "node:path";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { RunnableToolLike } from "@langchain/core/runnables";
-import type { CompiledStateGraph } from "@langchain/langgraph";
+import { MemorySaver, type CompiledStateGraph } from "@langchain/langgraph";
 import { allTools, coreTools } from "./tools/index.js";
 import { loadSkills, getSkillSummaries } from "./skills/loader.js";
 import { SELF_DISCOVERY_PROMPT } from "./prompts/self-discovery.js";
@@ -31,10 +34,7 @@ import {
   type ProjectContext,
 } from "./context/detector.js";
 import { buildMemoryPrompt } from "./middleware/memory.js";
-import { createAuditMiddleware } from "./middleware/audit.js";
-import { createPiiMiddleware } from "./middleware/pii.js";
-import { composeMiddleware } from "./middleware/index.js";
-import type { Middleware, ToolCall, ToolExecutor, ToolResult } from "./middleware/types.js";
+import { detectPiiFields } from "./middleware/pii.js";
 
 // ── Tools ────────────────────────────────────────────────────────────────────
 export {
@@ -278,9 +278,10 @@ export interface CreateVibeforceAgentOptions {
 export interface VibeforceAgent {
   /** The compiled LangGraph agent */
   graph: CompiledStateGraph<any, any, any, any, any>;
-  /** Stream a response for a user message */
+  /** Stream a response for a user message, optionally within a thread */
   stream: (
-    message: string
+    message: string,
+    threadId?: string,
   ) => AsyncGenerator<VibeforceStreamEvent, void, unknown>;
 }
 
@@ -292,46 +293,19 @@ export type VibeforceStreamEvent =
   | { type: "error"; error: string };
 
 // ---------------------------------------------------------------------------
-// Middleware wiring helper
+// Audit log helper
 // ---------------------------------------------------------------------------
 
-/**
- * Wrap a LangChain tool's `_call` with a middleware stack.
- *
- * The middleware stack receives a ToolCall / ToolResult representation and
- * delegates to the original `_call` as the innermost executor.
- */
-function wrapToolWithMiddleware(
-  t: StructuredToolInterface | RunnableToolLike,
-  middlewareStack: Middleware[],
-): typeof t {
-  // Only wrap tools that expose a mutable _call (StructuredTool instances)
-  const st = t as StructuredToolInterface & {
-    _call?: (...args: any[]) => Promise<any>;
-    name: string;
-  };
-  if (typeof st._call !== "function") return t;
+const AUDIT_LOG_PATH = ".vibeforce/audit.log";
 
-  const original = st._call.bind(st);
-
-  const executor: ToolExecutor = async (call: ToolCall): Promise<ToolResult> => {
-    try {
-      const data = await original(call.args);
-      return { success: true, data };
-    } catch (err: any) {
-      return { success: false, error: err.message ?? String(err) };
-    }
-  };
-
-  const composed = composeMiddleware(middlewareStack, executor);
-
-  st._call = async (input: any) => {
-    const result = await composed({ name: st.name, args: input as Record<string, unknown> });
-    if (!result.success) throw new Error(result.error ?? "Tool execution failed");
-    return result.data;
-  };
-
-  return t;
+function appendAuditLog(entry: Record<string, unknown>): void {
+  try {
+    const dir = dirname(AUDIT_LOG_PATH);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    appendFileSync(AUDIT_LOG_PATH, JSON.stringify(entry) + "\n");
+  } catch {
+    // best-effort — never crash the agent loop over logging
+  }
 }
 
 /**
@@ -364,24 +338,8 @@ export async function createVibeforceAgent(
   // ── Memory ──────────────────────────────────────────────────────────────
   const memoryBlock = buildMemoryPrompt(memorySources);
 
-  // ── Middleware stacks ───────────────────────────────────────────────────
-  const auditMw = createAuditMiddleware({
-    logPath: ".vibeforce/audit.jsonl",
-  });
-  const piiMw = createPiiMiddleware({
-    confirm: async () => true, // auto-confirm in agent mode; TUI overrides
-  });
-
-  // Combine all tools and wrap with middleware
-  const combinedTools = [...allTools, ...extraTools].map((t) => {
-    const toolName = (t as { name?: string }).name ?? "";
-
-    // PII middleware only for sf_query
-    const stack: Middleware[] =
-      toolName === "sf_query" ? [auditMw, piiMw] : [auditMw];
-
-    return wrapToolWithMiddleware(t, stack);
-  });
+  // Combine all tools (raw — middleware is handled at event-stream level)
+  const combinedTools = [...allTools, ...extraTools];
 
   // Load skills and build prompt
   const skills = loadSkills(skillsDir);
@@ -419,23 +377,91 @@ export async function createVibeforceAgent(
     prompt += `\n\n${systemPrompt}`;
   }
 
+  // ── Checkpointer (replaces manual conversationHistory) ──────────────────
+  const checkpointer = new MemorySaver();
+
   const graph = createReactAgent({
     llm,
     tools: combinedTools,
     prompt,
+    checkpointer,
   });
 
   async function* stream(
-    message: string
+    message: string,
+    threadId?: string,
   ): AsyncGenerator<VibeforceStreamEvent, void, unknown> {
+    const tid = threadId ?? randomUUID();
+
     try {
       const eventStream = graph.streamEvents(
         { messages: [{ role: "user", content: message }] },
-        { version: "v2", recursionLimit: 100 }
+        {
+          version: "v2",
+          recursionLimit: 100,
+          configurable: { thread_id: tid },
+        },
       );
 
       for await (const event of eventStream) {
-        if (
+        // ── Event-level middleware: audit logging ──────────────────────
+        if (event.event === "on_tool_start") {
+          appendAuditLog({
+            timestamp: new Date().toISOString(),
+            tool: event.name,
+            args: event.data?.input ?? {},
+            event: "start",
+          });
+
+          yield {
+            type: "tool_call",
+            name: event.name,
+            args: event.data?.input ?? {},
+          };
+        } else if (event.event === "on_tool_end") {
+          const output = event.data?.output;
+          const content =
+            typeof output === "string"
+              ? output
+              : output?.content ?? JSON.stringify(output);
+          const contentStr = typeof content === "string" ? content : String(content);
+
+          appendAuditLog({
+            timestamp: new Date().toISOString(),
+            tool: event.name,
+            result: "success",
+            event: "end",
+          });
+
+          // PII check for sf_query results
+          if (event.name === "sf_query") {
+            try {
+              const parsed = JSON.parse(contentStr);
+              const records = Array.isArray(parsed)
+                ? parsed
+                : parsed?.records ?? [];
+              if (records.length > 0) {
+                const piiFields = detectPiiFields(records[0]);
+                if (piiFields.length > 0) {
+                  yield {
+                    type: "tool_result",
+                    name: event.name,
+                    content: `⚠️ PII fields detected: ${piiFields.join(", ")}. ${contentStr}`,
+                  };
+                  continue;
+                }
+              }
+            } catch {
+              // not JSON — fall through to normal yield
+            }
+          }
+
+          yield {
+            type: "tool_result",
+            name: event.name,
+            content: contentStr,
+          };
+        } else if (
           event.event === "on_chat_model_stream" &&
           event.data?.chunk?.content
         ) {
@@ -453,23 +479,6 @@ export async function createVibeforceAgent(
               }
             }
           }
-        } else if (event.event === "on_tool_start") {
-          yield {
-            type: "tool_call",
-            name: event.name,
-            args: event.data?.input ?? {},
-          };
-        } else if (event.event === "on_tool_end") {
-          const output = event.data?.output;
-          const content =
-            typeof output === "string"
-              ? output
-              : output?.content ?? JSON.stringify(output);
-          yield {
-            type: "tool_result",
-            name: event.name,
-            content: typeof content === "string" ? content : String(content),
-          };
         }
       }
 

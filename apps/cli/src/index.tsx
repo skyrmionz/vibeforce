@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { render } from "ink";
+import { randomUUID } from "node:crypto";
 import React from "react";
 import { createVibeforceAgent, createSessionManager, detectProjectContext, buildContextPrompt } from "vibeforce-core";
 import { modelCommands } from "./commands/model.js";
@@ -118,6 +119,9 @@ program
     // Create session manager
     const sessionManager = createSessionManager();
 
+    // Generate thread ID for agent checkpointing (reuse resume ID if provided)
+    const threadId = opts.resume ?? randomUUID();
+
     // Resume session if requested
     let initialMessages: Array<{ role: "user" | "assistant" | "tool" | "system"; content: string }> | undefined;
     if (opts.resume) {
@@ -221,6 +225,7 @@ program
         model: opts.model,
         sessionManager,
         initialMessages,
+        threadId,
       })
     );
 

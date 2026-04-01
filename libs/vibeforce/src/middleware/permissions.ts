@@ -21,7 +21,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 export const TOOL_RISK_MAP: Record<string, RiskLevel> = {
-  // read
+  // ── read ──────────────────────────────────────────────────────────────────
   sf_query: 'read',
   sf_describe_object: 'read',
   sf_list_orgs: 'read',
@@ -29,26 +29,46 @@ export const TOOL_RISK_MAP: Record<string, RiskLevel> = {
   sf_org_limits: 'read',
   sf_run_tests: 'read',
   sf_list_metadata_types: 'read',
+  sf_list_metadata_of_type: 'read',
+  sf_describe_all_sobjects: 'read',
   read_file: 'read',
   glob: 'read',
   grep: 'read',
   ls: 'read',
   sf_docs_search: 'read',
   sf_docs_read: 'read',
+  browser_screenshot: 'read',
+  browser_close: 'read',
+  write_todos: 'read',
+  web_search: 'read',
+  web_fetch: 'read',
+  dc_query: 'read',
+  dc_list_objects: 'read',
+  dc_describe: 'read',
 
-  // write
+  // ── write ─────────────────────────────────────────────────────────────────
   write_file: 'write',
   edit_file: 'write',
   execute: 'write',
+  task: 'write',
+  browser_open: 'write',
+  agent_validate: 'write',
+  agent_preview: 'write',
 
-  // destructive
+  // ── destructive ───────────────────────────────────────────────────────────
   sf_deploy: 'destructive',
   sf_data: 'destructive',
   sf_run_apex: 'destructive',
+  sf_retrieve: 'destructive',
   agent_publish: 'destructive',
   agent_activate: 'destructive',
   browser_click: 'destructive',
   browser_fill: 'destructive',
+  browser_execute: 'destructive',
+  dc_ingest_streaming: 'destructive',
+  dc_ingest_bulk: 'destructive',
+  dc_create_identity_resolution: 'destructive',
+  dc_create_segment: 'destructive',
 };
 
 /**

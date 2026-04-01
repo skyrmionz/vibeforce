@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { VibeforceAgent, VibeforceStreamEvent, SessionManager } from "vibeforce-core";
+import { readMemorySources } from "vibeforce-core";
 import { MarkdownText } from "./markdown.js";
 import {
   getCommands,
@@ -23,9 +24,10 @@ interface AppProps {
   model?: string;
   sessionManager?: SessionManager;
   initialMessages?: Message[];
+  threadId?: string;
 }
 
-export default function App({ agent, skillsDir = "./skills", org, model: initialModel, sessionManager, initialMessages }: AppProps) {
+export default function App({ agent, skillsDir = "./skills", org, model: initialModel, sessionManager, initialMessages, threadId }: AppProps) {
   const { exit } = useApp();
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [input, setInput] = useState("");
@@ -250,10 +252,16 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       setCurrentResponse("");
       setCurrentTool(null);
 
+      // Read fresh memory from agent.md on every turn
+      const memory = readMemorySources([".vibeforce/agent.md"]);
+      const enrichedMessage = memory
+        ? `<memory>\n${memory}\n</memory>\n\n${message}`
+        : message;
+
       let fullResponse = "";
 
       try {
-        for await (const event of agent.stream(message)) {
+        for await (const event of agent.stream(enrichedMessage, threadId)) {
           switch (event.type) {
             case "token":
               fullResponse += event.content;
@@ -313,7 +321,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       setCurrentTool(null);
       setStreaming(false);
     },
-    [agent]
+    [agent, threadId]
   );
 
   return (
