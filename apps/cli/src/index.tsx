@@ -27,13 +27,14 @@ program
   .option("-k, --api-key <key>", "Anthropic API key")
   .option("-s, --skills-dir <path>", "Skills directory", "./skills")
   .action(async (opts) => {
-    // Print the greeting
-    console.log(renderGreeting({
+    // Print the greeting (async — renders Agent Astro PNG via terminal-image)
+    const greeting = await renderGreeting({
       version: program.version() ?? "0.1.0",
       model: opts.model,
       org: opts.org,
       cwd: process.cwd(),
-    }));
+    });
+    console.log(greeting);
 
     // Create the agent
     const agent = createVibeForceAgent({

@@ -7,7 +7,7 @@
     "vibeforce": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp src/ui/agent-astro.png dist/ui/agent-astro.png",
     "dev": "tsc --watch",
     "start": "node dist/index.js"
   },
@@ -19,7 +19,8 @@
     "gradient-string": "^3.0.0",
     "ink": "^6.8.0",
     "ink-text-input": "^6.0.0",
-    "react": "^19.2.4"
+    "react": "^19.2.4",
+    "terminal-image": "^4.2.0"
   },
   "devDependencies": {
     "@types/figlet": "^1.7.0",
