@@ -68,12 +68,15 @@ function renderAstro(): string[] {
     // Line 4: cyan + cyan (solid face below glasses)
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
-    // Line 5: white with navy sides + navy (sides connect vertical bars)
+    // Line 5: white + white (white bar — navy sides to connect vertical bars)
+    [_, N, N, W, W, W, W, W, W, W, W, N, N, _],
+    [_, N, N, W, W, W, W, W, W, W, W, N, N, _],
+    // Line 6: white-navy-sides + navy (transition)
     [_, N, N, W, W, W, W, W, W, W, W, N, N, _],
     [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    // Line 6: navy + empty (bottom edge)
+    // Line 7: navy + navy (bottom bar)
     [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
   ];
 
   const lines: string[] = [];
