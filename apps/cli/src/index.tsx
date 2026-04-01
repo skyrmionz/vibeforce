@@ -4,6 +4,8 @@ import { render } from "ink";
 import React from "react";
 import { createVibeforceAgent } from "@vibeforce/core";
 import { modelCommands } from "./commands/model.js";
+import { skillCommands } from "./commands/skill.js";
+import { toolCommands } from "./commands/tool.js";
 import App from "./ui/app.js";
 import { renderGreeting } from "./ui/greeting.js";
 
@@ -45,8 +47,15 @@ program
         : undefined,
     });
 
-    // Render the Ink TUI
-    const instance = render(React.createElement(App, { agent }));
+    // Render the Ink TUI with slash command context
+    const instance = render(
+      React.createElement(App, {
+        agent,
+        skillsDir: opts.skillsDir,
+        org: opts.org,
+        model: opts.model,
+      })
+    );
 
     // Handle graceful shutdown
     process.on("SIGINT", () => {
@@ -64,6 +73,16 @@ program
 
 // Register model & provider management commands
 for (const cmd of modelCommands) {
+  program.addCommand(cmd);
+}
+
+// Register skill management commands
+for (const cmd of skillCommands) {
+  program.addCommand(cmd);
+}
+
+// Register tool management commands
+for (const cmd of toolCommands) {
   program.addCommand(cmd);
 }
 

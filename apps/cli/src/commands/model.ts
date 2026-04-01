@@ -25,7 +25,7 @@ import {
 // ----------------------------------------------------------------
 // model:list
 // ----------------------------------------------------------------
-const modelList = new Command('model:list')
+const modelList = new Command('model-list')
   .description('List all available models with provider and type labels')
   .action(() => {
     ensureConfigFile();
@@ -52,7 +52,7 @@ const modelList = new Command('model:list')
 // ----------------------------------------------------------------
 // model:current
 // ----------------------------------------------------------------
-const modelCurrent = new Command('model:current')
+const modelCurrent = new Command('model-current')
   .description('Show the current default model')
   .action(() => {
     ensureConfigFile();
@@ -63,7 +63,7 @@ const modelCurrent = new Command('model:current')
 // ----------------------------------------------------------------
 // model:select
 // ----------------------------------------------------------------
-const modelSelect = new Command('model:select')
+const modelSelect = new Command('model-select')
   .argument('<id>', 'Model ID (e.g. "anthropic:claude-opus-4.6")')
   .description('Switch model for session')
   .action((id: string) => {
@@ -83,7 +83,7 @@ const modelSelect = new Command('model:select')
 // ----------------------------------------------------------------
 // model:default
 // ----------------------------------------------------------------
-const modelDefault = new Command('model:default')
+const modelDefault = new Command('model-default')
   .argument('<id>', 'Model ID to set as default')
   .description('Set persistent default model')
   .action((id: string) => {
@@ -104,7 +104,7 @@ const modelDefault = new Command('model:default')
 // ----------------------------------------------------------------
 // model:test
 // ----------------------------------------------------------------
-const modelTest = new Command('model:test')
+const modelTest = new Command('model-test')
   .argument('<id>', 'Model ID to test')
   .description('Test model connectivity')
   .action(async (id: string) => {
@@ -132,7 +132,7 @@ const modelTest = new Command('model:test')
 // ----------------------------------------------------------------
 // provider:add  (non-interactive for now — flags-based)
 // ----------------------------------------------------------------
-const providerAdd = new Command('provider:add')
+const providerAdd = new Command('provider-add')
   .description('Add a model provider')
   .requiredOption('--name <name>', 'Provider name (e.g. "ollama")')
   .requiredOption('--type <type>', 'Provider type: cloud | local | gateway')
@@ -172,7 +172,7 @@ const providerAdd = new Command('provider:add')
 // ----------------------------------------------------------------
 // provider:remove
 // ----------------------------------------------------------------
-const providerRemove = new Command('provider:remove')
+const providerRemove = new Command('provider-remove')
   .argument('<name>', 'Provider name to remove')
   .description('Remove a model provider')
   .action((name: string) => {

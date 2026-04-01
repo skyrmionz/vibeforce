@@ -53,6 +53,24 @@ export {
 } from './pii.js';
 export type { PiiMiddlewareOptions } from './pii.js';
 
+// Summarization
+export {
+  createSummarizationMiddleware,
+  compactMessages,
+  estimateTokens,
+  estimateMessagesTokens,
+  summarizeMessages,
+} from './summarization.js';
+export type { SummarizationConfig } from './summarization.js';
+
+// Memory
+export {
+  createMemoryMiddleware,
+  readMemorySources,
+  buildMemoryPrompt,
+} from './memory.js';
+export type { MemoryConfig } from './memory.js';
+
 // ---------------------------------------------------------------------------
 // Composition helper
 // ---------------------------------------------------------------------------

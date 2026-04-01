@@ -130,11 +130,16 @@ export const dataCloudTools = [
   ...dataCloudConfigTools,
 ];
 
+// ── Web tools ───────────────────────────────────────────────────────────
+export { webSearchTool, webFetchTool, webTools } from "./web-search.js";
+
+import { webTools } from "./web-search.js";
+
 // ── Combined ─────────────────────────────────────────────────────────────
 
 import type { StructuredToolInterface } from "@langchain/core/tools";
 
-/** All tools combined (core + SF + docs + browser + agentforce + data cloud). */
+/** All tools combined (core + SF + docs + browser + agentforce + data cloud + web). */
 export const allTools: StructuredToolInterface[] = [
   ...coreTools,
   ...coreSfTools,
@@ -143,4 +148,5 @@ export const allTools: StructuredToolInterface[] = [
   ...browserTools,
   ...agentforceTools,
   ...dataCloudTools,
+  ...webTools,
 ] as StructuredToolInterface[];

@@ -86,6 +86,10 @@ export {
   DcIngestBulkTool,
   DcCreateIdentityResolutionTool,
   DcCreateSegmentTool,
+  // Web tools
+  webSearchTool,
+  webFetchTool,
+  webTools,
   // All tools combined
   allTools,
 } from "./tools/index.js";
@@ -108,6 +112,16 @@ export {
   detectPiiFields,
   isPiiField,
   maskPiiInRecords,
+  // Summarization
+  createSummarizationMiddleware,
+  compactMessages,
+  estimateTokens,
+  estimateMessagesTokens,
+  summarizeMessages,
+  // Memory
+  createMemoryMiddleware,
+  readMemorySources,
+  buildMemoryPrompt,
 } from "./middleware/index.js";
 export type {
   AuditEntry,
@@ -116,12 +130,14 @@ export type {
   DryRunMiddlewareOptions,
   DryRunResult,
   Middleware,
+  MemoryConfig,
   OrgInfo,
   PermissionMode,
   PermissionsMiddlewareOptions,
   PiiMiddlewareOptions,
   RiskLevel,
   SnapshotMiddlewareOptions,
+  SummarizationConfig,
   ToolCall,
   ToolExecutor,
   ToolResult,
@@ -163,6 +179,20 @@ export {
 export type { UnsupportedMetadataType } from "./prompts/unsupported-metadata.js";
 export { AGENTFORCE_PROMPT } from "./prompts/agentforce.js";
 export { DATA_CLOUD_PROMPT } from "./prompts/datacloud.js";
+
+// ── Sessions ────────────────────────────────────────────────────────────────
+export {
+  createSessionManager,
+  appendMessage,
+} from "./sessions/manager.js";
+export type { Session, SessionManager } from "./sessions/manager.js";
+
+// ── Context Detection ───────────────────────────────────────────────────────
+export {
+  detectProjectContext,
+  buildContextPrompt,
+} from "./context/detector.js";
+export type { ProjectContext } from "./context/detector.js";
 
 // ── Docs ─────────────────────────────────────────────────────────────────────
 export { downloadDocs, DOC_SOURCES, DOCS_DIR } from "./docs/download-docs.js";

@@ -1,25 +1,35 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { VibeforceAgent, VibeforceStreamEvent } from "@vibeforce/core";
+import {
+  getCommands,
+  findCommand,
+  type CommandContext,
+  type SlashCommand,
+} from "../commands/registry.js";
 
 interface Message {
-  role: "user" | "assistant" | "tool";
+  role: "user" | "assistant" | "tool" | "system";
   content: string;
   toolName?: string;
 }
 
 interface AppProps {
   agent: VibeforceAgent;
+  skillsDir?: string;
+  org?: string;
+  model?: string;
 }
 
-export default function App({ agent }: AppProps) {
+export default function App({ agent, skillsDir = "./skills", org, model: initialModel }: AppProps) {
   const { exit } = useApp();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [currentResponse, setCurrentResponse] = useState("");
   const [currentTool, setCurrentTool] = useState<string | null>(null);
+  const [currentModel, setCurrentModel] = useState(initialModel);
 
   useInput((_input, key) => {
     if (key.ctrl && _input === "c") {
@@ -28,18 +38,108 @@ export default function App({ agent }: AppProps) {
     }
   });
 
+  // Build command context
+  const commandContext: CommandContext = useMemo(
+    () => ({
+      skillsDir,
+      org,
+      model: currentModel,
+      setModel: (id: string) => setCurrentModel(id),
+      clearMessages: () => setMessages([]),
+    }),
+    [skillsDir, org, currentModel]
+  );
+
+  // Autocomplete hints: filter commands by prefix when input starts with /
+  const hints = useMemo(() => {
+    if (!input.startsWith("/") || input.length < 1) return [];
+    const partial = input.slice(1).toLowerCase();
+    if (!partial) {
+      // Just "/" — show first 5 commands
+      return getCommands(skillsDir).slice(0, 5);
+    }
+    return getCommands(skillsDir)
+      .filter((c) => c.name.toLowerCase().startsWith(partial))
+      .slice(0, 5);
+  }, [input, skillsDir]);
+
   const handleSubmit = useCallback(
     async (value: string) => {
       const trimmed = value.trim();
       if (!trimmed || streaming) return;
 
-      if (trimmed.toLowerCase() === "/quit" || trimmed.toLowerCase() === "/exit") {
-        exit();
-        process.exit(0);
+      setInput("");
+
+      // ── Slash command handling ──────────────────────────────────
+      if (trimmed.startsWith("/")) {
+        // Just "/" alone — show all commands
+        if (trimmed === "/") {
+          const cmds = getCommands(skillsDir);
+          const maxName = Math.max(...cmds.map((c) => c.name.length));
+          const lines = cmds.map((c) => {
+            const tag = c.type === "prompt" ? " (prompt)" : "";
+            return `  /${c.name.padEnd(maxName + 2)}${c.description}${tag}`;
+          });
+          setMessages((prev) => [
+            ...prev,
+            { role: "system", content: `Available commands:\n\n${lines.join("\n")}\n` },
+          ]);
+          return;
+        }
+
+        const cmdName = trimmed.slice(1).split(/\s+/)[0]!;
+        const cmdArgs = trimmed.slice(1 + cmdName.length).trim();
+        const cmd = findCommand(cmdName, skillsDir);
+
+        if (!cmd) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "user", content: trimmed },
+            {
+              role: "system",
+              content: `Unknown command: /${cmdName}\nType / to see available commands.`,
+            },
+          ]);
+          return;
+        }
+
+        // Local command — execute in-process
+        if (cmd.type === "local" && cmd.execute) {
+          setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+          try {
+            const result = await cmd.execute(cmdArgs, commandContext);
+            setMessages((prev) => [
+              ...prev,
+              { role: "system", content: result },
+            ]);
+          } catch (err: any) {
+            setMessages((prev) => [
+              ...prev,
+              { role: "system", content: `Command error: ${err.message}` },
+            ]);
+          }
+          return;
+        }
+
+        // Prompt command — expand and send to agent
+        if (cmd.type === "prompt" && cmd.getPrompt) {
+          const prompt = cmd.getPrompt(cmdArgs);
+          setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+          // Fall through to agent streaming with the expanded prompt
+          await streamToAgent(prompt);
+          return;
+        }
       }
 
-      setInput("");
+      // ── Regular message — send to agent ────────────────────────
       setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+      await streamToAgent(trimmed);
+    },
+    [agent, streaming, exit, skillsDir, commandContext]
+  );
+
+  const streamToAgent = useCallback(
+    async (message: string) => {
       setStreaming(true);
       setCurrentResponse("");
       setCurrentTool(null);
@@ -47,7 +147,7 @@ export default function App({ agent }: AppProps) {
       let fullResponse = "";
 
       try {
-        for await (const event of agent.stream(trimmed)) {
+        for await (const event of agent.stream(message)) {
           switch (event.type) {
             case "token":
               fullResponse += event.content;
@@ -66,7 +166,6 @@ export default function App({ agent }: AppProps) {
               break;
             case "tool_result":
               setCurrentTool(null);
-              // Truncate long tool results for display
               const display =
                 event.content.length > 500
                   ? event.content.slice(0, 500) + "..."
@@ -105,7 +204,7 @@ export default function App({ agent }: AppProps) {
       setCurrentTool(null);
       setStreaming(false);
     },
-    [agent, streaming, exit]
+    [agent]
   );
 
   return (
@@ -125,6 +224,12 @@ export default function App({ agent }: AppProps) {
               {"  "}
               <Text color="#F5A623">{"⚡ "}</Text>
               {msg.content}
+            </Text>
+          ) : msg.role === "system" ? (
+            <Text>
+              {"\n"}
+              <Text color="#7C3AED">{msg.content}</Text>
+              {"\n"}
             </Text>
           ) : (
             <Text>
@@ -159,6 +264,19 @@ export default function App({ agent }: AppProps) {
         </Box>
       )}
 
+      {/* Autocomplete hints */}
+      {!streaming && input.startsWith("/") && hints.length > 0 && (
+        <Box flexDirection="column" marginLeft={2}>
+          {hints.map((cmd, i) => (
+            <Text key={i} dimColor>
+              <Text color="#635BFF">{"/"}</Text>
+              <Text>{cmd.name}</Text>
+              <Text dimColor>{"  "}{cmd.description}</Text>
+            </Text>
+          ))}
+        </Box>
+      )}
+
       {/* Input */}
       {!streaming && (
         <Box marginTop={1}>
@@ -169,7 +287,7 @@ export default function App({ agent }: AppProps) {
             value={input}
             onChange={setInput}
             onSubmit={handleSubmit}
-            placeholder="Ask Vibeforce anything..."
+            placeholder="Ask Vibeforce anything... (type / for commands)"
           />
         </Box>
       )}
