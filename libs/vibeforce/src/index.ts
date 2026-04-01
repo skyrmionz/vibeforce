@@ -14,6 +14,12 @@ import { SELF_DISCOVERY_PROMPT } from "./prompts/self-discovery.js";
 import { UNSUPPORTED_METADATA_PROMPT } from "./prompts/unsupported-metadata.js";
 import { AGENTFORCE_PROMPT } from "./prompts/agentforce.js";
 import { DATA_CLOUD_PROMPT } from "./prompts/datacloud.js";
+import { SYSTEM_PROMPT } from "./prompts/system.js";
+import { buildToolGuidancePrompt } from "./prompts/tool-guidance.js";
+import {
+  getActiveOutputStyle,
+  type OutputStyleConfig,
+} from "./prompts/output-styles.js";
 import {
   ModelRegistry,
   loadModelConfig,
@@ -100,10 +106,17 @@ export {
   webSearchTool,
   webFetchTool,
   webTools,
+  // Todos
+  writeTodosTool,
+  getTodos,
+  resetTodos,
+  // Unicode safety
+  stripDangerousUnicode,
+  hasDangerousUnicode,
   // All tools combined
   allTools,
 } from "./tools/index.js";
-export type { SfCommandResult, SfCommandOptions } from "./tools/index.js";
+export type { SfCommandResult, SfCommandOptions, Todo } from "./tools/index.js";
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 export {
@@ -180,6 +193,7 @@ export {
 export type { Skill } from "./skills/loader.js";
 
 // ── Prompts ──────────────────────────────────────────────────────────────────
+export { SYSTEM_PROMPT } from "./prompts/system.js";
 export { SELF_DISCOVERY_PROMPT } from "./prompts/self-discovery.js";
 export {
   UNSUPPORTED_METADATA_TYPES,
@@ -189,6 +203,16 @@ export {
 export type { UnsupportedMetadataType } from "./prompts/unsupported-metadata.js";
 export { AGENTFORCE_PROMPT } from "./prompts/agentforce.js";
 export { DATA_CLOUD_PROMPT } from "./prompts/datacloud.js";
+export {
+  OUTPUT_STYLES,
+  loadCustomOutputStyles,
+  getActiveOutputStyle,
+} from "./prompts/output-styles.js";
+export type { OutputStyleConfig } from "./prompts/output-styles.js";
+export {
+  TOOL_GUIDANCE,
+  buildToolGuidancePrompt,
+} from "./prompts/tool-guidance.js";
 
 // ── Sessions ────────────────────────────────────────────────────────────────
 export {
@@ -224,44 +248,13 @@ export type { HookConfig, HookEvent } from "./hooks/manager.js";
 export { checkBashSafety } from "./tools/bash-safety.js";
 export type { SafetyCheck } from "./tools/bash-safety.js";
 
+// ── Editor ──────────────────────────────────────────────────────────────────
+export { resolveEditor, openInEditor } from "./editor.js";
+
 // ── Docs ─────────────────────────────────────────────────────────────────────
 export { downloadDocs, DOC_SOURCES, DOCS_DIR } from "./docs/download-docs.js";
 
 // ── Agent Factory ────────────────────────────────────────────────────────────
-
-const SYSTEM_PROMPT = `You are Vibeforce, a Salesforce vibe coding agent. You help developers build, customize, and deploy Salesforce applications using natural language.
-
-You have access to tools for reading files, writing files, editing files, executing shell commands, searching codebases, managing Salesforce orgs, browser automation, Agentforce agent building, and Data Cloud operations.
-
-Key principles:
-- Be direct and concise in your responses
-- Use tools proactively — read files before editing, run commands to verify your work
-- When making changes, explain what you're doing and why
-- If a task is ambiguous, ask for clarification
-- Always verify your changes compile/work when possible
-
-You are running as a CLI agent on the user's machine with full filesystem and shell access.
-
-## Salesforce Platform Knowledge
-
-You are an expert on the Salesforce platform including:
-- Apex (classes, triggers, tests)
-- Lightning Web Components (LWC)
-- Flows and Process Builder
-- SOQL/SOSL queries
-- Metadata API and source-based deployments
-- Salesforce CLI (sf commands)
-- Permission sets, profiles, and sharing rules
-- Custom objects, fields, and relationships
-
-${SELF_DISCOVERY_PROMPT}
-
-${UNSUPPORTED_METADATA_PROMPT}
-
-${AGENTFORCE_PROMPT}
-
-${DATA_CLOUD_PROMPT}
-`;
 
 export interface CreateVibeforceAgentOptions {
   /** Additional tools beyond the built-in set */
@@ -278,6 +271,8 @@ export interface CreateVibeforceAgentOptions {
   projectContext?: ProjectContext;
   /** Memory source file paths (default: .vibeforce/agent.md, ~/.vibeforce/agent.md) */
   memorySources?: string[];
+  /** Output style name — "default", "explanatory", or "learning" */
+  outputStyle?: string;
 }
 
 export interface VibeforceAgent {
@@ -352,6 +347,7 @@ export async function createVibeforceAgent(
     systemPrompt,
     skillsDir = "./skills",
     memorySources = [".vibeforce/agent.md", "~/.vibeforce/agent.md"],
+    outputStyle,
   } = options;
 
   // Load model config and resolve the model
@@ -392,7 +388,26 @@ export async function createVibeforceAgent(
   const skillsSummary = getSkillSummaries(skills);
 
   // ── Assemble system prompt ──────────────────────────────────────────────
-  let prompt = SYSTEM_PROMPT;
+  const activeStyle = getActiveOutputStyle(outputStyle);
+
+  // If the output style replaces the base prompt (keepCodingInstructions=false),
+  // use the style prompt as the base; otherwise layer it on top.
+  let prompt =
+    activeStyle && !activeStyle.keepCodingInstructions
+      ? activeStyle.prompt
+      : SYSTEM_PROMPT;
+
+  // Tool-specific guidance
+  const toolGuidance = buildToolGuidancePrompt();
+  if (toolGuidance) {
+    prompt += `\n\n${toolGuidance}`;
+  }
+
+  // Output style overlay (when keepCodingInstructions is true)
+  if (activeStyle?.keepCodingInstructions) {
+    prompt += `\n\n${activeStyle.prompt}`;
+  }
+
   if (contextBlock) {
     prompt += `\n\n${contextBlock}`;
   }

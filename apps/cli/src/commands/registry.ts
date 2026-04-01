@@ -24,6 +24,8 @@ import {
   restoreLastVersion,
   getLastEditedFile,
   loadHooks,
+  openInEditor,
+  getTodos,
 } from "vibeforce-core";
 import type { Skill } from "vibeforce-core";
 import { execSync } from "node:child_process";
@@ -952,6 +954,71 @@ const hooksCommand: SlashCommand = {
 };
 
 // ---------------------------------------------------------------------------
+// Editor, Output Style, Todos commands
+// ---------------------------------------------------------------------------
+
+const editorCommand: SlashCommand = {
+  name: "editor",
+  description: "Open current input in an external editor ($VISUAL / $EDITOR)",
+  type: "local",
+  execute: async (args) => {
+    const result = openInEditor(args);
+    if (result === null) {
+      return "Editor cancelled (empty result or editor not found).";
+    }
+    return result;
+  },
+};
+
+/** Available output styles. */
+const OUTPUT_STYLES = ["default", "explanatory", "learning"] as const;
+let currentOutputStyle: string = "default";
+
+export function getOutputStyle(): string {
+  return currentOutputStyle;
+}
+
+const outputStyleCommand: SlashCommand = {
+  name: "output-style",
+  description: "Show or switch output style (default, explanatory, learning)",
+  type: "local",
+  execute: async (args) => {
+    const style = args.trim().toLowerCase();
+    if (!style) {
+      const lines = OUTPUT_STYLES.map(
+        (s) => `  ${s === currentOutputStyle ? "* " : "  "}${s}`,
+      );
+      return `Output styles:\n\n${lines.join("\n")}\n`;
+    }
+    if (!(OUTPUT_STYLES as readonly string[]).includes(style)) {
+      return `Unknown style "${style}". Available: ${OUTPUT_STYLES.join(", ")}`;
+    }
+    currentOutputStyle = style;
+    return `Output style switched to: ${style}`;
+  },
+};
+
+const todosCommand: SlashCommand = {
+  name: "todos",
+  description: "Show the current todo list from the session",
+  type: "local",
+  execute: async () => {
+    const todos = getTodos();
+    if (todos.length === 0) return "No todos. The agent can create todos with the write_todos tool.";
+    const lines = todos.map((t) => {
+      const icon =
+        t.status === "completed"
+          ? "\u2713"
+          : t.status === "in_progress"
+            ? "\u25C9"
+            : "\u2610";
+      return `${icon} [${t.id}] ${t.title}`;
+    });
+    return lines.join("\n");
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
 
@@ -981,6 +1048,9 @@ const builtInCommands: SlashCommand[] = [
   costCommand,
   undoCommand,
   hooksCommand,
+  editorCommand,
+  outputStyleCommand,
+  todosCommand,
   // Salesforce local commands
   orgListCommand,
   orgOpenCommand,

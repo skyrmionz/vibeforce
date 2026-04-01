@@ -135,11 +135,20 @@ export { webSearchTool, webFetchTool, webTools } from "./web-search.js";
 
 import { webTools } from "./web-search.js";
 
+// ── Todo / planning tools ───────────────────────────────────────────────
+export { writeTodosTool, getTodos, resetTodos } from "./todos.js";
+export type { Todo } from "./todos.js";
+
+import { writeTodosTool } from "./todos.js";
+
+// ── Unicode safety ──────────────────────────────────────────────────────
+export { stripDangerousUnicode, hasDangerousUnicode } from "./unicode-safety.js";
+
 // ── Combined ─────────────────────────────────────────────────────────────
 
 import type { StructuredToolInterface } from "@langchain/core/tools";
 
-/** All tools combined (core + SF + docs + browser + agentforce + data cloud + web). */
+/** All tools combined (core + SF + docs + browser + agentforce + data cloud + web + todos). */
 export const allTools: StructuredToolInterface[] = [
   ...coreTools,
   ...coreSfTools,
@@ -149,4 +158,5 @@ export const allTools: StructuredToolInterface[] = [
   ...agentforceTools,
   ...dataCloudTools,
   ...webTools,
+  writeTodosTool,
 ] as StructuredToolInterface[];

@@ -29,6 +29,7 @@ program
   .option("-k, --api-key <key>", "Anthropic API key")
   .option("-s, --skills-dir <path>", "Skills directory", "./skills")
   .option("-r, --resume <id>", "Resume a previous session by ID")
+  .option("-n, --non-interactive <task>", "Run a single task without TUI and exit")
   .action(async (opts) => {
     // Resolve API key: flag > OPENROUTER_API_KEY > ANTHROPIC_API_KEY
     const apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY;
@@ -103,6 +104,42 @@ program
         // Expected — no key, agent won't work but slash commands will
       } else {
         console.error(`  Error creating agent: ${err.message}`);
+      }
+    }
+
+    // ── Non-interactive mode ──────────────────────────────────────────────
+    if (opts.nonInteractive) {
+      const task = opts.nonInteractive as string;
+      if (!agent) {
+        console.error("Error: Cannot run non-interactive mode without an API key.");
+        process.exit(1);
+      }
+
+      try {
+        for await (const event of agent.stream(task)) {
+          switch (event.type) {
+            case "token":
+              process.stdout.write(event.content);
+              break;
+            case "tool_call":
+              console.log(`\n[tool] ${event.name}(${JSON.stringify(event.args)})`);
+              break;
+            case "tool_result":
+              console.log(`[result] ${event.content}`);
+              break;
+            case "error":
+              console.error(`\nError: ${event.error}`);
+              process.exit(1);
+              break;
+            case "done":
+              console.log("");
+              break;
+          }
+        }
+        process.exit(0);
+      } catch (err: any) {
+        console.error(`Error: ${err.message}`);
+        process.exit(1);
       }
     }
 
