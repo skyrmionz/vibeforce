@@ -29,28 +29,49 @@ program
   .option("-k, --api-key <key>", "Anthropic API key")
   .option("-s, --skills-dir <path>", "Skills directory", "./skills")
   .action(async (opts) => {
+    // Resolve API key: flag > env var
+    const apiKey = opts.apiKey || process.env.ANTHROPIC_API_KEY;
+
     // Print the greeting
     console.log(renderGreeting({
       version: program.version() ?? "0.1.0",
-      model: opts.model,
       org: opts.org,
       cwd: process.cwd(),
     }));
 
-    // Create the agent
-    const agent = createVibeforceAgent({
-      model: opts.model,
-      apiKey: opts.apiKey,
-      skillsDir: opts.skillsDir,
-      systemPrompt: opts.org
-        ? `The user's default Salesforce org alias is: ${opts.org}`
-        : undefined,
-    });
+    // Check for API key before creating agent
+    if (!apiKey) {
+      console.log(
+        "\n  ⚠  No API key found. Set ANTHROPIC_API_KEY or pass --api-key:\n" +
+        "\n    export ANTHROPIC_API_KEY=sk-ant-..." +
+        "\n    vibeforce --api-key sk-ant-...\n" +
+        "\n  You can still use / commands (type /help to see all).\n"
+      );
+    }
+
+    // Create the agent (may be null if no API key)
+    let agent: ReturnType<typeof createVibeforceAgent> | null = null;
+    try {
+      agent = createVibeforceAgent({
+        model: opts.model,
+        apiKey,
+        skillsDir: opts.skillsDir,
+        systemPrompt: opts.org
+          ? `The user's default Salesforce org alias is: ${opts.org}`
+          : undefined,
+      });
+    } catch (err: any) {
+      if (!apiKey) {
+        // Expected — no key, agent won't work but slash commands will
+      } else {
+        console.error(`  Error creating agent: ${err.message}`);
+      }
+    }
 
     // Render the Ink TUI with slash command context
     const instance = render(
       React.createElement(App, {
-        agent,
+        agent: agent!,
         skillsDir: opts.skillsDir,
         org: opts.org,
         model: opts.model,

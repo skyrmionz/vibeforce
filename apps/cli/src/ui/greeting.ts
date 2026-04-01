@@ -8,7 +8,6 @@ const DARK = "#0D1B2A";
 
 export interface GreetingOptions {
   version?: string;
-  model?: string;
   org?: string;
   cwd?: string;
 }
@@ -94,7 +93,6 @@ export function renderGreeting(options?: GreetingOptions): string {
   const cyan = chalk.hex(CYAN);
 
   const version = options?.version ?? "0.1.0";
-  const model = options?.model ?? "claude-sonnet-4-20250514";
   const org = options?.org;
   const cwd = options?.cwd ?? process.cwd();
 
@@ -105,8 +103,8 @@ export function renderGreeting(options?: GreetingOptions): string {
     "",
     `  ${bold(cyan("Vibeforce")) + dim(` v${version}`)}`,
     "",
-    `  ${dim(model)}`,
     org ? `  ${dim("org:")} ${org}` : `  ${dim("no org connected")}`,
+    `  ${dim(cwd)}`,
   ];
 
   // Combine character (left) + info (right)
@@ -118,8 +116,6 @@ export function renderGreeting(options?: GreetingOptions): string {
     lines.push(`${left}${right}`);
   }
 
-  lines.push("");
-  lines.push(`    ${dim(cwd)}`);
   lines.push("");
 
   return "\n" + lines.join("\n") + "\n";

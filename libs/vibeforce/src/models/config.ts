@@ -34,9 +34,7 @@ export function resolveApiKey(key: string): string {
     const envName = match[1];
     const value = process.env[envName];
     if (!value) {
-      throw new Error(
-        `Environment variable ${envName} is not set (referenced in model config)`
-      );
+      return "";
     }
     return value;
   }
