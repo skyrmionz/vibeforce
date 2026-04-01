@@ -74,9 +74,6 @@ function renderAstro(): string[] {
     // Line 6: white + navy (transition — mirrors line 1's navy+white)
     [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
     [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    // Line 7: navy + navy (thick bottom bar)
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
   ];
 
   const lines: string[] = [];
