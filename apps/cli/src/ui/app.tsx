@@ -271,15 +271,38 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
         : message;
 
       let fullResponse = "";
+      let hadToolCall = false;
 
       try {
         for await (const event of agent.stream(enrichedMessage, threadId)) {
           switch (event.type) {
             case "token":
+              // If we just came back from a tool call, flush the current response
+              // as a separate message and start a new one
+              if (hadToolCall && fullResponse.trim()) {
+                setMessages((prev) => [
+                  ...prev,
+                  { role: "assistant", content: fullResponse },
+                ]);
+                sessionManager?.appendMessage({ role: "assistant", content: fullResponse, timestamp: new Date().toISOString() });
+                fullResponse = "";
+                setCurrentResponse("");
+              }
+              hadToolCall = false;
               fullResponse += event.content;
               setCurrentResponse(fullResponse);
               break;
             case "tool_call":
+              // Flush any accumulated text before the tool call
+              if (fullResponse.trim()) {
+                setMessages((prev) => [
+                  ...prev,
+                  { role: "assistant", content: fullResponse },
+                ]);
+                sessionManager?.appendMessage({ role: "assistant", content: fullResponse, timestamp: new Date().toISOString() });
+                fullResponse = "";
+                setCurrentResponse("");
+              }
               setCurrentTool(event.name);
               setMessages((prev) => [
                 ...prev,
@@ -293,6 +316,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
               break;
             case "tool_result":
               setCurrentTool(null);
+              hadToolCall = true;
               const display =
                 event.content.length > 500
                   ? event.content.slice(0, 500) + "..."
