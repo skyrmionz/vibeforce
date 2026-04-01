@@ -64,10 +64,10 @@ function renderAstro(): string[] {
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // 14
     // Row 5:  cyan face
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // 14
-    // Row 6:  glasses top bar (full dark connecting bar)
-    [_, N, W, D, D, D, D, D, D, D, D, W, N, _],  // 14
-    // Row 7:  glasses: frame D, lens CC, bridge DD, lens CC, frame D
-    [_, N, W, D, C, C, D, D, C, C, D, W, N, _],  // 14  inner: D CC DD CC D
+    // Row 6:  glasses: left frame DD, open cyan CCCC, right frame DD
+    [_, N, W, D, D, C, C, C, C, D, D, W, N, _],  // 14
+    // Row 7:  glasses row 2 (same — thick frames)
+    [_, N, W, D, D, C, C, C, C, D, D, W, N, _],  // 14
     // Row 8:  cyan face
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // 14
     // Row 9:  cyan face
