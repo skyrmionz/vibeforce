@@ -68,11 +68,11 @@ function renderAstro(): string[] {
     // Line 4: cyan + cyan (solid face below glasses)
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
-    // Line 5: white + white (thick white bar)
+    // Line 5: white + navy (thin white gap then navy — transition)
     [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
-    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
-    // Line 6: white + navy (transition — mirrors line 1's navy+white)
-    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
+    // Line 6: navy + navy (bottom bar)
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
     [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
   ];
 
