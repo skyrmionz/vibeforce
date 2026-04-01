@@ -7,7 +7,7 @@
  */
 
 import { Command } from "commander";
-import { loadSkills, writeSkill } from "@vibeforce/core";
+import { loadSkills, writeSkill } from "vibeforce-core";
 
 // ---------------------------------------------------------------------------
 // skill:list

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
-import type { VibeforceAgent, VibeforceStreamEvent } from "@vibeforce/core";
+import type { VibeforceAgent, VibeforceStreamEvent } from "vibeforce-core";
 import {
   getCommands,
   findCommand,

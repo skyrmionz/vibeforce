@@ -5,8 +5,8 @@
   "description": "An open-source agent harness for Salesforce development",
   "license": "MIT",
   "scripts": {
-    "build": "pnpm --filter @vibeforce/core build && pnpm --filter @vibeforce/cli build",
-    "dev": "pnpm --filter @vibeforce/core dev & pnpm --filter @vibeforce/cli dev",
+    "build": "pnpm --filter vibeforce-core build && pnpm --filter vibeforce build",
+    "dev": "pnpm --filter vibeforce-core dev & pnpm --filter vibeforce dev",
     "start": "node apps/cli/dist/index.js"
   },
   "engines": {

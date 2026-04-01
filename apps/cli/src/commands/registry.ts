@@ -20,8 +20,8 @@ import {
   compactMessages,
   estimateMessagesTokens,
   createSessionManager,
-} from "@vibeforce/core";
-import type { Skill } from "@vibeforce/core";
+} from "vibeforce-core";
+import type { Skill } from "vibeforce-core";
 import { execSync } from "node:child_process";
 import {
   formatTable,

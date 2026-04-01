@@ -1,5 +1,5 @@
 {
-  "name": "@vibeforce/cli",
+  "name": "vibeforce",
   "version": "0.1.0",
   "description": "Vibeforce CLI — an open-source agent harness for Salesforce development",
   "type": "module",
@@ -12,7 +12,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@vibeforce/core": "workspace:*",
+    "vibeforce-core": "workspace:*",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
     "figlet": "^1.11.0",
@@ -28,5 +28,15 @@
     "@types/ink-text-input": "^2.0.5",
     "@types/react": "^19.2.14",
     "typescript": "^5.7.0"
-  }
+  },
+  "files": ["dist", "package.json", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skyrmionz/vibeforce.git",
+    "directory": "apps/cli"
+  },
+  "license": "MIT"
 }

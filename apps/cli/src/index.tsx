@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import { render } from "ink";
 import React from "react";
-import { createVibeforceAgent } from "@vibeforce/core";
+import { createVibeforceAgent } from "vibeforce-core";
 import { modelCommands } from "./commands/model.js";
 import { skillCommands } from "./commands/skill.js";
 import { toolCommands } from "./commands/tool.js";

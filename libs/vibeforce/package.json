@@ -1,5 +1,5 @@
 {
-  "name": "@vibeforce/core",
+  "name": "vibeforce-core",
   "version": "0.1.0",
   "description": "Vibeforce Salesforce agent library",
   "type": "module",
@@ -23,5 +23,15 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.5.0",
     "typescript": "^5.7.0"
-  }
+  },
+  "files": ["dist", "package.json", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skyrmionz/vibeforce.git",
+    "directory": "libs/vibeforce"
+  },
+  "license": "MIT"
 }

@@ -20,7 +20,7 @@ import {
   addProvider as persistProvider,
   removeProvider as persistRemoveProvider,
   ensureConfigFile,
-} from '@vibeforce/core';
+} from 'vibeforce-core';
 
 // ----------------------------------------------------------------
 // model:list
