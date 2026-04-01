@@ -28,6 +28,8 @@ export const TOOL_RISK_MAP: Record<string, RiskLevel> = {
   sf_get_org_info: 'read',
   sf_org_limits: 'read',
   sf_run_tests: 'read',
+  sf_get_test_results: 'read',
+  sf_get_debug_log: 'read',
   sf_list_metadata_types: 'read',
   sf_list_metadata_of_type: 'read',
   sf_describe_all_sobjects: 'read',

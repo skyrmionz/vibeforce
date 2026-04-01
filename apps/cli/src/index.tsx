@@ -181,10 +181,14 @@ program
         process.exit(1);
       }
 
+      sessionManager.appendMessage({ role: "user", content: task, timestamp: new Date().toISOString() });
+      let nonInteractiveResponse = "";
+
       try {
-        for await (const event of agent.stream(task)) {
+        for await (const event of agent.stream(task, threadId)) {
           switch (event.type) {
             case "token":
+              nonInteractiveResponse += event.content;
               process.stdout.write(event.content);
               break;
             case "tool_call":
@@ -201,6 +205,9 @@ program
               console.log("");
               break;
           }
+        }
+        if (nonInteractiveResponse) {
+          sessionManager.appendMessage({ role: "assistant", content: nonInteractiveResponse, timestamp: new Date().toISOString() });
         }
         process.exit(0);
       } catch (err: any) {
