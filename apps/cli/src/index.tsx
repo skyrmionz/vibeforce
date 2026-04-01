@@ -141,6 +141,13 @@ program
         console.error(`Error: ${err.message}`);
         process.exit(1);
       }
+      process.exit(0);
+    }
+
+    // Check if stdin supports raw mode (required for Ink TUI)
+    if (!process.stdin.isTTY) {
+      console.error("Error: Vibeforce requires an interactive terminal. Use -n for non-interactive mode.");
+      process.exit(1);
     }
 
     // Render the Ink TUI with slash command context
