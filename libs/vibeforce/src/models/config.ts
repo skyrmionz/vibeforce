@@ -47,7 +47,7 @@ export function resolveApiKey(key: string): string {
  */
 export function getDefaultConfig(): ModelConfig {
   return {
-    defaultModel: 'openrouter:anthropic/claude-4.6-sonnet-20260217',
+    defaultModel: 'openrouter:anthropic/claude-opus-4.6',
     providers: {
       openrouter: {
         name: 'openrouter',

@@ -12,28 +12,62 @@
   All from your terminal.
 </p>
 
-## Install
+## Getting Started
+
+### 1. Install
 
 ```bash
 npm install -g vibeforce
+```
+
+### 2. Get an API Key
+
+Vibeforce uses [OpenRouter](https://openrouter.ai) — one API key gives you access to Claude, GPT, Gemini, and 200+ other models.
+
+1. Go to [openrouter.ai/keys](https://openrouter.ai/keys)
+2. Create a free account and generate an API key
+3. Launch Vibeforce and set your key:
+
+```bash
+vibeforce
+```
+
+Then inside Vibeforce:
+```
+/set-key sk-or-your-key-here
+```
+
+This saves your key to `~/.vibeforce/models.yaml` so it persists across sessions.
+
+**Alternative:** Set it as an environment variable before launching:
+```bash
+export OPENROUTER_API_KEY=sk-or-your-key-here
+vibeforce
+```
+
+### 3. Connect a Salesforce Org
+
+```bash
+# Authenticate your org
+sf org login web --alias my-org
+
+# Launch Vibeforce (auto-detects your default org)
+vibeforce
 ```
 
 ### Prerequisites
 
 - **Node.js 20+**
 - **Salesforce CLI** (`sf`) — [install guide](https://developer.salesforce.com/tools/salesforcecli)
-- **OpenRouter API key** — one key, any model ([get one here](https://openrouter.ai/keys))
-- **Python 3.9+** with `robotframework` + `cumulusci` (for Shadow DOM automation)
+- **Python 3.9+** with `robotframework` + `cumulusci` (optional, for Shadow DOM automation)
 
-```bash
-# Set your API key
-export OPENROUTER_API_KEY=sk-or-...
+### Default Model
 
-# Authenticate a Salesforce org
-sf org login web --alias my-org
-
-# Launch Vibeforce
-vibeforce
+Vibeforce uses **Claude Opus 4.6** by default via OpenRouter. Switch models anytime:
+```
+/model openrouter:openai/gpt-5.4
+/model openrouter:google/gemini-3.1-pro-preview
+/model openrouter:deepseek/deepseek-v3.2
 ```
 
 ## What Can It Do?

@@ -126,7 +126,7 @@ const setKeyCommand: SlashCommand = {
 
       // Always write a clean OpenRouter config with the key as a direct value
       const content = [
-        `default_model: "openrouter:anthropic/claude-4.6-sonnet-20260217"`,
+        `default_model: "openrouter:anthropic/claude-opus-4.6"`,
         `providers:`,
         `  openrouter:`,
         `    type: gateway`,
