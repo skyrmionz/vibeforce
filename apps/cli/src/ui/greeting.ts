@@ -76,12 +76,12 @@ function renderAstro(): string[] {
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
     // Row 10: white inner bottom
     [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
-    // Row 11: white space (gap before bottom bar)
-    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
+    // Row 11: navy (pairs with row 10 → white-top/navy-bottom = visible gap like top)
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
     // Row 12: navy bottom bar
     [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    // Row 13: navy bottom bar row 2
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
+    // Row 13: empty (pairs with row 12 → navy-top/empty-bottom = clean edge)
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _],
   ];
 
   const lines: string[] = [];
