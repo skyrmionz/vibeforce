@@ -47,7 +47,7 @@ export function resolveApiKey(key: string): string {
  */
 export function getDefaultConfig(): ModelConfig {
   return {
-    defaultModel: 'openrouter:anthropic/claude-sonnet-4',
+    defaultModel: 'openrouter:anthropic/claude-4.6-sonnet-20260217',
     providers: {
       openrouter: {
         name: 'openrouter',
@@ -55,15 +55,29 @@ export function getDefaultConfig(): ModelConfig {
         baseUrl: 'https://openrouter.ai/api/v1',
         apiKey: '${OPENROUTER_API_KEY}',
         models: [
-          'anthropic/claude-sonnet-4',
-          'anthropic/claude-opus-4',
+          // Anthropic (Apr 2026)
+          'anthropic/claude-opus-4.6',
+          'anthropic/claude-4.6-sonnet-20260217',
           'anthropic/claude-haiku-4',
-          'openai/gpt-4o',
-          'openai/gpt-4-turbo',
-          'google/gemini-2.5-pro',
-          'google/gemini-2.5-flash',
-          'deepseek/deepseek-r1',
+          // OpenAI
+          'openai/gpt-5.4',
+          'openai/gpt-5.4-pro',
+          // Google
+          'google/gemini-3.1-pro-preview',
+          'google/gemini-3.1-flash-lite-preview',
+          // xAI
+          'x-ai/grok-4.20-beta',
+          'x-ai/grok-4.1-fast',
+          // DeepSeek
+          'deepseek/deepseek-v3.2',
+          // Meta
           'meta-llama/llama-4-maverick',
+          // Qwen (free)
+          'qwen/qwen3.6-plus-preview:free',
+          // Mistral
+          'mistralai/devstral-2',
+          // Free tier
+          'nvidia/nemotron-3-super-120b-a12b:free',
         ],
       },
     },
