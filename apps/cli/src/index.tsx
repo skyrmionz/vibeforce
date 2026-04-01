@@ -28,7 +28,12 @@ program
   .option("-s, --skills-dir <path>", "Skills directory", "./skills")
   .action(async (opts) => {
     // Print the greeting
-    console.log(renderGreeting());
+    console.log(renderGreeting({
+      version: program.version() ?? "0.1.0",
+      model: opts.model,
+      org: opts.org,
+      cwd: process.cwd(),
+    }));
 
     // Create the agent
     const agent = createVibeForceAgent({
