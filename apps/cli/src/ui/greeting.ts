@@ -65,8 +65,8 @@ function renderAstro(): string[] {
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
     // Row 6:  navy | white | glasses top: D-D-D-D-D-D-D-D (full dark bar)
     [_, N, W, D, D, D, D, D, D, D, D, W, N, _],
-    // Row 7:  navy | white | glasses: thick frames with bridge  DD_DD_DD
-    [_, N, W, D, D, C, D, D, C, D, D, W, N, _],
+    // Row 7:  navy | white | glasses: frames with single-pixel bridge
+    [_, N, W, D, D, C, C, D, C, C, D, D, N, _],
     // Row 8:  navy | white | cyan face
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
     // Row 9:  navy | white | cyan face
