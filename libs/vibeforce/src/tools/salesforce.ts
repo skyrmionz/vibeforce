@@ -320,7 +320,78 @@ export class SfOrgLimitsTool extends StructuredTool {
 }
 
 // ---------------------------------------------------------------------------
-// Export all 10 core SF tools as instances
+// 11. sf_get_test_results
+// ---------------------------------------------------------------------------
+export class SfGetTestResultsTool extends StructuredTool {
+  name = "sf_get_test_results";
+  description =
+    "Retrieve historical Apex test run results from a Salesforce org";
+  schema = z.object({
+    testRunId: z
+      .string()
+      .optional()
+      .describe("Specific test run ID to retrieve. If omitted, returns the most recent test run."),
+    alias: z
+      .string()
+      .optional()
+      .describe("Org alias or username (defaults to current default org)"),
+  });
+
+  async _call({
+    testRunId,
+    alias,
+  }: z.infer<typeof this.schema>): Promise<string> {
+    const args = ["get", "test"];
+    if (testRunId) args.push("--test-run-id", testRunId);
+    const result = await runSfCommand("apex", args, { alias });
+    return JSON.stringify(result.data, null, 2);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 12. sf_get_debug_log
+// ---------------------------------------------------------------------------
+export class SfGetDebugLogTool extends StructuredTool {
+  name = "sf_get_debug_log";
+  description =
+    "Retrieve debug logs from a Salesforce org. Returns the most recent log or a specific log by ID.";
+  schema = z.object({
+    logId: z
+      .string()
+      .optional()
+      .describe("Specific log ID to retrieve. If omitted, lists recent logs."),
+    number: z
+      .number()
+      .optional()
+      .describe("Number of recent logs to retrieve (default: 1, max: 25)"),
+    alias: z
+      .string()
+      .optional()
+      .describe("Org alias or username (defaults to current default org)"),
+  });
+
+  async _call({
+    logId,
+    number,
+    alias,
+  }: z.infer<typeof this.schema>): Promise<string> {
+    if (logId) {
+      const result = await runSfCommand(
+        "apex",
+        ["get", "log", "--log-id", logId],
+        { alias },
+      );
+      return JSON.stringify(result.data, null, 2);
+    }
+    const args = ["list", "log"];
+    if (number) args.push("--number", String(number));
+    const result = await runSfCommand("apex", args, { alias });
+    return JSON.stringify(result.data, null, 2);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Export all 12 core SF tools as instances
 // ---------------------------------------------------------------------------
 export const coreSfTools = [
   new SfListOrgsTool(),
@@ -333,4 +404,6 @@ export const coreSfTools = [
   new SfDataTool(),
   new SfRunTestsTool(),
   new SfOrgLimitsTool(),
+  new SfGetTestResultsTool(),
+  new SfGetDebugLogTool(),
 ];

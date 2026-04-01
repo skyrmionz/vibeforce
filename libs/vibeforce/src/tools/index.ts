@@ -48,6 +48,8 @@ export {
   SfDataTool,
   SfRunTestsTool,
   SfOrgLimitsTool,
+  SfGetTestResultsTool,
+  SfGetDebugLogTool,
   coreSfTools,
 } from "./salesforce.js";
 
