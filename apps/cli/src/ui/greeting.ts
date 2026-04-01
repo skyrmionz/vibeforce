@@ -49,29 +49,38 @@ function renderAstro(): string[] {
   const D = DARK;
   const _ = null; // transparent (terminal bg)
 
-  // 10x10 pixel grid — each row is one pixel tall
-  // Rows are paired (0+1, 2+3, ...) and rendered as single terminal lines
+  // 14x16 pixel grid — larger, squarer design
+  // Structure: navy outer border → white inner border → cyan face → dark glasses
+  // Two small navy ears on top
   const grid: (string | null)[][] = [
-    // Row 0: ears
-    [_, N, N, _, _, _, _, N, N, _],
-    // Row 1: top of white ring
-    [_, N, W, W, W, W, W, W, N, _],
-    // Row 2: white ring + navy fill
-    [_, W, N, N, N, N, N, N, W, _],
-    // Row 3: cyan flame top
-    [_, W, N, _, C, C, _, N, W, _],
-    // Row 4: cyan flame wide
-    [_, W, N, C, C, C, C, N, W, _],
-    // Row 5: sunglasses
-    [_, W, D, D, C, C, D, D, W, _],
-    // Row 6: cyan flame bottom
-    [_, W, N, C, C, C, C, N, W, _],
-    // Row 7: navy bottom
-    [_, W, N, N, N, N, N, N, W, _],
-    // Row 8: white ring bottom
-    [_, _, W, W, W, W, W, W, _, _],
-    // Row 9: empty (padding)
-    [_, _, _, _, _, _, _, _, _, _],
+    // Row 0:  ears (two small navy squares on top)
+    [_, _, N, N, _, _, _, _, _, _, N, N, _, _],
+    // Row 1:  ears bottom + navy top border starts
+    [_, _, N, N, N, N, N, N, N, N, N, N, _, _],
+    // Row 2:  navy outer border top
+    [_, _, N, N, N, N, N, N, N, N, N, N, _, _],
+    // Row 3:  navy | white inner border top
+    [_, _, N, W, W, W, W, W, W, W, W, N, _, _],
+    // Row 4:  navy | white | cyan face top
+    [_, _, N, W, C, C, C, C, C, C, W, N, _, _],
+    // Row 5:  navy | white | cyan face
+    [_, _, N, W, C, C, C, C, C, C, W, N, _, _],
+    // Row 6:  navy | white | glasses: dark-dark-cyan-cyan-dark-dark
+    [_, _, N, W, D, D, C, C, D, D, W, N, _, _],
+    // Row 7:  navy | white | glasses: dark-dark-dark-dark-dark-dark (bridge connects)
+    [_, _, N, W, D, D, D, D, D, D, W, N, _, _],
+    // Row 8:  navy | white | cyan face bottom
+    [_, _, N, W, C, C, C, C, C, C, W, N, _, _],
+    // Row 9:  navy | white | cyan face bottom
+    [_, _, N, W, C, C, C, C, C, C, W, N, _, _],
+    // Row 10: navy | white inner border bottom
+    [_, _, N, W, W, W, W, W, W, W, W, N, _, _],
+    // Row 11: navy outer border bottom
+    [_, _, N, N, N, N, N, N, N, N, N, N, _, _],
+    // Row 12: navy outer border bottom
+    [_, _, N, N, N, N, N, N, N, N, N, N, _, _],
+    // Row 13: padding
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _],
   ];
 
   const lines: string[] = [];
@@ -101,10 +110,12 @@ export function renderGreeting(options?: GreetingOptions): string {
   // Info panel to the right of the character
   const info = [
     "",
+    "",
     `  ${bold(cyan("Vibeforce")) + dim(` v${version}`)}`,
     "",
     org ? `  ${dim("org:")} ${org}` : `  ${dim("no org connected")}`,
     `  ${dim(cwd)}`,
+    "",
   ];
 
   // Combine character (left) + info (right)
