@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { VibeforceAgent, VibeforceStreamEvent, SessionManager } from "vibeforce-core";
+import { MarkdownText } from "./markdown.js";
 import {
   getCommands,
   findCommand,
@@ -322,19 +323,17 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
               {"\n"}
             </Text>
           ) : (
-            <Text>
-              {"\n"}
-              {msg.content}
-              {"\n"}
-            </Text>
+            <Box flexDirection="column" marginTop={1} marginBottom={1}>
+              <MarkdownText>{msg.content}</MarkdownText>
+            </Box>
           )}
         </Box>
       ))}
 
       {/* Streaming response */}
       {streaming && currentResponse && (
-        <Box marginBottom={0}>
-          <Text>{currentResponse}</Text>
+        <Box flexDirection="column" marginBottom={0}>
+          <MarkdownText>{currentResponse}</MarkdownText>
         </Box>
       )}
 
