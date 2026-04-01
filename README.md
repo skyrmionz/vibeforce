@@ -15,19 +15,19 @@
 ## Install
 
 ```bash
-npm install -g @vibeforce/cli
+npm install -g vibeforce
 ```
 
 ### Prerequisites
 
 - **Node.js 20+**
 - **Salesforce CLI** (`sf`) — [install guide](https://developer.salesforce.com/tools/salesforcecli)
-- **LLM API key** — Anthropic (default), OpenAI, or any supported provider
+- **OpenRouter API key** — one key, any model ([get one here](https://openrouter.ai/keys))
 - **Python 3.9+** with `robotframework` + `cumulusci` (for Shadow DOM automation)
 
 ```bash
 # Set your API key
-export ANTHROPIC_API_KEY=sk-ant-...
+export OPENROUTER_API_KEY=sk-or-...
 
 # Authenticate a Salesforce org
 sf org login web --alias my-org
