@@ -62,12 +62,12 @@ function renderAstro(): string[] {
     // Line 2: row4+row5 = cyan + cyan (solid face)
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // row 4: cyan
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // row 5: cyan
-    // Line 3: row6+row7 = full dark bar (bridge) + DD-CCCC-DD (lenses)
+    // Line 3: row6+row7 = full dark bar (bridge) + DDD-CC-DDD (thicker frames)
     [_, N, W, D, D, D, D, D, D, D, D, W, N, _],  // row 6: bridge bar
-    [_, N, W, D, D, C, C, C, C, D, D, W, N, _],  // row 7: frames+lenses
-    // Line 4: row8+row9 = cyan + cyan (solid face)
+    [_, N, W, D, D, D, C, C, D, D, D, W, N, _],  // row 7: DDD frames + CC lenses
+    // Line 4: row8+row9 = cyan + white (face bottom, white gap visible)
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // row 8: cyan
-    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // row 9: cyan
+    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],  // row 9: white (gap)
     // Line 5: row10+row11 = white + navy (bottom transition, mirrors line 1)
     [_, N, W, W, W, W, W, W, W, W, W, W, N, _],  // row 10: white
     [_, N, N, N, N, N, N, N, N, N, N, N, N, _],  // row 11: navy
