@@ -32,11 +32,33 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
   const [currentResponse, setCurrentResponse] = useState("");
   const [currentTool, setCurrentTool] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState(initialModel);
+  const [selectedHint, setSelectedHint] = useState(-1);
+  const [showCommandMenu, setShowCommandMenu] = useState(false);
 
   useInput((_input, key) => {
     if (key.ctrl && _input === "c") {
       exit();
       process.exit(0);
+    }
+
+    // Arrow key navigation for command menu
+    if (showCommandMenu && hints.length > 0) {
+      if (key.downArrow) {
+        setSelectedHint((prev) => Math.min(prev + 1, hints.length - 1));
+      } else if (key.upArrow) {
+        setSelectedHint((prev) => Math.max(prev - 1, 0));
+      } else if (key.return && selectedHint >= 0) {
+        // Fill input with selected command
+        const cmd = hints[selectedHint];
+        if (cmd) {
+          setInput(`/${cmd.name} `);
+          setShowCommandMenu(false);
+          setSelectedHint(-1);
+        }
+      } else if (key.escape) {
+        setShowCommandMenu(false);
+        setSelectedHint(-1);
+      }
     }
   });
 
@@ -54,15 +76,25 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
 
   // Autocomplete hints: filter commands by prefix when input starts with /
   const hints = useMemo(() => {
-    if (!input.startsWith("/") || input.length < 1) return [];
-    const partial = input.slice(1).toLowerCase();
-    if (!partial) {
-      // Just "/" — show first 5 commands
-      return getCommands(skillsDir).slice(0, 5);
+    if (!input.startsWith("/") || input.length < 1) {
+      setShowCommandMenu(false);
+      setSelectedHint(-1);
+      return [];
     }
-    return getCommands(skillsDir)
-      .filter((c) => c.name.toLowerCase().startsWith(partial))
-      .slice(0, 5);
+    const partial = input.slice(1).toLowerCase();
+    const allCmds = getCommands(skillsDir);
+    let filtered: SlashCommand[];
+    if (!partial) {
+      // Just "/" — show all commands (scrollable)
+      filtered = allCmds;
+      setShowCommandMenu(true);
+    } else {
+      filtered = allCmds.filter((c) => c.name.toLowerCase().startsWith(partial));
+      setShowCommandMenu(filtered.length > 0);
+    }
+    // Reset selection when filter changes
+    setSelectedHint((prev) => Math.min(prev, filtered.length - 1));
+    return filtered;
   }, [input, skillsDir]);
 
   const handleSubmit = useCallback(
@@ -74,18 +106,18 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
 
       // ── Slash command handling ──────────────────────────────────
       if (trimmed.startsWith("/")) {
-        // Just "/" alone — show all commands
+        // Just "/" alone — if a hint is selected, use it; otherwise show menu
+        if (trimmed === "/" && showCommandMenu && selectedHint >= 0 && hints[selectedHint]) {
+          const cmd = hints[selectedHint];
+          setInput(`/${cmd.name} `);
+          setShowCommandMenu(false);
+          setSelectedHint(-1);
+          return;
+        }
         if (trimmed === "/") {
-          const cmds = getCommands(skillsDir);
-          const maxName = Math.max(...cmds.map((c) => c.name.length));
-          const lines = cmds.map((c) => {
-            const tag = c.type === "prompt" ? " (prompt)" : "";
-            return `  /${c.name.padEnd(maxName + 2)}${c.description}${tag}`;
-          });
-          setMessages((prev) => [
-            ...prev,
-            { role: "system", content: `Available commands:\n\n${lines.join("\n")}\n` },
-          ]);
+          // Show scrollable menu hint
+          setShowCommandMenu(true);
+          setSelectedHint(0);
           return;
         }
 
@@ -287,16 +319,36 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
         </Box>
       )}
 
-      {/* Autocomplete hints */}
-      {!streaming && input.startsWith("/") && hints.length > 0 && (
-        <Box flexDirection="column" marginLeft={2}>
-          {hints.map((cmd, i) => (
-            <Text key={i} dimColor>
-              <Text color="#635BFF">{"/"}</Text>
-              <Text>{cmd.name}</Text>
-              <Text dimColor>{"  "}{cmd.description}</Text>
-            </Text>
-          ))}
+      {/* Scrollable command menu */}
+      {!streaming && showCommandMenu && hints.length > 0 && (
+        <Box flexDirection="column" marginLeft={2} marginBottom={0}>
+          <Text dimColor>{`  ${hints.length} commands (↑↓ navigate, Enter select, Esc close)`}</Text>
+          {hints
+            .slice(
+              Math.max(0, selectedHint - 4),
+              Math.max(0, selectedHint - 4) + 10
+            )
+            .map((cmd, i) => {
+              const actualIndex = Math.max(0, selectedHint - 4) + i;
+              const isSelected = actualIndex === selectedHint;
+              return (
+                <Text key={cmd.name}>
+                  {isSelected ? (
+                    <>
+                      <Text color="#00A1E0" bold>{"❯ "}</Text>
+                      <Text color="#00A1E0" bold>{"/"}{cmd.name}</Text>
+                      <Text>{"  "}{cmd.description}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text>{"  "}</Text>
+                      <Text dimColor>{"/"}{cmd.name}</Text>
+                      <Text dimColor>{"  "}{cmd.description}</Text>
+                    </>
+                  )}
+                </Text>
+              );
+            })}
         </Box>
       )}
 
