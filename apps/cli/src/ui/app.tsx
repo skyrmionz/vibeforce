@@ -104,6 +104,33 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
 
       setInput("");
 
+      // ── Shell command (! prefix) ─────────────────────────────────
+      if (trimmed.startsWith("!")) {
+        const shellCmd = trimmed.slice(1).trim();
+        if (!shellCmd) return;
+        setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+        try {
+          const { execSync } = await import("node:child_process");
+          const output = execSync(shellCmd, {
+            encoding: "utf-8",
+            timeout: 30_000,
+            cwd: process.cwd(),
+            stdio: ["pipe", "pipe", "pipe"],
+          });
+          setMessages((prev) => [
+            ...prev,
+            { role: "system", content: output.trim() || "(no output)" },
+          ]);
+        } catch (err: any) {
+          const output = err.stdout || err.stderr || err.message || "Command failed";
+          setMessages((prev) => [
+            ...prev,
+            { role: "system", content: output.trim() },
+          ]);
+        }
+        return;
+      }
+
       // ── Slash command handling ──────────────────────────────────
       if (trimmed.startsWith("/")) {
         // Just "/" alone — if a hint is selected, use it; otherwise show menu
