@@ -66,9 +66,9 @@ function renderAstro(): string[] {
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
     // Row 5:  cyan face
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
-    // Row 6:  glasses: DD on left, CCCC open center, DD on right
-    [_, N, W, D, D, C, C, C, C, D, D, W, N, _],
-    // Row 7:  glasses row 2 (thick)
+    // Row 6:  glasses with bridge: DD frame, C lens, DD bridge, C lens, DD frame
+    [_, N, W, D, D, C, D, D, C, D, D, W, N, _],
+    // Row 7:  glasses bottom: DD frame, CCCC open, DD frame (no bridge)
     [_, N, W, D, D, C, C, C, C, D, D, W, N, _],
     // Row 8:  cyan face
     [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
