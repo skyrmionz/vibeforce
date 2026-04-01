@@ -42,7 +42,7 @@ export function MarkdownText({ children }: { children: string }): React.ReactEle
       const text = line.replace(/^#{1,3}\s+/, "");
       elements.push(
         <Text key={i} bold color="#00A1E0">
-          {"\n"}{text}
+          {text}
         </Text>
       );
       continue;
@@ -62,7 +62,7 @@ export function MarkdownText({ children }: { children: string }): React.ReactEle
 
     // Empty line
     if (!line.trim()) {
-      elements.push(<Text key={i}>{""}</Text>);
+      elements.push(<Text key={i}>{" "}</Text>);
       continue;
     }
 
@@ -79,7 +79,7 @@ export function MarkdownText({ children }: { children: string }): React.ReactEle
     );
   }
 
-  return <>{elements.map((el, i) => <React.Fragment key={i}>{el}{"\n"}</React.Fragment>)}</>;
+  return <>{elements.map((el, i) => <Text key={i}>{el}{"\n"}</Text>)}</>;
 }
 
 /**

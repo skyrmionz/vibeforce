@@ -43,6 +43,12 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       process.exit(0);
     }
 
+    // Ctrl+U to clear input line
+    if (key.ctrl && _input === "u") {
+      setInput("");
+      return;
+    }
+
     // ESC to cancel streaming (interrupt the agent)
     if (key.escape && streaming) {
       setStreaming(false);
@@ -361,7 +367,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
 
       {streaming && !currentTool && !currentResponse && (
         <Box>
-          <Text dimColor>{"  Thinking..."}</Text>
+          <Text color="#00A1E0">{"  Vibing..."}</Text>
         </Box>
       )}
 
@@ -398,8 +404,8 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
         </Box>
       )}
 
-      {/* Input */}
-      {!streaming && (
+      {/* Input — always visible so user can type while agent is working */}
+      {(
         <Box marginTop={1}>
           <Text color="#00A1E0" bold>
             {"❯ "}
@@ -408,7 +414,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
             value={input}
             onChange={setInput}
             onSubmit={handleSubmit}
-            placeholder="Ask Vibeforce anything... (type / for commands)"
+            placeholder={streaming ? "Type to interrupt or add context..." : "Ask Vibeforce anything... (type / for commands)"}
           />
         </Box>
       )}
