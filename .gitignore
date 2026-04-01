@@ -1,5 +1,30 @@
 node_modules/
 dist/
+*.js.map
+*.d.ts.map
 *.tsbuildinfo
-pnpm-lock.yaml
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# VibeForce local state
+.vibeforce/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Worktrees (development only)
 .claude/
