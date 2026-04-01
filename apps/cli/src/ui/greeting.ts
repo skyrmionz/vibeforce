@@ -51,34 +51,33 @@ function renderAstro(): string[] {
 
   // 14x14 pixel grid — balanced proportions, thick glasses with bridge
   const grid: (string | null)[][] = [
+    //         1  2  3  4  5  6  7  8  9 10 11 12 13 14
     // Row 0:  ears
-    [_, N, N, _, _, _, _, _, _, _, _, N, N, _],
+    [_, N, N, _, _, _, _, _, _, _, _, N, N, _],  // 14 cols
     // Row 1:  navy top border
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],  // 14
     // Row 2:  navy top border row 2
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    // Row 3:  white inner border top
-    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],  // 14
+    // Row 3:  white border top
+    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],  // 14
     // Row 4:  cyan face
-    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // 14
     // Row 5:  cyan face
-    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
-    // Row 6:  glasses top bar connecting both frames
-    [_, N, W, D, D, D, D, D, D, D, D, W, N, _],
-    // Row 7:  glasses bottom: frame D, lens CCC, bridge DD, lens CCC, frame D
-    [_, N, W, D, C, C, C, D, D, C, C, C, N, _],
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // 14
+    // Row 6:  glasses top bar (full dark connecting bar)
+    [_, N, W, D, D, D, D, D, D, D, D, W, N, _],  // 14
+    // Row 7:  glasses: frame D, lens CC, bridge DD, lens CC, frame D
+    [_, N, W, D, C, C, D, D, C, C, D, W, N, _],  // 14  inner: D CC DD CC D
     // Row 8:  cyan face
-    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // 14
     // Row 9:  cyan face
-    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],
-    // Row 10: white inner border bottom (gap between face and border)
-    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
-    // Row 11: white inner border bottom row 2
-    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],
-    // Row 12: navy outer border bottom
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
-    // Row 13: navy outer border bottom row 2
-    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],
+    [_, N, W, C, C, C, C, C, C, C, C, W, N, _],  // 14
+    // Row 10: white border bottom
+    [_, N, W, W, W, W, W, W, W, W, W, W, N, _],  // 14
+    // Row 11: navy bottom border
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],  // 14
+    // Row 12: navy bottom border row 2
+    [_, N, N, N, N, N, N, N, N, N, N, N, N, _],  // 14
   ];
 
   const lines: string[] = [];
