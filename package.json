@@ -1,0 +1,11 @@
+{
+  "name": "vibeforce",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Claude Code for Salesforce — the open-source vibe coding CLI agent",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

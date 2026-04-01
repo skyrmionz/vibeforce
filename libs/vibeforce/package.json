@@ -1,0 +1,16 @@
+{
+  "name": "@vibeforce/core",
+  "version": "0.1.0",
+  "description": "VibeForce Salesforce agent library",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

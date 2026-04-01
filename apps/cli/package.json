@@ -1,0 +1,20 @@
+{
+  "name": "@vibeforce/cli",
+  "version": "0.1.0",
+  "description": "VibeForce CLI — Claude Code for Salesforce",
+  "type": "module",
+  "bin": {
+    "vibeforce": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@vibeforce/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
