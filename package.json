@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "description": "Claude Code for Salesforce — the open-source vibe coding CLI agent",
   "license": "MIT",
+  "scripts": {
+    "build": "pnpm --filter @vibeforce/core build && pnpm --filter @vibeforce/cli build",
+    "dev": "pnpm --filter @vibeforce/core dev & pnpm --filter @vibeforce/cli dev",
+    "start": "node apps/cli/dist/index.js"
+  },
   "engines": {
     "node": ">=20.0.0"
   },

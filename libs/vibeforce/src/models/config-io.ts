@@ -1,0 +1,108 @@
+/**
+ * Config file I/O — read, write, and bootstrap ~/.vibeforce/models.yaml.
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import yaml from 'js-yaml';
+import {
+  type ModelConfig,
+  type ModelProvider,
+  getDefaultConfig,
+  parseRawConfig,
+} from './config.js';
+
+/** Resolve the config directory path (~/.vibeforce). */
+function configDir(): string {
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? '~';
+  return path.join(home, '.vibeforce');
+}
+
+/** Resolve the models.yaml path. */
+export function configFilePath(): string {
+  return path.join(configDir(), 'models.yaml');
+}
+
+/**
+ * Ensure ~/.vibeforce/ exists and write the default models.yaml if it is
+ * missing. Returns the path to the config file.
+ */
+export function ensureConfigFile(): string {
+  const dir = configDir();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  const filePath = configFilePath();
+  if (!fs.existsSync(filePath)) {
+    writeConfig(getDefaultConfig());
+  }
+  return filePath;
+}
+
+/** Convert a ModelConfig back into the YAML-friendly snake_case shape. */
+function toYamlShape(
+  config: ModelConfig
+): Record<string, unknown> {
+  const providers: Record<string, unknown> = {};
+  for (const [name, p] of Object.entries(config.providers)) {
+    const entry: Record<string, unknown> = {
+      type: p.type,
+      models: p.models,
+    };
+    if (p.baseUrl) entry.base_url = p.baseUrl;
+    if (p.apiKey) entry.api_key = p.apiKey;
+    if (p.autoDiscover !== undefined) entry.auto_discover = p.autoDiscover;
+    providers[name] = entry;
+  }
+  return {
+    default_model: config.defaultModel,
+    providers,
+  };
+}
+
+/** Write a ModelConfig to ~/.vibeforce/models.yaml. */
+export function writeConfig(config: ModelConfig): void {
+  const dir = configDir();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  const content = yaml.dump(toYamlShape(config), {
+    lineWidth: 120,
+    noRefs: true,
+  });
+  fs.writeFileSync(configFilePath(), content, 'utf-8');
+}
+
+/** Read the current config from disk (returns defaults if missing). */
+export function readConfig(): ModelConfig {
+  const filePath = configFilePath();
+  if (!fs.existsSync(filePath)) {
+    return getDefaultConfig();
+  }
+  const raw = yaml.load(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+  return parseRawConfig(raw as Parameters<typeof parseRawConfig>[0]);
+}
+
+/** Set the persistent default model and write to disk. */
+export function setDefaultModel(modelId: string): void {
+  const config = readConfig();
+  config.defaultModel = modelId;
+  writeConfig(config);
+}
+
+/** Add or replace a provider in the config and persist. */
+export function addProvider(name: string, provider: ModelProvider): void {
+  const config = readConfig();
+  config.providers[name] = provider;
+  writeConfig(config);
+}
+
+/** Remove a provider from the config and persist. */
+export function removeProvider(name: string): boolean {
+  const config = readConfig();
+  if (!(name in config.providers)) return false;
+  delete config.providers[name];
+  writeConfig(config);
+  return true;
+}
