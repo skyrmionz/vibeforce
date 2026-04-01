@@ -14,10 +14,17 @@
 
 ## Getting Started
 
-### 1. Install
+### 1. Run
+
+```bash
+npx vibeforce
+```
+
+This always runs the latest version. Or install globally:
 
 ```bash
 npm install -g vibeforce
+vibeforce
 ```
 
 ### 2. Get an API Key

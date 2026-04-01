@@ -24,7 +24,26 @@ export class SfListOrgsTool extends StructuredTool {
 
   async _call(): Promise<string> {
     const result = await runSfCommand("org", ["list"]);
-    return JSON.stringify(result.data, null, 2);
+    // Strip sensitive fields (access tokens, refresh tokens, client secrets)
+    const data = result.data as any;
+    const sanitize = (orgs: any[]) =>
+      orgs?.map((o: any) => ({
+        alias: o.alias,
+        username: o.username,
+        orgId: o.orgId,
+        instanceUrl: o.instanceUrl,
+        connectedStatus: o.connectedStatus,
+        isDefaultUsername: o.isDefaultUsername,
+        isDefaultDevHubUsername: o.isDefaultDevHubUsername,
+        isDevHub: o.isDevHub,
+        isScratch: o.isScratch,
+        isSandbox: o.isSandbox,
+      })) ?? [];
+    const sanitized = {
+      nonScratchOrgs: sanitize(data?.nonScratchOrgs ?? data?.other),
+      scratchOrgs: sanitize(data?.scratchOrgs),
+    };
+    return JSON.stringify(sanitized, null, 2);
   }
 }
 
