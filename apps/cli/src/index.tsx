@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import { render } from "ink";
 import React from "react";
-import { createVibeforceAgent } from "vibeforce-core";
+import { createVibeforceAgent, createSessionManager, detectProjectContext, buildContextPrompt } from "vibeforce-core";
 import { modelCommands } from "./commands/model.js";
 import { skillCommands } from "./commands/skill.js";
 import { toolCommands } from "./commands/tool.js";
@@ -28,16 +28,47 @@ program
   .option("-o, --org <alias>", "Default Salesforce org alias")
   .option("-k, --api-key <key>", "Anthropic API key")
   .option("-s, --skills-dir <path>", "Skills directory", "./skills")
+  .option("-r, --resume <id>", "Resume a previous session by ID")
   .action(async (opts) => {
     // Resolve API key: flag > OPENROUTER_API_KEY > ANTHROPIC_API_KEY
     const apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY;
 
+    // Detect project context
+    const ctx = await detectProjectContext(process.cwd());
+    const orgAlias = opts.org || ctx.defaultOrg;
+
     // Print the greeting
     console.log(renderGreeting({
       version: program.version() ?? "0.1.0",
-      org: opts.org,
+      org: orgAlias,
       cwd: process.cwd(),
     }));
+
+    // Show detected context
+    if (ctx.isSfdxProject && ctx.projectName) {
+      console.log(`  Detected SFDX project: ${ctx.projectName}`);
+    }
+    if (ctx.defaultOrg && !opts.org) {
+      console.log(`  Default org: ${ctx.defaultOrg}`);
+    }
+
+    // Create session manager
+    const sessionManager = createSessionManager();
+
+    // Resume session if requested
+    let initialMessages: Array<{ role: "user" | "assistant" | "tool" | "system"; content: string }> | undefined;
+    if (opts.resume) {
+      const loaded = await sessionManager.load(opts.resume);
+      if (loaded.length > 0) {
+        initialMessages = loaded.map((m) => ({
+          role: (m.role as "user" | "assistant" | "tool" | "system") ?? "user",
+          content: m.content,
+        }));
+        console.log(`  Resumed session ${opts.resume.slice(0, 8)}... (${loaded.length} messages)\n`);
+      } else {
+        console.log(`  Session ${opts.resume} not found. Starting fresh.\n`);
+      }
+    }
 
     // Check for API key before creating agent
     if (!apiKey) {
@@ -49,16 +80,23 @@ program
       );
     }
 
+    // Build system prompt from context
+    const contextPrompt = buildContextPrompt(ctx);
+    let systemPrompt = contextPrompt || undefined;
+    if (orgAlias && !contextPrompt.includes(orgAlias)) {
+      systemPrompt = (systemPrompt ? systemPrompt + "\n" : "") +
+        `The user's default Salesforce org alias is: ${orgAlias}`;
+    }
+
     // Create the agent (may be null if no API key)
-    let agent: ReturnType<typeof createVibeforceAgent> | null = null;
+    let agent: Awaited<ReturnType<typeof createVibeforceAgent>> | null = null;
     try {
-      agent = createVibeforceAgent({
+      agent = await createVibeforceAgent({
         model: opts.model,
         apiKey,
         skillsDir: opts.skillsDir,
-        systemPrompt: opts.org
-          ? `The user's default Salesforce org alias is: ${opts.org}`
-          : undefined,
+        systemPrompt,
+        projectContext: ctx,
       });
     } catch (err: any) {
       if (!apiKey) {
@@ -73,8 +111,10 @@ program
       React.createElement(App, {
         agent: agent!,
         skillsDir: opts.skillsDir,
-        org: opts.org,
+        org: orgAlias,
         model: opts.model,
+        sessionManager,
+        initialMessages,
       })
     );
 

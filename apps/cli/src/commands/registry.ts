@@ -20,6 +20,10 @@ import {
   compactMessages,
   estimateMessagesTokens,
   createSessionManager,
+  sessionCostTracker,
+  restoreLastVersion,
+  getLastEditedFile,
+  loadHooks,
 } from "vibeforce-core";
 import type { Skill } from "vibeforce-core";
 import { execSync } from "node:child_process";
@@ -897,6 +901,56 @@ const threadsCommand: SlashCommand = {
   },
 };
 
+const resumeCommand: SlashCommand = {
+  name: "resume",
+  description: "Resume a previous conversation session",
+  type: "local",
+  execute: async () => {
+    const manager = createSessionManager();
+    const sessions = await manager.list();
+    if (sessions.length === 0) return "No previous sessions found.";
+
+    const lines = sessions.slice(0, 10).map((s, i) =>
+      `  ${i + 1}. ${s.id.slice(0, 8)}... (${s.messageCount} messages, ${new Date(s.lastMessageAt).toLocaleString()})`,
+    );
+    return `Previous sessions:\n\n${lines.join("\n")}\n\nUse: vibeforce --resume <session-id> to resume.`;
+  },
+};
+
+const costCommand: SlashCommand = {
+  name: "cost",
+  description: "Show token usage and estimated cost for this session",
+  type: "local",
+  execute: async () => {
+    return sessionCostTracker.getUsageSummary();
+  },
+};
+
+const undoCommand: SlashCommand = {
+  name: "undo",
+  description: "Restore the previous version of the last edited file",
+  type: "local",
+  execute: async () => {
+    const lastFile = getLastEditedFile();
+    if (!lastFile) return "No recent file edits to undo.";
+    const restored = await restoreLastVersion(lastFile);
+    if (restored) return `Restored previous version of ${lastFile}`;
+    return `No history found for ${lastFile}`;
+  },
+};
+
+const hooksCommand: SlashCommand = {
+  name: "hooks",
+  description: "List configured hooks from .vibeforce/settings.json",
+  type: "local",
+  execute: async () => {
+    const hooks = loadHooks();
+    if (hooks.length === 0) return "No hooks configured.\nAdd hooks to .vibeforce/settings.json";
+    const lines = hooks.map((h) => `  ${h.event}: ${h.command} ${(h.args || []).join(" ")}`);
+    return `Configured hooks:\n\n${lines.join("\n")}`;
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
@@ -923,6 +977,10 @@ const builtInCommands: SlashCommand[] = [
   compactCommand,
   rememberCommand,
   threadsCommand,
+  resumeCommand,
+  costCommand,
+  undoCommand,
+  hooksCommand,
   // Salesforce local commands
   orgListCommand,
   orgOpenCommand,

@@ -2,12 +2,17 @@ import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+import { saveFileVersion, trackEditedFile } from "./file-history.js";
 
 export const writeFileTool = tool(
   async ({ filePath, content }) => {
     try {
+      // Save a version snapshot before overwriting
+      await saveFileVersion(filePath);
+
       await mkdir(dirname(filePath), { recursive: true });
       await writeFile(filePath, content, "utf-8");
+      trackEditedFile(filePath);
       return `Successfully wrote ${content.split("\n").length} lines to ${filePath}`;
     } catch (err: any) {
       return `Error writing file: ${err.message}`;

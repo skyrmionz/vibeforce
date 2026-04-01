@@ -1,9 +1,19 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { spawn } from "node:child_process";
+import { checkBashSafety } from "./bash-safety.js";
 
 export const executeTool = tool(
   async ({ command, cwd, timeout }) => {
+    // Safety check before executing
+    const safety = checkBashSafety(command);
+    if (!safety.safe && safety.severity === "block") {
+      return `BLOCKED: ${safety.reason}\nCommand was not executed.`;
+    }
+
+    const warningPrefix =
+      safety.severity === "warning" ? `WARNING: ${safety.reason}\n\n` : "";
+
     const timeoutMs = timeout ?? 120_000;
     return new Promise<string>((resolve) => {
       const proc = spawn("bash", ["-c", command], {
@@ -26,14 +36,14 @@ export const executeTool = tool(
       proc.on("close", (code) => {
         const output = stdout + (stderr ? `\nSTDERR:\n${stderr}` : "");
         if (code !== 0) {
-          resolve(`Exit code ${code}\n${output}`);
+          resolve(`${warningPrefix}Exit code ${code}\n${output}`);
         } else {
-          resolve(output || "(no output)");
+          resolve(`${warningPrefix}${output || "(no output)"}`);
         }
       });
 
       proc.on("error", (err) => {
-        resolve(`Error executing command: ${err.message}`);
+        resolve(`${warningPrefix}Error executing command: ${err.message}`);
       });
     });
   },

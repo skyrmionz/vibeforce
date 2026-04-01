@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
-import type { VibeforceAgent, VibeforceStreamEvent } from "vibeforce-core";
+import type { VibeforceAgent, VibeforceStreamEvent, SessionManager } from "vibeforce-core";
 import {
   getCommands,
   findCommand,
@@ -20,11 +20,13 @@ interface AppProps {
   skillsDir?: string;
   org?: string;
   model?: string;
+  sessionManager?: SessionManager;
+  initialMessages?: Message[];
 }
 
-export default function App({ agent, skillsDir = "./skills", org, model: initialModel }: AppProps) {
+export default function App({ agent, skillsDir = "./skills", org, model: initialModel, sessionManager, initialMessages }: AppProps) {
   const { exit } = useApp();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [currentResponse, setCurrentResponse] = useState("");
@@ -133,6 +135,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
 
       // ── Regular message — send to agent ────────────────────────
       setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+      sessionManager?.appendMessage({ role: "user", content: trimmed, timestamp: new Date().toISOString() });
       await streamToAgent(trimmed);
     },
     [agent, streaming, exit, skillsDir, commandContext]
@@ -180,6 +183,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
                   toolName: event.name,
                 },
               ]);
+              sessionManager?.appendMessage({ role: "tool", content: `Calling ${event.name}...`, timestamp: new Date().toISOString() });
               break;
             case "tool_result":
               setCurrentTool(null);
@@ -195,6 +199,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
                   toolName: event.name,
                 },
               ]);
+              sessionManager?.appendMessage({ role: "tool", content: `${event.name} => ${display}`, timestamp: new Date().toISOString() });
               break;
             case "error":
               setMessages((prev) => [
@@ -215,6 +220,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
           ...prev,
           { role: "assistant", content: fullResponse },
         ]);
+        sessionManager?.appendMessage({ role: "assistant", content: fullResponse, timestamp: new Date().toISOString() });
       }
 
       setCurrentResponse("");

@@ -1,10 +1,14 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { readFile, writeFile } from "node:fs/promises";
+import { saveFileVersion, trackEditedFile } from "./file-history.js";
 
 export const editFileTool = tool(
   async ({ filePath, oldString, newString, replaceAll }) => {
     try {
+      // Save a version snapshot before editing
+      await saveFileVersion(filePath);
+
       const content = await readFile(filePath, "utf-8");
 
       if (!content.includes(oldString)) {
@@ -28,6 +32,7 @@ export const editFileTool = tool(
       }
 
       await writeFile(filePath, updated, "utf-8");
+      trackEditedFile(filePath);
       const replacements = replaceAll ? occurrences : 1;
       return `Successfully replaced ${replacements} occurrence(s) in ${filePath}`;
     } catch (err: any) {

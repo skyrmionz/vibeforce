@@ -47,6 +47,8 @@ export interface SessionManager {
   list(): Promise<Session[]>;
   /** Get the current session ID, or null if none active. */
   getCurrent(): string | null;
+  /** Append a single message to the current session (incremental save). */
+  appendMessage(message: Message): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,7 +182,16 @@ export function createSessionManager(
     return currentSessionId;
   }
 
-  return { save, load, list, getCurrent };
+  function appendMsg(message: Message): void {
+    if (!currentSessionId) {
+      currentSessionId = randomUUID();
+    }
+    ensureDir();
+    const filePath = sessionPath(currentSessionId);
+    appendFileSync(filePath, messageToJsonl(message) + "\n", "utf-8");
+  }
+
+  return { save, load, list, getCurrent, appendMessage: appendMsg };
 }
 
 /**
