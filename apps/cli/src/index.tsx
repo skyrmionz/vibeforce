@@ -31,6 +31,17 @@ program
   .option("-r, --resume <id>", "Resume a previous session by ID")
   .option("-n, --non-interactive <task>", "Run a single task without TUI and exit")
   .action(async (opts) => {
+    // Auto-update check (non-blocking, background)
+    try {
+      const { execSync } = await import("node:child_process");
+      const currentVersion = program.version() ?? "0.0.0";
+      const latest = execSync("npm view vibeforce version 2>/dev/null", { encoding: "utf-8", timeout: 5000 }).trim();
+      if (latest && latest !== currentVersion) {
+        console.log(`\n  Update available: ${currentVersion} → ${latest}`);
+        console.log(`  Run: npm install -g vibeforce\n`);
+      }
+    } catch { /* offline or npm not available — skip silently */ }
+
     // Resolve API key: flag > env vars > config file
     let apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY;
 
