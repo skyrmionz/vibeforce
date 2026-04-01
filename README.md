@@ -2,19 +2,15 @@
 
 **Claude Code for Salesforce** — an open-source CLI agent that lets you vibe code anything with Salesforce.
 
-```
-    ██          ██
-    ██████████████
-     █████████████
-     ███░░░░░░████       VibeForce v0.1.0
-     ██░░░░░░░░███
-     ██▓▓░░░░▓▓███       The Salesforce Vibe Coding Agent
-     ████░░░░█████
-     █████████████       claude-sonnet-4-20250514
-      ████████████       ~/my-project
-```
+<p align="center">
+  <img src="apps/cli/src/ui/agent-astro.png" alt="Agent Astro" width="120" />
+</p>
 
-Admin work, Apex development, Agentforce agents, Data Cloud, custom apps on Heroku — all from your terminal. VibeForce understands Salesforce deeply but writes code in **any language** and deploys anywhere.
+<p align="center">
+  <strong>The Salesforce Vibe Coding Agent</strong><br/>
+  Admin work · Apex development · Agentforce agents · Data Cloud · Custom apps on Heroku<br/>
+  All from your terminal. Any language. Deploy anywhere.
+</p>
 
 ## Install
 
