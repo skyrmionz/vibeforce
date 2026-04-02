@@ -135,7 +135,7 @@ TRACES_PATH=$(sf agent preview end \
 
 ### Step 4: Trace Analysis
 
-Traces are written to: `.sfdx/agents/<AgentName>/sessions/<sessionId>/traces/<planId>.json`
+Traces are written to: `.sf/agents/<AgentName>/sessions/<sessionId>/traces/<planId>.json`
 
 #### 8 Key Analysis Commands
 

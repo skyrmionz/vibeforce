@@ -437,7 +437,7 @@ TRACES_PATH=$(sf agent preview end \
 
 ### Trace Analysis
 
-Trace files are at: `.sfdx/agents/<AgentName>/sessions/<sessionId>/traces/<planId>.json`
+Trace files are at: `.sf/agents/<AgentName>/sessions/<sessionId>/traces/<planId>.json`
 
 Key analysis commands:
 

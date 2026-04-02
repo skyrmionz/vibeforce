@@ -34,8 +34,15 @@ export const coreTools = [
 ];
 
 // ── Salesforce CLI tools ───────────────────────────────────────────────────
-export { runSfCommand } from "./sf-cli.js";
-export type { SfCommandResult, SfCommandOptions } from "./sf-cli.js";
+export { runSfCommand, getSfData } from "./sf-cli.js";
+export type {
+  SfCommandResult,
+  SfCommandOptions,
+  SfQueryResult,
+  SfOrgInfo,
+  SfDeployResult,
+  SfOrgLimits,
+} from "./sf-cli.js";
 
 export {
   SfListOrgsTool,

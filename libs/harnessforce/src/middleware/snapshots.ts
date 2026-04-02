@@ -4,9 +4,6 @@
  */
 
 import type {
-  Middleware,
-  ToolCall,
-  ToolExecutor,
   ToolResult,
 } from './types.js';
 
@@ -59,71 +56,6 @@ export interface SnapshotMiddlewareOptions {
   snapshotDir?: string;
   /** Override the default exec command (for testing). */
   execCommand?: (cmd: string) => Promise<string>;
-}
-
-/**
- * Create the snapshot middleware. It intercepts `sf_deploy` calls and saves
- * a snapshot before proceeding.
- */
-export function createSnapshotMiddleware(
-  options: SnapshotMiddlewareOptions = {},
-): Middleware {
-  const {
-    snapshotDir = '.harnessforce/snapshots',
-    execCommand = defaultExecCommand,
-  } = options;
-
-  const middleware: Middleware = async (
-    call: ToolCall,
-    next: ToolExecutor,
-  ): Promise<ToolResult> => {
-    if (call.name !== 'sf_deploy') {
-      return next(call);
-    }
-
-    // Take snapshot before deploy
-    try {
-      await createSnapshotBeforeDeploy(call.args, { snapshotDir, execCommand });
-    } catch {
-      // Snapshot failure should not block the deploy — log and continue
-      // In a real system we might emit a warning event here
-    }
-
-    return next(call);
-  };
-
-  return middleware;
-}
-
-/**
- * Save a snapshot of the metadata we're about to deploy.
- * Returns the path to the snapshot directory.
- */
-export async function createSnapshotBeforeDeploy(
-  deployArgs: Record<string, unknown>,
-  options: SnapshotMiddlewareOptions = {},
-): Promise<string> {
-  const {
-    snapshotDir = '.harnessforce/snapshots',
-    execCommand = defaultExecCommand,
-  } = options;
-
-  const fs = await import('node:fs/promises');
-  const path = await import('node:path');
-
-  const ts = timestamp();
-  const outputDir = path.join(snapshotDir, ts);
-  await fs.mkdir(outputDir, { recursive: true });
-
-  // Write a manifest of what we're deploying
-  const manifestPath = path.join(outputDir, 'deploy-args.json');
-  await fs.writeFile(manifestPath, JSON.stringify(deployArgs, null, 2), 'utf-8');
-
-  // Retrieve current state from org
-  const cmd = buildRetrieveCommand(deployArgs, outputDir);
-  await execCommand(cmd);
-
-  return outputDir;
 }
 
 /**

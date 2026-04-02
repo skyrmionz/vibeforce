@@ -20,7 +20,6 @@ export type {
 
 // Permissions
 export {
-  createPermissionsMiddleware,
   detectProductionOrg,
   resetOrgInfoCache,
   riskOf,
@@ -29,24 +28,19 @@ export {
 export type { PermissionsMiddlewareOptions } from './permissions.js';
 
 // Dry-run
-export { createDryRunMiddleware } from './dry-run.js';
 export type { DryRunMiddlewareOptions, DryRunResult } from './dry-run.js';
 
 // Snapshots
 export {
-  createSnapshotBeforeDeploy,
-  createSnapshotMiddleware,
   rollbackToLatest,
 } from './snapshots.js';
 export type { SnapshotMiddlewareOptions } from './snapshots.js';
 
 // Audit
-export { createAuditMiddleware } from './audit.js';
 export type { AuditMiddlewareOptions } from './audit.js';
 
 // PII
 export {
-  createPiiMiddleware,
   detectPiiFields,
   isPiiField,
   maskPiiInRecords,
@@ -55,7 +49,6 @@ export type { PiiMiddlewareOptions } from './pii.js';
 
 // Summarization
 export {
-  createSummarizationMiddleware,
   compactMessages,
   estimateTokens,
   estimateMessagesTokens,
@@ -65,7 +58,6 @@ export type { SummarizationConfig } from './summarization.js';
 
 // Memory
 export {
-  createMemoryMiddleware,
   readMemorySources,
   buildMemoryPrompt,
   loadForceInstructions,

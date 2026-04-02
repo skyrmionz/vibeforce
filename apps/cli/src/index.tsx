@@ -251,11 +251,19 @@ program
 
     // Handle graceful shutdown
     process.on("SIGINT", () => {
+      // Save current session before exit (best-effort)
+      try {
+        sessionManager.save([]);
+      } catch { /* best-effort */ }
       instance.unmount();
       process.exit(0);
     });
 
     process.on("SIGTERM", () => {
+      // Save current session before exit (best-effort)
+      try {
+        sessionManager.save([]);
+      } catch { /* best-effort */ }
       instance.unmount();
       process.exit(0);
     });

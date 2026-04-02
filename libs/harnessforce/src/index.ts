@@ -45,7 +45,7 @@ import {
   type ProjectContext,
 } from "./context/detector.js";
 import { buildMemoryPrompt, loadForceInstructions } from "./middleware/memory.js";
-import { detectPiiFields } from "./middleware/pii.js";
+import { detectPiiFields, isPiiField } from "./middleware/pii.js";
 import { riskOf } from "./middleware/permissions.js";
 import { compactMessages } from "./middleware/summarization.js";
 import { sessionCostTracker } from "./cost/tracker.js";
@@ -133,17 +133,15 @@ export {
   // All tools combined
   allTools,
 } from "./tools/index.js";
-export type { SfCommandResult, SfCommandOptions, Todo } from "./tools/index.js";
+export type { SfCommandResult, SfCommandOptions, Todo, SfQueryResult, SfOrgInfo, SfDeployResult, SfOrgLimits } from "./tools/index.js";
+export { getSfData } from "./tools/index.js";
+
+// ── Config ──────────────────────────────────────────────────────────────────
+export { TIMEOUTS } from "./config/timeouts.js";
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 export {
   composeMiddleware,
-  createPermissionsMiddleware,
-  createDryRunMiddleware,
-  createSnapshotMiddleware,
-  createSnapshotBeforeDeploy,
-  createAuditMiddleware,
-  createPiiMiddleware,
   detectProductionOrg,
   resetOrgInfoCache,
   riskOf,
@@ -153,13 +151,11 @@ export {
   isPiiField,
   maskPiiInRecords,
   // Summarization
-  createSummarizationMiddleware,
   compactMessages,
   estimateTokens,
   estimateMessagesTokens,
   summarizeMessages,
   // Memory
-  createMemoryMiddleware,
   readMemorySources,
   buildMemoryPrompt,
   // FORCE.md instructions
@@ -571,11 +567,11 @@ export async function createHarnessforceAgent(
           // Dry-run validation for sf_deploy
           if (event.name === "sf_deploy") {
             try {
-              const dryRun = await runSfCommand("project", [
-                "deploy",
-                "start",
-                "--dry-run",
-              ]);
+              const deployArgs = event.data?.input;
+              const sourcePath = (deployArgs as any)?.sourcePath ?? (deployArgs as any)?.source_path;
+              const dryRunArgs = ["deploy", "start", "--dry-run"];
+              if (sourcePath) dryRunArgs.push("--source-dir", sourcePath);
+              const dryRun = await runSfCommand("project", dryRunArgs);
               if (!dryRun.success) {
                 yield {
                   type: "tool_result",
@@ -619,7 +615,14 @@ export async function createHarnessforceAgent(
                 ? parsed
                 : parsed?.records ?? [];
               if (records.length > 0) {
-                const piiFields = detectPiiFields(records[0]);
+                // Collect all unique field names across all records
+                const allFields = new Set<string>();
+                for (const record of records) {
+                  for (const key of Object.keys(record)) {
+                    allFields.add(key);
+                  }
+                }
+                const piiFields = [...allFields].filter(isPiiField);
                 if (piiFields.length > 0) {
                   yield {
                     type: "tool_result",

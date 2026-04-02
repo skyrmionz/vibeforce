@@ -5,10 +5,6 @@
 
 import type {
   ConfirmFn,
-  Middleware,
-  ToolCall,
-  ToolExecutor,
-  ToolResult,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -93,68 +89,11 @@ function parseDryRunOutput(raw: string): DryRunResult {
 }
 
 // ---------------------------------------------------------------------------
-// Middleware factory
+// Types
 // ---------------------------------------------------------------------------
 
 export interface DryRunMiddlewareOptions {
   confirm: ConfirmFn;
   /** Override the default exec command (for testing). */
   execCommand?: (cmd: string) => Promise<string>;
-}
-
-export function createDryRunMiddleware(
-  options: DryRunMiddlewareOptions,
-): Middleware {
-  const { confirm, execCommand = defaultExecCommand } = options;
-
-  const middleware: Middleware = async (
-    call: ToolCall,
-    next: ToolExecutor,
-  ): Promise<ToolResult> => {
-    // Only intercept deploy calls
-    if (call.name !== 'sf_deploy') {
-      return next(call);
-    }
-
-    // 1. Run dry-run validation
-    const cmd = buildDryRunCommand(call.args);
-    let dryRunResult: DryRunResult;
-
-    try {
-      const output = await execCommand(cmd);
-      dryRunResult = parseDryRunOutput(output);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return {
-        success: false,
-        error: `Dry-run failed: ${message}`,
-      };
-    }
-
-    // 2. Show results
-    if (!dryRunResult.success) {
-      return {
-        success: false,
-        error: dryRunResult.summary,
-        data: dryRunResult.raw,
-      };
-    }
-
-    // 3. Ask user to confirm real deploy
-    const confirmed = await confirm(
-      `${dryRunResult.summary}\nDeploy for real? [y/N]`,
-    );
-
-    if (!confirmed) {
-      return {
-        success: false,
-        error: 'Deploy aborted by user after dry-run.',
-      };
-    }
-
-    // 4. Proceed with the actual deploy
-    return next(call);
-  };
-
-  return middleware;
 }

@@ -8,7 +8,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { homedir } from "node:os";
-import type { Middleware, ToolCall, ToolExecutor, ToolResult } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -143,28 +142,3 @@ export function loadForceInstructions(cwd?: string): string {
     "\n</force-instructions>";
 }
 
-// ---------------------------------------------------------------------------
-// Middleware factory
-// ---------------------------------------------------------------------------
-
-/**
- * Create a memory middleware.
- *
- * Like the summarization middleware, memory injection happens at the prompt
- * level rather than at the tool-call level. This middleware is a pass-through
- * for tool calls, but exposes `buildMemoryPrompt` for the agent to use.
- */
-export function createMemoryMiddleware(config?: MemoryConfig): Middleware {
-  const _config = config ?? {
-    sources: [".harnessforce/agent.md", "~/.harnessforce/agent.md"],
-  };
-
-  const middleware: Middleware = async (
-    call: ToolCall,
-    next: ToolExecutor,
-  ): Promise<ToolResult> => {
-    return next(call);
-  };
-
-  return middleware;
-}

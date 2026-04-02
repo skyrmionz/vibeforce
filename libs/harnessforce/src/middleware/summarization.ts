@@ -4,8 +4,7 @@
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import type { Middleware, ToolCall, ToolExecutor, ToolResult } from "./types.js";
+import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -142,31 +141,3 @@ export function compactMessages(
   return [summaryMessage, ...recentMessages];
 }
 
-// ---------------------------------------------------------------------------
-// Middleware factory
-// ---------------------------------------------------------------------------
-
-/**
- * Create a summarization middleware.
- *
- * This middleware is a pass-through for tool calls — it does not intercept
- * tool execution. Instead, it exposes the `compactMessages` function for
- * the agent loop to call when managing conversation state.
- *
- * The middleware itself simply delegates to the next executor unchanged.
- */
-export function createSummarizationMiddleware(
-  config?: SummarizationConfig,
-): Middleware {
-  const _config = config ?? {};
-
-  const middleware: Middleware = async (
-    call: ToolCall,
-    next: ToolExecutor,
-  ): Promise<ToolResult> => {
-    // Pass through — summarization is handled at the message management layer
-    return next(call);
-  };
-
-  return middleware;
-}

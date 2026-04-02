@@ -7,13 +7,9 @@
 
 import type {
   ConfirmFn,
-  Middleware,
   OrgInfo,
   PermissionMode,
   RiskLevel,
-  ToolCall,
-  ToolExecutor,
-  ToolResult,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -157,7 +153,7 @@ function isProductionOrg(org: OrgInfo | null): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Middleware factory
+// Types (kept for backwards compatibility)
 // ---------------------------------------------------------------------------
 
 export interface PermissionsMiddlewareOptions {
@@ -165,61 +161,4 @@ export interface PermissionsMiddlewareOptions {
   confirm: ConfirmFn;
   /** Override the default exec command (used to detect prod org). */
   execCommand?: (cmd: string) => Promise<string>;
-}
-
-export function createPermissionsMiddleware(
-  options: PermissionsMiddlewareOptions,
-): Middleware {
-  const { mode, confirm, execCommand } = options;
-
-  const middleware: Middleware = async (
-    call: ToolCall,
-    next: ToolExecutor,
-  ): Promise<ToolResult> => {
-    const risk = riskOf(call.name);
-    let action = PERMISSION_TABLE[mode][risk];
-
-    // Production org escalation
-    const orgInfo = await detectProductionOrg(execCommand);
-    if (isProductionOrg(orgInfo)) {
-      if (risk === 'write' && action === 'auto') {
-        action = 'confirm';
-      }
-      if (risk === 'destructive' && action !== 'blocked' && action !== 'hidden') {
-        action = 'confirm';
-      }
-    }
-
-    switch (action) {
-      case 'auto':
-        return next(call);
-
-      case 'confirm': {
-        const prodWarning = isProductionOrg(orgInfo)
-          ? '\n\x1b[31m⛔ WARNING: This is a PRODUCTION org!\x1b[0m\n'
-          : '';
-        const confirmed = await confirm(
-          `${prodWarning}Tool "${call.name}" (${risk}) requires confirmation. Proceed? [y/N]`,
-        );
-        if (!confirmed) {
-          return { success: false, error: `Blocked by user: ${call.name}` };
-        }
-        return next(call);
-      }
-
-      case 'blocked':
-        return {
-          success: false,
-          error: `Tool "${call.name}" is blocked in "${mode}" mode.`,
-        };
-
-      case 'hidden':
-        return {
-          success: false,
-          error: `Tool "${call.name}" is not available in "${mode}" mode.`,
-        };
-    }
-  };
-
-  return middleware;
 }
