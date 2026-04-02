@@ -78,12 +78,23 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
     // ESC to cancel streaming (interrupt the agent)
     if (key.escape && streaming) {
       setStreaming(false);
-      setCurrentResponse("");
+      // Preserve partial response in history (like Claude Code)
+      setCurrentResponse((partial) => {
+        if (partial.trim()) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: partial },
+            { role: "system", content: "Interrupted · What should Harnessforce do instead?" },
+          ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            { role: "system", content: "Interrupted · What should Harnessforce do instead?" },
+          ]);
+        }
+        return "";
+      });
       setCurrentTool(null);
-      setMessages((prev) => [
-        ...prev,
-        { role: "system", content: "Interrupted. You can add more context or ask a new question." },
-      ]);
       return;
     }
 

@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { appendFileSync, mkdirSync, existsSync, globSync } from "node:fs";
+import { appendFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import type { StructuredToolInterface } from "@langchain/core/tools";
@@ -19,17 +19,7 @@ import { AGENTFORCE_PROMPT } from "./prompts/agentforce.js";
 import { DATA_CLOUD_PROMPT } from "./prompts/datacloud.js";
 import { SYSTEM_PROMPT } from "./prompts/system.js";
 import { buildToolGuidancePrompt } from "./prompts/tool-guidance.js";
-import { SF_GOVERNOR_LIMITS_PROMPT } from "./prompts/sf-governor-limits.js";
-import { SF_TRIGGER_PATTERNS_PROMPT } from "./prompts/sf-trigger-patterns.js";
-import { SF_TESTING_PROMPT } from "./prompts/sf-testing.js";
-import { SF_FLOW_PROMPT } from "./prompts/sf-flow.js";
-import { SF_LWC_PROMPT } from "./prompts/sf-lwc.js";
-import { SF_SOQL_PROMPT } from "./prompts/sf-soql.js";
-import { SF_API_STRATEGY_PROMPT } from "./prompts/sf-api-strategy.js";
-import { SF_DEPLOYMENT_PROMPT } from "./prompts/sf-deployment.js";
-import { SF_APEX_ARCHITECTURE_PROMPT } from "./prompts/sf-apex-architecture.js";
-import { SF_INTEGRATION_PROMPT } from "./prompts/sf-integration.js";
-import { SF_METADATA_PATTERNS_PROMPT } from "./prompts/sf-metadata-patterns.js";
+// SF prompts are now lazy-loaded via sf_knowledge tool (saves ~21K tokens per turn)
 import {
   getActiveOutputStyle,
   type OutputStyleConfig,
@@ -417,69 +407,29 @@ export async function createHarnessforceAgent(
 
   prompt += `\n\n## Available Skills\n\n${skillsSummary}${skillNote}`;
 
-  // ── Salesforce deep knowledge (only for SFDX projects) ───────────────
+  // ── Salesforce knowledge (lazy-loaded via sf_knowledge tool) ─────────
+  // Instead of injecting ~21K tokens of SF prompts into every request,
+  // provide a compact summary and let the agent load full knowledge on demand.
   if (projectContext.isSfdxProject || projectContext.defaultOrg) {
-    const cwd = process.cwd();
+    prompt += `\n\n## Salesforce Platform Knowledge
 
-    // Detect project content to conditionally inject relevant SF prompts
-    // Single glob pass (was 4 separate scans), excludes node_modules
-    const sfFiles = globSync("**/*.{cls,js-meta.xml,flow-meta.xml,agent}", { cwd, exclude: (p: any) => (p.name ?? p).includes("node_modules") });
-    const hasApex = sfFiles.some(f => f.endsWith(".cls"));
-    const hasLWC = sfFiles.some(f => f.endsWith(".js-meta.xml"));
-    const hasFlows = sfFiles.some(f => f.endsWith(".flow-meta.xml"));
-    const hasAgentScript = sfFiles.some(f => f.endsWith(".agent"));
-    const hasDetectedFiles = hasApex || hasLWC || hasFlows || hasAgentScript;
+You have deep expertise across the Salesforce platform. When you need detailed guidance on a specific topic, use the sf_knowledge tool to load it. Available topics:
 
-    const sfPrompts: string[] = [];
+- **governor-limits**: DML, SOQL, CPU, heap limits and patterns to avoid them
+- **soql**: Query optimization, relationships, aggregate queries, polymorphic lookups
+- **deployment**: Source tracking, deploy strategies, CI/CD, package development
+- **metadata-patterns**: XML structure for all metadata types, field definitions, permissions
+- **apex-architecture**: Enterprise patterns, service layers, selectors, trigger frameworks
+- **trigger-patterns**: One-trigger-per-object, recursion prevention, async processing
+- **testing**: Test factories, mocking strategies, governor limit testing
+- **lwc**: Component patterns, wire adapters, Lightning Message Service
+- **flows**: Screen flows, auto-launched, orchestrator, flow best practices
+- **api-strategy**: REST vs SOAP vs Bulk vs Streaming, Connected Apps, OAuth
+- **integration**: Platform Events, Change Data Capture, outbound messaging
+- **agentforce**: Agent Development Lifecycle, Agent Script DSL, topic/action design
+- **data-cloud**: DMOs, identity resolution, segments, ingestion
 
-    if (!hasDetectedFiles) {
-      // No detectable SF files but has a connected org — include ALL prompts
-      // since we can't know what the user will ask about
-      sfPrompts.push(
-        SF_GOVERNOR_LIMITS_PROMPT,
-        SF_TRIGGER_PATTERNS_PROMPT,
-        SF_TESTING_PROMPT,
-        SF_FLOW_PROMPT,
-        SF_LWC_PROMPT,
-        SF_SOQL_PROMPT,
-        SF_API_STRATEGY_PROMPT,
-        SF_DEPLOYMENT_PROMPT,
-        SF_APEX_ARCHITECTURE_PROMPT,
-        SF_INTEGRATION_PROMPT,
-        SF_METADATA_PATTERNS_PROMPT,
-      );
-      if (hasAgentScript) sfPrompts.push(AGENTFORCE_PROMPT);
-    } else {
-      // Always include core SF prompts everyone needs
-      sfPrompts.push(
-        SF_GOVERNOR_LIMITS_PROMPT,
-        SF_SOQL_PROMPT,
-        SF_DEPLOYMENT_PROMPT,
-        SF_METADATA_PATTERNS_PROMPT,
-      );
-
-      // Conditional on detected project content
-      if (hasApex) {
-        sfPrompts.push(
-          SF_APEX_ARCHITECTURE_PROMPT,
-          SF_TRIGGER_PATTERNS_PROMPT,
-          SF_TESTING_PROMPT,
-        );
-      }
-      if (hasLWC) sfPrompts.push(SF_LWC_PROMPT);
-      if (hasFlows) sfPrompts.push(SF_FLOW_PROMPT);
-      if (hasAgentScript) sfPrompts.push(AGENTFORCE_PROMPT);
-
-      // Include these if any SF work detected
-      sfPrompts.push(SF_API_STRATEGY_PROMPT, SF_INTEGRATION_PROMPT);
-    }
-
-    const sfKnowledgeBlock = [
-      "## Salesforce Platform Deep Knowledge",
-      "",
-      ...sfPrompts,
-    ].join("\n\n");
-    prompt += `\n\n${sfKnowledgeBlock}`;
+Use sf_knowledge before writing Apex, deploying metadata, or building agents to ensure best practices.`;
   }
 
   if (systemPrompt) {

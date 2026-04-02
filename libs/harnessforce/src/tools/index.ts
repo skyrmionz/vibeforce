@@ -165,6 +165,11 @@ export type { Todo } from "./todos.js";
 
 import { writeTodosTool } from "./todos.js";
 
+// ── SF Knowledge (lazy-loaded prompts) ──────────────────────────────────
+export { sfKnowledgeTool } from "./sf-knowledge.js";
+
+import { sfKnowledgeTool } from "./sf-knowledge.js";
+
 // ── Unicode safety ──────────────────────────────────────────────────────
 export { stripDangerousUnicode, hasDangerousUnicode } from "./unicode-safety.js";
 
@@ -172,7 +177,7 @@ export { stripDangerousUnicode, hasDangerousUnicode } from "./unicode-safety.js"
 
 import type { StructuredToolInterface } from "@langchain/core/tools";
 
-/** All tools combined (core + SF + docs + browser + agentforce + data cloud + web + todos). */
+/** All tools combined (core + SF + docs + browser + agentforce + data cloud + web + todos + knowledge). */
 export const allTools: StructuredToolInterface[] = [
   ...coreTools,
   ...coreSfTools,
@@ -184,4 +189,5 @@ export const allTools: StructuredToolInterface[] = [
   ...dataCloudTools,
   ...webTools,
   writeTodosTool,
+  sfKnowledgeTool,
 ] as StructuredToolInterface[];
