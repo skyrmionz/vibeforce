@@ -47,7 +47,7 @@ import {
 import { buildMemoryPrompt, loadForceInstructions } from "./middleware/memory.js";
 import { detectPiiFields, isPiiField } from "./middleware/pii.js";
 import { riskOf } from "./middleware/permissions.js";
-import { compactMessages } from "./middleware/summarization.js";
+import { compactMessages as _compactMessages, estimateMessagesTokens as _estimateMessagesTokens } from "./middleware/summarization.js";
 import { sessionCostTracker } from "./cost/tracker.js";
 import { executeHooks } from "./hooks/index.js";
 import { stripDangerousUnicode } from "./tools/unicode-safety.js";
@@ -524,11 +524,52 @@ export async function createHarnessforceAgent(
         effectiveMessage = `[PLAN MODE] ${message}`;
       }
 
+      // ── Proactive compaction: trim history before it balloons ────────
+      try {
+        const state = await activeGraph.getState({ configurable: { thread_id: tid } });
+        if (state?.values?.messages && Array.isArray(state.values.messages)) {
+          const historyTokens = _estimateMessagesTokens(
+            state.values.messages.map((m: any) => ({
+              role: m._getType?.() === "human" ? "user" : "assistant",
+              content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+            })),
+          );
+          if (historyTokens > 60_000) {
+            const compacted = _compactMessages(
+              state.values.messages.map((m: any) => ({
+                role: m._getType?.() === "human" ? "user" : "assistant",
+                content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+              })),
+              { maxTokens: 40_000, keepRecentMessages: 8 },
+            );
+            // Write compacted history back via updateState
+            const { HumanMessage, AIMessage, SystemMessage } = await import("@langchain/core/messages");
+            const newMessages = compacted.map((m) => {
+              if (m.role === "user") return new HumanMessage(m.content);
+              if (m.role === "system") return new SystemMessage(m.content);
+              return new AIMessage(m.content);
+            });
+            await activeGraph.updateState(
+              { configurable: { thread_id: tid } },
+              { messages: newMessages },
+            );
+            appendAuditLog({
+              timestamp: new Date().toISOString(),
+              event: "proactive_compaction",
+              originalTokens: historyTokens,
+              compactedMessages: compacted.length,
+            });
+          }
+        }
+      } catch {
+        // best-effort — don't block the turn if compaction fails
+      }
+
       const eventStream = activeGraph.streamEvents(
         { messages: [{ role: "user", content: effectiveMessage }] },
         {
           version: "v2",
-          recursionLimit: 100,
+          recursionLimit: 40,
           configurable: { thread_id: tid },
         },
       );
@@ -597,7 +638,14 @@ export async function createHarnessforceAgent(
             typeof output === "string"
               ? output
               : output?.content ?? JSON.stringify(output);
-          const contentStr = typeof content === "string" ? content : String(content);
+          let contentStr = typeof content === "string" ? content : String(content);
+
+          // Truncate large tool outputs to prevent context bloat
+          // (edit_file/write_file are small confirmations — skip truncation)
+          const MAX_TOOL_OUTPUT = 4_000;
+          if (contentStr.length > MAX_TOOL_OUTPUT && !["edit_file", "write_file"].includes(event.name)) {
+            contentStr = contentStr.slice(0, MAX_TOOL_OUTPUT) + `\n... (truncated, ${contentStr.length} chars total)`;
+          }
 
           appendAuditLog({
             timestamp: new Date().toISOString(),
@@ -715,7 +763,7 @@ export async function createHarnessforceAgent(
         try {
           const state = await graph.getState({ configurable: { thread_id: tid } });
           if (state?.values?.messages && Array.isArray(state.values.messages)) {
-            const compacted = compactMessages(
+            const compacted = _compactMessages(
               state.values.messages.map((m: any) => ({
                 role: m._getType?.() === "human" ? "user" : "assistant",
                 content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
