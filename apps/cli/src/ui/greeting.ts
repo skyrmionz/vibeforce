@@ -94,7 +94,7 @@ export function renderGreeting(options?: GreetingOptions): string {
   const bold = chalk.bold;
   const cyan = chalk.hex(CYAN);
 
-  const version = options?.version ?? "0.1.0";
+  const version = options?.version ?? "unknown";
   const org = options?.org;
   const cwd = options?.cwd ?? process.cwd();
 

@@ -2,7 +2,19 @@
 import { Command } from "commander";
 import { render } from "ink";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import React from "react";
+
+// Read version from package.json at runtime (never hardcode)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+let CLI_VERSION = "1.2.0";
+try {
+  const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8"));
+  CLI_VERSION = pkg.version;
+} catch { /* fallback */ }
 import { createHarnessforceAgent, createSessionManager, detectProjectContext, buildContextPrompt } from "harnessforce-core";
 import { modelCommands } from "./commands/model.js";
 import { skillCommands } from "./commands/skill.js";
@@ -15,7 +27,7 @@ const program = new Command();
 program
   .name("harnessforce")
   .description("Harnessforce — The Salesforce Vibe Coding Agent")
-  .version("0.1.0")
+  .version(CLI_VERSION)
   .option(
     "-m, --model <model>",
     "Model to use (provider:model format)",
