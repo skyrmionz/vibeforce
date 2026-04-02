@@ -7,7 +7,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { execFile } from "node:child_process";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,17 +34,13 @@ export interface ProjectContext {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function execSafe(cmd: string, cwd: string): string | null {
-  try {
-    return execSync(cmd, {
-      cwd,
-      encoding: "utf-8",
-      timeout: 3_000,
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim();
-  } catch {
-    return null;
-  }
+function execAsync(cmd: string, args: string[], cwd: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    execFile(cmd, args, { cwd, encoding: "utf-8", timeout: 3_000 }, (err, stdout) => {
+      if (err || !stdout) return resolve(null);
+      resolve(stdout.trim());
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -94,20 +90,19 @@ export async function detectProjectContext(
     }
   }
 
-  // Git branch
-  const branch = execSafe("git branch --show-current", dir);
+  // Run git + sf CLI checks in parallel (was sequential — 3x faster)
+  const [branch, status, orgJson] = await Promise.all([
+    execAsync("git", ["branch", "--show-current"], dir),
+    execAsync("git", ["status", "--porcelain"], dir),
+    execAsync("sf", ["config", "get", "target-org", "--json"], dir),
+  ]);
+
   if (branch) {
     context.gitBranch = branch;
   }
-
-  // Git status
-  const status = execSafe("git status --porcelain", dir);
   if (status !== null) {
     context.gitStatus = status.length === 0 ? "clean" : "dirty";
   }
-
-  // Default org from sf CLI
-  const orgJson = execSafe("sf config get target-org --json", dir);
   if (orgJson) {
     try {
       const parsed = JSON.parse(orgJson) as {

@@ -422,10 +422,12 @@ export async function createHarnessforceAgent(
     const cwd = process.cwd();
 
     // Detect project content to conditionally inject relevant SF prompts
-    const hasApex = globSync("**/*.cls", { cwd }).length > 0;
-    const hasLWC = globSync("**/*.js-meta.xml", { cwd }).length > 0;
-    const hasFlows = globSync("**/*.flow-meta.xml", { cwd }).length > 0;
-    const hasAgentScript = globSync("**/*.agent", { cwd }).length > 0;
+    // Single glob pass (was 4 separate scans), excludes node_modules
+    const sfFiles = globSync("**/*.{cls,js-meta.xml,flow-meta.xml,agent}", { cwd, exclude: (p: any) => (p.name ?? p).includes("node_modules") });
+    const hasApex = sfFiles.some(f => f.endsWith(".cls"));
+    const hasLWC = sfFiles.some(f => f.endsWith(".js-meta.xml"));
+    const hasFlows = sfFiles.some(f => f.endsWith(".flow-meta.xml"));
+    const hasAgentScript = sfFiles.some(f => f.endsWith(".agent"));
     const hasDetectedFiles = hasApex || hasLWC || hasFlows || hasAgentScript;
 
     const sfPrompts: string[] = [];
