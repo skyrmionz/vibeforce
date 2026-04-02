@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager } from "harnessforce-core";
@@ -60,6 +60,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const [inputHistory, setInputHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [exiting, setExiting] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Cache terminal width and bar string to avoid recalculating on every render
   const termWidth = useMemo(() => process.stdout.columns || 80, []);
@@ -75,10 +76,12 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
       return;
     }
 
-    // ESC to cancel streaming (interrupt the agent)
+    // ESC to cancel streaming (abort the API stream + preserve partial response)
     if (key.escape && streaming) {
+      // Abort the underlying API stream (Claude Code pattern)
+      abortControllerRef.current?.abort("user-cancel");
       setStreaming(false);
-      // Preserve partial response in history (like Claude Code)
+      // Preserve partial response in history
       setCurrentResponse((partial) => {
         if (partial.trim()) {
           setMessages((prev) => [
@@ -326,6 +329,10 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
         setCurrentPermissionMode("default");
       }
 
+      // Create AbortController for this turn (Claude Code pattern)
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       setStreaming(true);
       setCurrentResponse("");
       setCurrentTool(null);
@@ -342,7 +349,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
       let hadToolCall = false;
 
       try {
-        for await (const event of (agent.stream as any)(enrichedMessage, threadId, currentPermissionMode)) {
+        for await (const event of (agent.stream as any)(enrichedMessage, threadId, currentPermissionMode, controller.signal)) {
           switch (event.type) {
             case "token":
               // If we just came back from a tool call, flush the current response

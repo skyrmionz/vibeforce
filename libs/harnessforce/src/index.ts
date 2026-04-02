@@ -441,13 +441,23 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
     prompt += `\n\n${systemPrompt}`;
   }
 
+  // ── Prompt caching (Deep Agents pattern) ────────────────────────────────
+  // Tag the system prompt with cache_control so Anthropic caches it across turns.
+  // This saves ~90% on repeated system prompts (5min TTL).
+  const { SystemMessage: SystemMsg } = await import("@langchain/core/messages");
+  const cachedPrompt = new SystemMsg({
+    content: [
+      { type: "text", text: prompt, cache_control: { type: "ephemeral" } },
+    ] as any,
+  });
+
   // ── Checkpointer (replaces manual conversationHistory) ──────────────────
   const checkpointer = new MemorySaver();
 
   const graph = createReactAgent({
     llm,
     tools: combinedTools,
-    prompt,
+    prompt: cachedPrompt,
     checkpointer,
   });
 
@@ -455,6 +465,7 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
     message: string,
     threadId?: string,
     permissionMode?: string,
+    abortSignal?: AbortSignal,
   ): AsyncGenerator<HarnessforceStreamEvent, void, unknown> {
     const tid = threadId ?? randomUUID();
 
@@ -468,12 +479,15 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
           const name = "name" in t ? (t as any).name : undefined;
           return name ? riskOf(name) === "read" : false;
         });
+        const planPrompt = new SystemMsg({
+          content: [
+            { type: "text", text: "You are in PLAN MODE. You may only read and explore — do NOT modify files, deploy, or execute destructive actions. Explain what you WOULD do, then wait for approval.\n\n" + prompt, cache_control: { type: "ephemeral" } },
+          ] as any,
+        });
         activeGraph = createReactAgent({
           llm,
           tools: readOnlyTools,
-          prompt:
-            "You are in PLAN MODE. You may only read and explore — do NOT modify files, deploy, or execute destructive actions. Explain what you WOULD do, then wait for approval.\n\n" +
-            prompt,
+          prompt: planPrompt,
           checkpointer,
         });
         effectiveMessage = `[PLAN MODE] ${message}`;
@@ -526,6 +540,7 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
           version: "v2",
           recursionLimit: 40,
           configurable: { thread_id: tid },
+          ...(abortSignal ? { signal: abortSignal } : {}),
         },
       );
 
