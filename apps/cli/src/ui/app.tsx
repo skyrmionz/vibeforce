@@ -95,6 +95,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       model: currentModel,
       setModel: (id: string) => setCurrentModel(id),
       clearMessages: () => setMessages([]),
+      setPermissionMode: (mode: string) => setCurrentPermissionMode(mode),
     }),
     [skillsDir, org, currentModel]
   );

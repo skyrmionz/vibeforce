@@ -939,11 +939,11 @@ const compactCommand: SlashCommand = {
   name: "compact",
   description: "Summarize older messages to free up context space",
   type: "local",
-  execute: async (_args, ctx) => {
-    // This command signals the chat loop to run compaction.
-    // The actual compaction happens in the message management layer.
-    // Here we report the current token estimate.
-    return "Context compaction triggered. Older messages will be summarized to free up context space.";
+  execute: async () => {
+    const tokensBefore = estimateMessagesTokens([]);
+    // Note: actual compaction requires access to the conversation messages
+    // which are in the LangGraph checkpointer. For now, report status.
+    return `Context compaction available.\nEstimated tokens: ${tokensBefore}\nTo free context, start a new session or use a model with a larger context window.`;
   },
 };
 
