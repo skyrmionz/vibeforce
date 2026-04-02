@@ -60,9 +60,14 @@ export function MarkdownText({ children }: { children: string }): React.ReactEle
       continue;
     }
 
-    // Empty line — minimal spacing (no extra gap)
+    // Empty line — skip consecutive blanks, render single blank as newline only
     if (!line.trim()) {
-      elements.push(<Text key={i}>{""}</Text>);
+      // Only add a blank if the previous element wasn't already a blank
+      const lastEl = elements[elements.length - 1];
+      const isLastBlank = lastEl?.key?.toString().startsWith("blank-");
+      if (!isLastBlank && elements.length > 0) {
+        elements.push(<Text key={`blank-${i}`}>{""}</Text>);
+      }
       continue;
     }
 

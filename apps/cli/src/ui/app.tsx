@@ -315,9 +315,11 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
 
       // Read fresh memory from agent.md on every turn
       const memory = readMemorySources([".harnessforce/agent.md"]);
-      const enrichedMessage = memory
-        ? `<memory>\n${memory}\n</memory>\n\n${message}`
-        : message;
+      let enrichedMessage = message;
+      if (memory) {
+        enrichedMessage = `<memory>\n${memory}\n</memory>\n\n${enrichedMessage}`;
+      }
+      enrichedMessage = `<agent_mode>${currentPermissionMode}</agent_mode>\n${enrichedMessage}`;
 
       let fullResponse = "";
       let hadToolCall = false;
@@ -451,7 +453,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
               {"\n"}
             </Text>
           ) : (
-            <Box flexDirection="column" marginTop={0} marginBottom={0}>
+            <Box flexDirection="column" marginTop={1} marginBottom={0}>
               <MarkdownText>{msg.content}</MarkdownText>
             </Box>
           )}
@@ -461,7 +463,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
 
       {/* Streaming response */}
       {streaming && currentResponse && (
-        <Box flexDirection="column" marginBottom={0}>
+        <Box flexDirection="column" marginTop={1} marginBottom={0}>
           <MarkdownText>{currentResponse}</MarkdownText>
         </Box>
       )}
@@ -473,22 +475,6 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
             <Text color="#F5A623">{"⏳ "}</Text>
             Running {currentTool}...
           </Text>
-        </Box>
-      )}
-
-      {/* Spacer to push thinking/loading/menu toward the input container */}
-      <Box flexGrow={1} />
-
-      {streaming && !currentTool && !currentResponse && (
-        <Box>
-          <Text color="#00A1E0">{"  Harnessing..."}</Text>
-        </Box>
-      )}
-
-      {/* Agent loading indicator */}
-      {agentLoading && messages.length === 0 && (
-        <Box>
-          <Text color="#00A1E0">{"  Initializing agent..."}</Text>
         </Box>
       )}
 
@@ -525,8 +511,20 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
         </Box>
       )}
 
+      {/* Thinking/loading — right above input container */}
+      {streaming && !currentTool && !currentResponse && (
+        <Box marginBottom={0}>
+          <Text color="#00A1E0">{"  Harnessing..."}</Text>
+        </Box>
+      )}
+      {agentLoading && messages.length === 0 && (
+        <Box marginBottom={0}>
+          <Text color="#00A1E0">{"  Initializing agent..."}</Text>
+        </Box>
+      )}
+
       {/* Input container with blue bars */}
-      <Box flexDirection="column" marginTop={1}>
+      <Box flexDirection="column" marginTop={0}>
         <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? process.stdout.columns - 2 : 60)}</Text>
         <Box paddingX={1}>
           <Text color="#00A1E0" bold>
