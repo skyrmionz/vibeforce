@@ -2,8 +2,87 @@ import React from "react";
 import { Text } from "ink";
 
 /**
+ * Check if a line is a markdown table row (starts and ends with |, or starts with |).
+ */
+function isTableRow(line: string): boolean {
+  return /^\s*\|/.test(line);
+}
+
+/**
+ * Check if a line is a table separator row (e.g. |---|---|)
+ */
+function isSeparatorRow(line: string): boolean {
+  return /^\s*\|[\s\-:|]+\|\s*$/.test(line);
+}
+
+/**
+ * Parse a table row into cells.
+ */
+function parseTableCells(line: string): string[] {
+  return line.split("|").slice(1, -1).map(c => c.trim());
+}
+
+/**
+ * Strip markdown formatting for width calculation.
+ */
+function stripMarkdown(text: string): string {
+  return text.replace(/\*\*(.+?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
+}
+
+/**
+ * Render collected table lines into formatted <Text> elements.
+ */
+function renderTable(tableLines: string[], startKey: number): React.ReactElement[] {
+  // Filter out separator rows, keep data rows
+  const dataRows = tableLines.filter(l => !isSeparatorRow(l));
+  if (dataRows.length === 0) return [];
+
+  const parsed = dataRows.map(parseTableCells);
+  const colCount = Math.max(...parsed.map(r => r.length));
+
+  // Calculate column widths
+  const colWidths: number[] = [];
+  for (let c = 0; c < colCount; c++) {
+    colWidths[c] = Math.max(...parsed.map(r => stripMarkdown(r[c] ?? "").length), 0);
+  }
+
+  const elements: React.ReactElement[] = [];
+  const separator = "  " + colWidths.map(w => "─".repeat(w + 2)).join("┬") + "";
+
+  parsed.forEach((cells, rowIdx) => {
+    // Header separator after first row
+    if (rowIdx === 1) {
+      elements.push(<Text key={`tsep-${startKey}`} dimColor>{separator}</Text>);
+    }
+
+    const rowStr = "  " + cells.map((cell, c) => {
+      const plain = stripMarkdown(cell);
+      const pad = (colWidths[c] ?? 0) - plain.length;
+      return " " + cell + " ".repeat(Math.max(pad + 1, 1));
+    }).join("│");
+
+    if (rowIdx === 0) {
+      // Header row — bold
+      elements.push(
+        <Text key={`tr-${startKey}-${rowIdx}`} bold color="#00A1E0">
+          {rowStr}
+        </Text>
+      );
+    } else {
+      elements.push(
+        <Text key={`tr-${startKey}-${rowIdx}`}>
+          {rowStr}
+        </Text>
+      );
+    }
+  });
+
+  return elements;
+}
+
+/**
  * Render a markdown string as styled Ink <Text> elements.
- * Handles: **bold**, `code`, ## headings, - list items, ```code blocks```
+ * Handles: **bold**, `code`, ## headings, - list items, ```code blocks```, | tables |
  */
 export function MarkdownText({ children }: { children: string }): React.ReactElement {
   const lines = children.split("\n");
@@ -11,14 +90,19 @@ export function MarkdownText({ children }: { children: string }): React.ReactEle
 
   let inCodeBlock = false;
   let codeBlockLines: string[] = [];
+  let tableBuffer: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
 
     // Code block toggle
     if (line.trimStart().startsWith("```")) {
+      // Flush table buffer if any
+      if (tableBuffer.length > 0) {
+        elements.push(...renderTable(tableBuffer, i - tableBuffer.length));
+        tableBuffer = [];
+      }
       if (inCodeBlock) {
-        // End code block
         elements.push(
           <Text key={`cb-${i}`} color="#A0A0A0">
             {codeBlockLines.join("\n")}
@@ -35,6 +119,18 @@ export function MarkdownText({ children }: { children: string }): React.ReactEle
     if (inCodeBlock) {
       codeBlockLines.push(line);
       continue;
+    }
+
+    // Table row — collect into buffer
+    if (isTableRow(line)) {
+      tableBuffer.push(line);
+      continue;
+    }
+
+    // Flush table buffer if we hit a non-table line
+    if (tableBuffer.length > 0) {
+      elements.push(...renderTable(tableBuffer, i - tableBuffer.length));
+      tableBuffer = [];
     }
 
     // Heading ##
@@ -62,7 +158,6 @@ export function MarkdownText({ children }: { children: string }): React.ReactEle
 
     // Empty line — skip consecutive blanks, render single blank as newline only
     if (!line.trim()) {
-      // Only add a blank if the previous element wasn't already a blank
       const lastEl = elements[elements.length - 1];
       const isLastBlank = lastEl?.key?.toString().startsWith("blank-");
       if (!isLastBlank && elements.length > 0) {
@@ -73,6 +168,11 @@ export function MarkdownText({ children }: { children: string }): React.ReactEle
 
     // Regular text with inline formatting
     elements.push(<Text key={i}>{renderInline(line, i)}</Text>);
+  }
+
+  // Flush remaining table buffer
+  if (tableBuffer.length > 0) {
+    elements.push(...renderTable(tableBuffer, lines.length));
   }
 
   // Close unclosed code block
