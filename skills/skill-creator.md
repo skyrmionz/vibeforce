@@ -1,10 +1,10 @@
 ---
 name: skill-creator
-description: Step-by-step guide for creating new Vibeforce skills
-trigger: When the user asks to create a new skill, add a skill, or teach vibeforce something new
+description: Step-by-step guide for creating new Harnessforce skills
+trigger: When the user asks to create a new skill, add a skill, or teach harnessforce something new
 ---
 
-# Skill Creator — Build New Vibeforce Skills
+# Skill Creator — Build New Harnessforce Skills
 
 Follow these 6 steps to create a well-structured skill file.
 
@@ -13,7 +13,7 @@ Follow these 6 steps to create a well-structured skill file.
 Ask the user:
 - **What does this skill do?** — one sentence description.
 - **When should it trigger?** — what user phrases or situations activate it.
-- **What tools does it need?** — which Vibeforce tools (execute, sf_deploy, browser_open, etc.) are involved.
+- **What tools does it need?** — which Harnessforce tools (execute, sf_deploy, browser_open, etc.) are involved.
 
 If the user already provided this information, skip the questions.
 

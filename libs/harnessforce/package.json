@@ -1,7 +1,7 @@
 {
-  "name": "vibeforce-core",
+  "name": "harnessforce-core",
   "version": "1.0.1",
-  "description": "Vibeforce Salesforce agent library",
+  "description": "Harnessforce Salesforce agent library",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -30,8 +30,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/skyrmionz/vibeforce.git",
-    "directory": "libs/vibeforce"
+    "url": "https://github.com/skyrmionz/harnessforce.git",
+    "directory": "libs/harnessforce"
   },
   "license": "MIT"
 }

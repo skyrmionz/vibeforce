@@ -196,7 +196,7 @@ For running many tests efficiently, define tests in a YAML file and iterate:
 
 ```bash
 # Save test spec to file
-write_file({ path: ".vibeforce/tests/{AgentName}-tests.yaml", content: "..." })
+write_file({ path: ".harnessforce/tests/{AgentName}-tests.yaml", content: "..." })
 
 # Run all tests (agent iterates through the YAML)
 ```

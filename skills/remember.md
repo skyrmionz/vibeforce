@@ -6,15 +6,15 @@ trigger: When the user says "remember this", "save this for later", "note that..
 
 # Remember — Save to Agent Memory
 
-Save a learning, preference, or project fact to `.vibeforce/agent.md` so it persists across sessions.
+Save a learning, preference, or project fact to `.harnessforce/agent.md` so it persists across sessions.
 
 ## Steps
 
 1. **Identify what to remember** — extract the key fact, preference, or learning from the conversation. Keep it concise and actionable.
 
-2. **Read existing memory** — check if `.vibeforce/agent.md` exists:
+2. **Read existing memory** — check if `.harnessforce/agent.md` exists:
    ```
-   read_file(".vibeforce/agent.md")
+   read_file(".harnessforce/agent.md")
    ```
    If the file does not exist, create it with a header.
 
@@ -34,7 +34,7 @@ Save a learning, preference, or project fact to `.vibeforce/agent.md` so it pers
 ## Example Memory File
 
 ```markdown
-# Vibeforce Agent Memory
+# Harnessforce Agent Memory
 
 ## Project Facts
 - [2026-03-31] Default scratch org alias: vf-dev

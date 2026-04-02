@@ -1,11 +1,11 @@
 /**
  * Download key Salesforce PDF documentation and convert to plain text.
  *
- * This script is run by `vibeforce init` to cache documentation locally.
- * PDFs are downloaded to ~/.vibeforce/cache/docs/ and extracted to .txt files.
+ * This script is run by `harnessforce init` to cache documentation locally.
+ * PDFs are downloaded to ~/.harnessforce/cache/docs/ and extracted to .txt files.
  *
  * Usage:
- *   npx tsx libs/vibeforce/src/docs/download-docs.ts
+ *   npx tsx libs/harnessforce/src/docs/download-docs.ts
  */
 
 import { homedir } from "node:os";
@@ -16,7 +16,7 @@ import { mkdir, writeFile, access } from "node:fs/promises";
 // Configuration
 // ---------------------------------------------------------------------------
 
-const DOCS_DIR = join(homedir(), ".vibeforce", "cache", "docs");
+const DOCS_DIR = join(homedir(), ".harnessforce", "cache", "docs");
 
 interface DocSource {
   /** Short slug used to reference this guide (e.g. "apex", "metadata"). */

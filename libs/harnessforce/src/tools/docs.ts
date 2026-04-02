@@ -4,7 +4,7 @@
  * Tools for searching and reading cached Salesforce PDF guides:
  *   sf_docs_search, sf_docs_read
  *
- * PDFs are stored as plain text in ~/.vibeforce/cache/docs/ after download.
+ * PDFs are stored as plain text in ~/.harnessforce/cache/docs/ after download.
  */
 
 import { homedir } from "node:os";
@@ -18,7 +18,7 @@ import { StructuredTool } from "@langchain/core/tools";
 // ---------------------------------------------------------------------------
 
 /** Default directory for cached doc text files. */
-const DEFAULT_DOCS_DIR = join(homedir(), ".vibeforce", "cache", "docs");
+const DEFAULT_DOCS_DIR = join(homedir(), ".harnessforce", "cache", "docs");
 
 /** Known guide slugs and their file mappings. */
 const GUIDE_MAP: Record<string, string> = {
@@ -137,7 +137,7 @@ export class SfDocsSearchTool extends StructuredTool {
         return JSON.stringify({
           error: `Guide "${guide}" not found in cache.`,
           availableGuides: available,
-          hint: "Run 'vibeforce init' to download Salesforce documentation.",
+          hint: "Run 'harnessforce init' to download Salesforce documentation.",
         });
       }
 
@@ -164,7 +164,7 @@ export class SfDocsSearchTool extends StructuredTool {
     if (guides.length === 0) {
       return JSON.stringify({
         error: "No documentation cached.",
-        hint: "Run 'vibeforce init' to download Salesforce documentation.",
+        hint: "Run 'harnessforce init' to download Salesforce documentation.",
       });
     }
 
@@ -248,7 +248,7 @@ export class SfDocsReadTool extends StructuredTool {
       return JSON.stringify({
         error: `Guide "${guide}" not found in cache.`,
         availableGuides: available,
-        hint: "Run 'vibeforce init' to download Salesforce documentation.",
+        hint: "Run 'harnessforce init' to download Salesforce documentation.",
       });
     }
 

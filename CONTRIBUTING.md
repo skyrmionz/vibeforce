@@ -1,12 +1,12 @@
-# Contributing to Vibeforce
+# Contributing to Harnessforce
 
-Thanks for your interest in contributing! Vibeforce is an open-source project and we welcome contributions of all kinds.
+Thanks for your interest in contributing! Harnessforce is an open-source project and we welcome contributions of all kinds.
 
 ## Getting Started
 
 ```bash
-git clone https://github.com/skyrmionz/vibeforce.git
-cd vibeforce
+git clone https://github.com/skyrmionz/harnessforce.git
+cd harnessforce
 pnpm install
 pnpm build
 ```
@@ -14,9 +14,9 @@ pnpm build
 ## Project Structure
 
 ```
-vibeforce/
-├── libs/vibeforce/     # @vibeforce/core — agent library (tools, middleware, prompts)
-├── apps/cli/           # @vibeforce/cli — terminal UI (Ink + Commander)
+harnessforce/
+├── libs/harnessforce/     # @harnessforce/core — agent library (tools, middleware, prompts)
+├── apps/cli/           # @harnessforce/cli — terminal UI (Ink + Commander)
 ├── skills/             # Reusable workflow definitions (SKILL.md files)
 ├── evals/              # SalesforceBench evaluation tests
 └── docs/               # User-facing documentation
@@ -31,10 +31,10 @@ pnpm build        # Build both packages
 
 ## Adding a New Tool
 
-1. Create `libs/vibeforce/src/tools/my-tool.ts`
+1. Create `libs/harnessforce/src/tools/my-tool.ts`
 2. Extend `StructuredTool` from `@langchain/core/tools`
 3. Define a Zod input schema
-4. Export from `libs/vibeforce/src/tools/index.ts`
+4. Export from `libs/harnessforce/src/tools/index.ts`
 5. Add to the appropriate tools array (`allTools`)
 
 ## Adding a New Skill

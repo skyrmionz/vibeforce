@@ -1,5 +1,5 @@
 /**
- * @vibeforce/core — Salesforce vibe coding agent library.
+ * @harnessforce/core — Salesforce vibe coding agent library.
  *
  * Exports: tools, middleware, models, prompts, skills, docs, and the agent factory.
  */
@@ -280,7 +280,7 @@ export { downloadDocs, DOC_SOURCES, DOCS_DIR } from "./docs/download-docs.js";
 
 // ── Agent Factory ────────────────────────────────────────────────────────────
 
-export interface CreateVibeforceAgentOptions {
+export interface CreateHarnessforceAgentOptions {
   /** Additional tools beyond the built-in set */
   tools?: (StructuredToolInterface | RunnableToolLike)[];
   /** Model ID — "provider:model" format (default: uses config default) */
@@ -293,13 +293,13 @@ export interface CreateVibeforceAgentOptions {
   skillsDir?: string;
   /** Pre-detected project context (auto-detected if not provided) */
   projectContext?: ProjectContext;
-  /** Memory source file paths (default: .vibeforce/agent.md, ~/.vibeforce/agent.md) */
+  /** Memory source file paths (default: .harnessforce/agent.md, ~/.harnessforce/agent.md) */
   memorySources?: string[];
   /** Output style name — "default", "explanatory", or "learning" */
   outputStyle?: string;
 }
 
-export interface VibeforceAgent {
+export interface HarnessforceAgent {
   /** The compiled LangGraph agent */
   graph: CompiledStateGraph<any, any, any, any, any>;
   /** Stream a response for a user message, optionally within a thread */
@@ -307,10 +307,10 @@ export interface VibeforceAgent {
     message: string,
     threadId?: string,
     permissionMode?: string,
-  ) => AsyncGenerator<VibeforceStreamEvent, void, unknown>;
+  ) => AsyncGenerator<HarnessforceStreamEvent, void, unknown>;
 }
 
-export type VibeforceStreamEvent =
+export type HarnessforceStreamEvent =
   | { type: "token"; content: string }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; content: string }
@@ -323,7 +323,7 @@ export type VibeforceStreamEvent =
 // Audit log helper
 // ---------------------------------------------------------------------------
 
-const AUDIT_LOG_PATH = ".vibeforce/audit.log";
+const AUDIT_LOG_PATH = ".harnessforce/audit.log";
 
 function appendAuditLog(entry: Record<string, unknown>): void {
   try {
@@ -336,18 +336,18 @@ function appendAuditLog(entry: Record<string, unknown>): void {
 }
 
 /**
- * Create a Vibeforce agent with all tools and optional extras.
+ * Create a Harnessforce agent with all tools and optional extras.
  */
-export async function createVibeforceAgent(
-  options: CreateVibeforceAgentOptions = {}
-): Promise<VibeforceAgent> {
+export async function createHarnessforceAgent(
+  options: CreateHarnessforceAgentOptions = {}
+): Promise<HarnessforceAgent> {
   const {
     tools: extraTools = [],
     model,
     apiKey,
     systemPrompt,
     skillsDir = "./skills",
-    memorySources = [".vibeforce/agent.md", "~/.vibeforce/agent.md"],
+    memorySources = [".harnessforce/agent.md", "~/.harnessforce/agent.md"],
     outputStyle,
   } = options;
 
@@ -437,7 +437,7 @@ export async function createVibeforceAgent(
     message: string,
     threadId?: string,
     permissionMode?: string,
-  ): AsyncGenerator<VibeforceStreamEvent, void, unknown> {
+  ): AsyncGenerator<HarnessforceStreamEvent, void, unknown> {
     const tid = threadId ?? randomUUID();
 
     try {

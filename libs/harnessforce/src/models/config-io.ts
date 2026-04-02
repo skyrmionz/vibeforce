@@ -1,5 +1,5 @@
 /**
- * Config file I/O — read, write, and bootstrap ~/.vibeforce/models.yaml.
+ * Config file I/O — read, write, and bootstrap ~/.harnessforce/models.yaml.
  */
 
 import fs from 'node:fs';
@@ -12,10 +12,10 @@ import {
   parseRawConfig,
 } from './config.js';
 
-/** Resolve the config directory path (~/.vibeforce). */
+/** Resolve the config directory path (~/.harnessforce). */
 function configDir(): string {
   const home = process.env.HOME ?? process.env.USERPROFILE ?? '~';
-  return path.join(home, '.vibeforce');
+  return path.join(home, '.harnessforce');
 }
 
 /** Resolve the models.yaml path. */
@@ -24,7 +24,7 @@ export function configFilePath(): string {
 }
 
 /**
- * Ensure ~/.vibeforce/ exists and write the default models.yaml if it is
+ * Ensure ~/.harnessforce/ exists and write the default models.yaml if it is
  * missing. Returns the path to the config file.
  */
 export function ensureConfigFile(): string {
@@ -61,7 +61,7 @@ function toYamlShape(
   };
 }
 
-/** Write a ModelConfig to ~/.vibeforce/models.yaml. */
+/** Write a ModelConfig to ~/.harnessforce/models.yaml. */
 export function writeConfig(config: ModelConfig): void {
   const dir = configDir();
   if (!fs.existsSync(dir)) {

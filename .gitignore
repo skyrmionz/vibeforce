@@ -19,8 +19,8 @@ Thumbs.db
 *.swp
 *.swo
 
-# Vibeforce local state
-.vibeforce/
+# Harnessforce local state
+.harnessforce/
 
 # Playwright
 test-results/
@@ -28,3 +28,5 @@ playwright-report/
 
 # Worktrees (development only)
 .claude/
+.vibeforce/
+.harnessforce/

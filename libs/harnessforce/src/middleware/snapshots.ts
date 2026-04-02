@@ -55,7 +55,7 @@ function buildRetrieveCommand(
 // ---------------------------------------------------------------------------
 
 export interface SnapshotMiddlewareOptions {
-  /** Root directory for snapshots. Defaults to `.vibeforce/snapshots`. */
+  /** Root directory for snapshots. Defaults to `.harnessforce/snapshots`. */
   snapshotDir?: string;
   /** Override the default exec command (for testing). */
   execCommand?: (cmd: string) => Promise<string>;
@@ -69,7 +69,7 @@ export function createSnapshotMiddleware(
   options: SnapshotMiddlewareOptions = {},
 ): Middleware {
   const {
-    snapshotDir = '.vibeforce/snapshots',
+    snapshotDir = '.harnessforce/snapshots',
     execCommand = defaultExecCommand,
   } = options;
 
@@ -104,7 +104,7 @@ export async function createSnapshotBeforeDeploy(
   options: SnapshotMiddlewareOptions = {},
 ): Promise<string> {
   const {
-    snapshotDir = '.vibeforce/snapshots',
+    snapshotDir = '.harnessforce/snapshots',
     execCommand = defaultExecCommand,
   } = options;
 
@@ -133,7 +133,7 @@ export async function rollbackToLatest(
   options: SnapshotMiddlewareOptions = {},
 ): Promise<ToolResult> {
   const {
-    snapshotDir = '.vibeforce/snapshots',
+    snapshotDir = '.harnessforce/snapshots',
     execCommand = defaultExecCommand,
   } = options;
 

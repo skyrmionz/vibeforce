@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { render } from "ink";
 import { randomUUID } from "node:crypto";
 import React from "react";
-import { createVibeforceAgent, createSessionManager, detectProjectContext, buildContextPrompt } from "vibeforce-core";
+import { createHarnessforceAgent, createSessionManager, detectProjectContext, buildContextPrompt } from "harnessforce-core";
 import { modelCommands } from "./commands/model.js";
 import { skillCommands } from "./commands/skill.js";
 import { toolCommands } from "./commands/tool.js";
@@ -13,8 +13,8 @@ import { renderGreeting } from "./ui/greeting.js";
 const program = new Command();
 
 program
-  .name("vibeforce")
-  .description("Vibeforce — The Salesforce Vibe Coding Agent")
+  .name("harnessforce")
+  .description("Harnessforce — The Salesforce Vibe Coding Agent")
   .version("0.1.0")
   .option(
     "-m, --model <model>",
@@ -36,10 +36,10 @@ program
     try {
       const { execSync } = await import("node:child_process");
       const currentVersion = program.version() ?? "0.0.0";
-      const latest = execSync("npm view vibeforce version 2>/dev/null", { encoding: "utf-8", timeout: 5000 }).trim();
+      const latest = execSync("npm view harnessforce version 2>/dev/null", { encoding: "utf-8", timeout: 5000 }).trim();
       if (latest && latest !== currentVersion) {
         console.log(`\n  Update available: ${currentVersion} → ${latest}`);
-        console.log(`  Run: npm install -g vibeforce\n`);
+        console.log(`  Run: npm install -g harnessforce\n`);
       }
     } catch { /* offline or npm not available — skip silently */ }
 
@@ -49,7 +49,7 @@ program
     // Check config file for saved API key if not found in env
     if (!apiKey) {
       try {
-        const { readConfig, ensureConfigFile } = await import("vibeforce-core");
+        const { readConfig, ensureConfigFile } = await import("harnessforce-core");
         ensureConfigFile();
         const config = readConfig();
         for (const provider of Object.values(config.providers)) {
@@ -156,9 +156,9 @@ program
     }
 
     // Create the agent (may be null if no API key)
-    let agent: Awaited<ReturnType<typeof createVibeforceAgent>> | null = null;
+    let agent: Awaited<ReturnType<typeof createHarnessforceAgent>> | null = null;
     try {
-      agent = await createVibeforceAgent({
+      agent = await createHarnessforceAgent({
         model: opts.model,
         apiKey,
         skillsDir: opts.skillsDir,
@@ -219,7 +219,7 @@ program
 
     // Check if stdin supports raw mode (required for Ink TUI)
     if (!process.stdin.isTTY) {
-      console.error("Error: Vibeforce requires an interactive terminal. Use -n for non-interactive mode.");
+      console.error("Error: Harnessforce requires an interactive terminal. Use -n for non-interactive mode.");
       process.exit(1);
     }
 

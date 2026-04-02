@@ -5,7 +5,7 @@
       "default": true
     }
   ],
-  "name": "vibeforce-warranty-helper",
+  "name": "harnessforce-warranty-helper",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
   "sourceApiVersion": "62.0"

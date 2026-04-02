@@ -71,7 +71,7 @@ export function openInEditor(currentText: string): string | null {
   const cmd = resolveEditor();
   if (cmd === null) return null;
 
-  const tmpPath = join(tmpdir(), `vibeforce-edit-${randomUUID()}.md`);
+  const tmpPath = join(tmpdir(), `harnessforce-edit-${randomUUID()}.md`);
 
   try {
     writeFileSync(tmpPath, currentText, "utf-8");

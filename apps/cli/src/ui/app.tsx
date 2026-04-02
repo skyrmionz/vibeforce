@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
-import type { VibeforceAgent, VibeforceStreamEvent, SessionManager } from "vibeforce-core";
-import { readMemorySources } from "vibeforce-core";
+import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager } from "harnessforce-core";
+import { readMemorySources } from "harnessforce-core";
 import { MarkdownText } from "./markdown.js";
 import { StatusBar } from "./status-bar.js";
 import {
@@ -19,7 +19,7 @@ interface Message {
 }
 
 interface AppProps {
-  agent: VibeforceAgent;
+  agent: HarnessforceAgent;
   skillsDir?: string;
   org?: string;
   model?: string;
@@ -290,7 +290,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
               "No API key configured. Use /set-key to set it now:\n\n" +
               "  /set-key sk-or-your-key-here\n\n" +
               "Or set it in your terminal before launching:\n\n" +
-              "  export OPENROUTER_API_KEY=sk-or-...\n  vibeforce\n\n" +
+              "  export OPENROUTER_API_KEY=sk-or-...\n  harnessforce\n\n" +
               "Get a key at https://openrouter.ai/keys\n" +
               "Slash commands still work — type / to see them.",
           },
@@ -303,7 +303,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       setCurrentTool(null);
 
       // Read fresh memory from agent.md on every turn
-      const memory = readMemorySources([".vibeforce/agent.md"]);
+      const memory = readMemorySources([".harnessforce/agent.md"]);
       const enrichedMessage = memory
         ? `<memory>\n${memory}\n</memory>\n\n${message}`
         : message;
@@ -531,7 +531,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
               setInput(val);
             }}
             onSubmit={handleSubmit}
-            placeholder={streaming ? "Type to interrupt or add context..." : "Ask Vibeforce anything... (type / for commands)"}
+            placeholder={streaming ? "Type to interrupt or add context..." : "Ask Harnessforce anything... (type / for commands)"}
           />
         </Box>
       )}

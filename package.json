@@ -1,12 +1,12 @@
 {
-  "name": "vibeforce",
+  "name": "harnessforce",
   "private": true,
   "version": "0.1.0",
   "description": "An open-source agent harness for Salesforce development",
   "license": "MIT",
   "scripts": {
-    "build": "pnpm --filter vibeforce-core build && pnpm --filter vibeforce build",
-    "dev": "pnpm --filter vibeforce-core dev & pnpm --filter vibeforce dev",
+    "build": "pnpm --filter harnessforce-core build && pnpm --filter harnessforce build",
+    "dev": "pnpm --filter harnessforce-core dev & pnpm --filter harnessforce dev",
     "start": "node apps/cli/dist/index.js"
   },
   "engines": {

@@ -1,7 +1,7 @@
 /**
  * Model configuration types and loader.
  *
- * Config is stored in ~/.vibeforce/models.yaml and supports environment
+ * Config is stored in ~/.harnessforce/models.yaml and supports environment
  * variable references (${VAR}) for API keys.
  */
 
@@ -129,7 +129,7 @@ export function parseRawConfig(raw: RawYamlConfig): ModelConfig {
 /**
  * Load model config from a YAML file path.
  *
- * If no path is given the default ~/.vibeforce/models.yaml is used.
+ * If no path is given the default ~/.harnessforce/models.yaml is used.
  * If the file does not exist the built-in default config is returned.
  */
 export function loadModelConfig(configPath?: string): ModelConfig {
@@ -137,7 +137,7 @@ export function loadModelConfig(configPath?: string): ModelConfig {
     configPath ??
     path.join(
       process.env.HOME ?? process.env.USERPROFILE ?? '~',
-      '.vibeforce',
+      '.harnessforce',
       'models.yaml'
     );
 

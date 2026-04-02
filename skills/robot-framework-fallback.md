@@ -68,7 +68,7 @@ browser_execute({
 
 If JavaScript-based clicking also fails (e.g., the element requires actual mouse events, or the page blocks programmatic clicks), generate and run a Robot Framework test:
 
-1. Write a `.robot` file to `.vibeforce/temp/`:
+1. Write a `.robot` file to `.harnessforce/temp/`:
 
 ```robot
 *** Settings ***
@@ -100,7 +100,7 @@ Perform Setup Task
 2. Execute it:
 
 ```bash
-robot .vibeforce/temp/setup-task.robot
+robot .harnessforce/temp/setup-task.robot
 ```
 
 ## Step 3: CumulusCI Keywords (if installed)

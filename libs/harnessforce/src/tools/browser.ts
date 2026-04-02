@@ -11,7 +11,7 @@ let context: BrowserContext | null = null;
 let page: Page | null = null;
 
 const isHeadless = (): boolean => {
-  return process.env.VIBEFORCE_BROWSER_VISIBLE !== "true";
+  return process.env.HARNESSFORCE_BROWSER_VISIBLE !== "true";
 };
 
 async function ensureBrowser(): Promise<Page> {

@@ -1,4 +1,4 @@
-# Vibeforce
+# Harnessforce
 
 **An open-source agent harness for Salesforce development** — vibe code anything with Salesforce from your terminal.
 
@@ -17,39 +17,39 @@
 ### 1. Run
 
 ```bash
-npx vibeforce
+npx harnessforce
 ```
 
 This always runs the latest version. Or install globally:
 
 ```bash
-npm install -g vibeforce
-vibeforce
+npm install -g harnessforce
+harnessforce
 ```
 
 ### 2. Get an API Key
 
-Vibeforce uses [OpenRouter](https://openrouter.ai) — one API key gives you access to Claude, GPT, Gemini, and 200+ other models.
+Harnessforce uses [OpenRouter](https://openrouter.ai) — one API key gives you access to Claude, GPT, Gemini, and 200+ other models.
 
 1. Go to [openrouter.ai/keys](https://openrouter.ai/keys)
 2. Create a free account and generate an API key
-3. Launch Vibeforce and set your key:
+3. Launch Harnessforce and set your key:
 
 ```bash
-vibeforce
+harnessforce
 ```
 
-Then inside Vibeforce:
+Then inside Harnessforce:
 ```
 /set-key sk-or-your-key-here
 ```
 
-This saves your key to `~/.vibeforce/models.yaml` so it persists across sessions.
+This saves your key to `~/.harnessforce/models.yaml` so it persists across sessions.
 
 **Alternative:** Set it as an environment variable before launching:
 ```bash
 export OPENROUTER_API_KEY=sk-or-your-key-here
-vibeforce
+harnessforce
 ```
 
 ### 3. Connect a Salesforce Org
@@ -58,8 +58,8 @@ vibeforce
 # Authenticate your org
 sf org login web --alias my-org
 
-# Launch Vibeforce (auto-detects your default org)
-vibeforce
+# Launch Harnessforce (auto-detects your default org)
+harnessforce
 ```
 
 ### Prerequisites
@@ -70,7 +70,7 @@ vibeforce
 
 ### Default Model
 
-Vibeforce uses **Claude Opus 4.6** by default via OpenRouter. Switch models anytime:
+Harnessforce uses **Claude Opus 4.6** by default via OpenRouter. Switch models anytime:
 ```
 /model openrouter:openai/gpt-5.4
 /model openrouter:google/gemini-3.1-pro-preview
@@ -122,7 +122,7 @@ Vibeforce uses **Claude Opus 4.6** by default via OpenRouter. Switch models anyt
 
 ## Architecture
 
-Vibeforce follows a **"Write Code, Not Tools"** philosophy. Instead of needing a dedicated tool for every Salesforce operation, the agent writes source files (Apex `.cls`, Agent Script `.agent`, Flow XML, metadata XML, LWC `.js`, etc.) and deploys them via the `sf` CLI — just like a developer would.
+Harnessforce follows a **"Write Code, Not Tools"** philosophy. Instead of needing a dedicated tool for every Salesforce operation, the agent writes source files (Apex `.cls`, Agent Script `.agent`, Flow XML, metadata XML, LWC `.js`, etc.) and deploys them via the `sf` CLI — just like a developer would.
 
 ### 42 Tools
 
@@ -157,7 +157,7 @@ Pre-built workflows for complex multi-step tasks:
 
 ### Self-Extending
 
-Vibeforce can handle **any** of Salesforce's ~470+ metadata types by discovering what exists, reading the docs, and writing the correct source files. When it learns something new, it saves it as a skill for future sessions.
+Harnessforce can handle **any** of Salesforce's ~470+ metadata types by discovering what exists, reading the docs, and writing the correct source files. When it learns something new, it saves it as a skill for future sessions.
 
 ### Safety Built-In
 
@@ -165,27 +165,27 @@ Vibeforce can handle **any** of Salesforce's ~470+ metadata types by discovering
 - **Production org detection**: auto-escalates all writes to require confirmation
 - **Dry-run deploys**: validates before real deployment
 - **Pre-deploy snapshots**: automatic rollback capability
-- **Audit logging**: every tool call logged to `.vibeforce/audit.log`
+- **Audit logging**: every tool call logged to `.harnessforce/audit.log`
 - **PII awareness**: warns when query results contain sensitive fields
 
 ## Model Support
 
-Vibeforce is model-agnostic. Use any LLM:
+Harnessforce is model-agnostic. Use any LLM:
 
 ```bash
 # Cloud providers
-vibeforce --model anthropic:claude-opus-4.6
-vibeforce --model openai:gpt-4o
+harnessforce --model anthropic:claude-opus-4.6
+harnessforce --model openai:gpt-4o
 
 # Local models (Ollama, vLLM)
-vibeforce provider:add --name local --type local --base-url http://localhost:11434
-vibeforce --model local:llama3
+harnessforce provider:add --name local --type local --base-url http://localhost:11434
+harnessforce --model local:llama3
 
 # Switch mid-session
 > /model anthropic:claude-sonnet-4-20250514
 ```
 
-Configure in `~/.vibeforce/models.yaml`:
+Configure in `~/.harnessforce/models.yaml`:
 ```yaml
 default_model: "anthropic:claude-sonnet-4-20250514"
 providers:
@@ -202,22 +202,22 @@ providers:
 ## CLI Commands
 
 ```bash
-vibeforce                          # Launch interactive agent
-vibeforce --model <id>             # Use specific model
-vibeforce --permission-mode plan   # Read-only mode
-vibeforce --org my-sandbox         # Target specific org
+harnessforce                          # Launch interactive agent
+harnessforce --model <id>             # Use specific model
+harnessforce --permission-mode plan   # Read-only mode
+harnessforce --org my-sandbox         # Target specific org
 
-vibeforce model:list               # List available models
-vibeforce model:select <id>        # Switch model
-vibeforce provider:add             # Add model provider
-vibeforce rollback                 # Restore from last snapshot
+harnessforce model:list               # List available models
+harnessforce model:select <id>        # Switch model
+harnessforce provider:add             # Add model provider
+harnessforce rollback                 # Restore from last snapshot
 ```
 
 ## Development
 
 ```bash
-git clone https://github.com/skyrmionz/vibeforce.git
-cd vibeforce
+git clone https://github.com/skyrmionz/harnessforce.git
+cd harnessforce
 pnpm install
 pnpm build
 node apps/cli/dist/index.js

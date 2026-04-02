@@ -120,14 +120,14 @@ public class TestDataFactory {
         Profile p = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1];
         return new User(
             Alias = 'tuser',
-            Email = 'testuser@test.vibeforce.com',
+            Email = 'testuser@test.harnessforce.com',
             EmailEncodingKey = 'UTF-8',
             LastName = 'TestUser',
             LanguageLocaleKey = 'en_US',
             LocaleSidKey = 'en_US',
             ProfileId = p.Id,
             TimeZoneSidKey = 'America/Los_Angeles',
-            UserName = 'testuser' + DateTime.now().getTime() + '@test.vibeforce.com'
+            UserName = 'testuser' + DateTime.now().getTime() + '@test.harnessforce.com'
         );
     }
 }

@@ -1,7 +1,7 @@
 /**
  * Hooks manager — run user-defined shell commands on lifecycle events.
  *
- * Hooks are configured in `.vibeforce/settings.json` under the `hooks` key.
+ * Hooks are configured in `.harnessforce/settings.json` under the `hooks` key.
  */
 
 import { readFileSync, existsSync } from "node:fs";
@@ -32,12 +32,12 @@ export interface HookConfig {
 // ---------------------------------------------------------------------------
 
 /**
- * Load hooks from `.vibeforce/settings.json`.
+ * Load hooks from `.harnessforce/settings.json`.
  * Returns an empty array if the file doesn't exist or has no hooks.
  */
 export function loadHooks(settingsPath?: string): HookConfig[] {
   const path =
-    settingsPath ?? resolve(process.cwd(), ".vibeforce", "settings.json");
+    settingsPath ?? resolve(process.cwd(), ".harnessforce", "settings.json");
 
   if (!existsSync(path)) return [];
 
@@ -77,7 +77,7 @@ export async function executeHooks(
 
   if (matching.length === 0) return;
 
-  const env = { ...process.env, ...context, VIBEFORCE_HOOK_EVENT: event };
+  const env = { ...process.env, ...context, HARNESSFORCE_HOOK_EVENT: event };
 
   await Promise.allSettled(
     matching.map(
@@ -90,7 +90,7 @@ export async function executeHooks(
             (err) => {
               if (err) {
                 process.stderr.write(
-                  `[vibeforce] hook "${hook.command}" (${event}) failed: ${err.message}\n`,
+                  `[harnessforce] hook "${hook.command}" (${event}) failed: ${err.message}\n`,
                 );
               }
               res();

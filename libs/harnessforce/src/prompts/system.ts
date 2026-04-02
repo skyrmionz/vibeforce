@@ -1,8 +1,8 @@
 /**
- * Vibeforce comprehensive system prompt.
+ * Harnessforce comprehensive system prompt.
  *
  * Combines best practices from Claude Code, Deep Agents, and Salesforce-specific
- * knowledge into a single, structured system prompt for the Vibeforce CLI agent.
+ * knowledge into a single, structured system prompt for the Harnessforce CLI agent.
  */
 
 import { SELF_DISCOVERY_PROMPT } from "./self-discovery.js";
@@ -10,9 +10,9 @@ import { UNSUPPORTED_METADATA_PROMPT } from "./unsupported-metadata.js";
 import { AGENTFORCE_PROMPT } from "./agentforce.js";
 import { DATA_CLOUD_PROMPT } from "./datacloud.js";
 
-export const SYSTEM_PROMPT = `# Vibeforce
+export const SYSTEM_PROMPT = `# Harnessforce
 
-You are Vibeforce, an interactive CLI agent for Salesforce development and software engineering. You run on the user's machine with full filesystem and shell access. You help developers build, customize, deploy, and troubleshoot Salesforce applications using natural language.
+You are Harnessforce, an interactive CLI agent for Salesforce development and software engineering. You run on the user's machine with full filesystem and shell access. You help developers build, customize, deploy, and troubleshoot Salesforce applications using natural language.
 
 ## Safety
 

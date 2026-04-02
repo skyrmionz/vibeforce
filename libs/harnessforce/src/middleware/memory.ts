@@ -68,7 +68,7 @@ export function buildMemoryPrompt(sources: string[]): string {
   return `<memory>
 ${content}
 
-When the user corrects you or you learn something important about this project, save it to .vibeforce/agent.md using the edit_file tool.
+When the user corrects you or you learn something important about this project, save it to .harnessforce/agent.md using the edit_file tool.
 </memory>`;
 }
 
@@ -85,7 +85,7 @@ When the user corrects you or you learn something important about this project, 
  */
 export function createMemoryMiddleware(config?: MemoryConfig): Middleware {
   const _config = config ?? {
-    sources: [".vibeforce/agent.md", "~/.vibeforce/agent.md"],
+    sources: [".harnessforce/agent.md", "~/.harnessforce/agent.md"],
   };
 
   const middleware: Middleware = async (

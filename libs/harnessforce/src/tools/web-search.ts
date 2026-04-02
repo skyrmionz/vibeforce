@@ -19,7 +19,7 @@ export const webSearchTool = tool(
       const response = await fetch(url, {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; Vibeforce/1.0; +https://github.com/vibeforce)",
+            "Mozilla/5.0 (compatible; Harnessforce/1.0; +https://github.com/harnessforce)",
         },
       });
 
@@ -89,7 +89,7 @@ export const webFetchTool = tool(
       const response = await fetch(url, {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; Vibeforce/1.0; +https://github.com/vibeforce)",
+            "Mozilla/5.0 (compatible; Harnessforce/1.0; +https://github.com/harnessforce)",
           Accept: "text/html,application/xhtml+xml,text/plain,application/json",
         },
         signal: AbortSignal.timeout(15_000),

@@ -6,7 +6,7 @@
  */
 
 import { Command } from "commander";
-import { allTools } from "vibeforce-core";
+import { allTools } from "harnessforce-core";
 
 // ---------------------------------------------------------------------------
 // tool:list

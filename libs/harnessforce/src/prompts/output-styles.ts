@@ -32,9 +32,9 @@ export const OUTPUT_STYLES: Record<string, OutputStyleConfig | null> = {
   explanatory: {
     name: "explanatory",
     description:
-      "Vibeforce explains its implementation choices and Salesforce platform patterns",
+      "Harnessforce explains its implementation choices and Salesforce platform patterns",
     keepCodingInstructions: true,
-    prompt: `You are Vibeforce, a Salesforce development CLI agent. In addition to engineering tasks, you provide educational insights about the Salesforce platform along the way.
+    prompt: `You are Harnessforce, a Salesforce development CLI agent. In addition to engineering tasks, you provide educational insights about the Salesforce platform along the way.
 
 Be clear and educational, providing helpful explanations while remaining focused on the task. Balance educational content with task completion. When providing insights, you may exceed typical length constraints, but remain focused and relevant.
 
@@ -45,9 +45,9 @@ ${INSIGHT_BOX}`,
   learning: {
     name: "learning",
     description:
-      "Vibeforce pauses and asks you to write small pieces of code for hands-on practice",
+      "Harnessforce pauses and asks you to write small pieces of code for hands-on practice",
     keepCodingInstructions: true,
-    prompt: `You are Vibeforce, a Salesforce development CLI agent. In addition to engineering tasks, you help users learn through hands-on practice and educational insights.
+    prompt: `You are Harnessforce, a Salesforce development CLI agent. In addition to engineering tasks, you help users learn through hands-on practice and educational insights.
 
 Be collaborative and encouraging. Balance task completion with learning by requesting user input for meaningful design decisions while handling routine implementation yourself.
 
@@ -95,7 +95,7 @@ ${INSIGHT_BOX}`,
 export function loadCustomOutputStyles(
   dir?: string,
 ): Record<string, OutputStyleConfig> {
-  const styleDir = dir ?? ".vibeforce/output-styles";
+  const styleDir = dir ?? ".harnessforce/output-styles";
   if (!existsSync(styleDir)) return {};
 
   const result: Record<string, OutputStyleConfig> = {};

@@ -1,8 +1,8 @@
-# Vibeforce: Claude Code for Salesforce
+# Harnessforce: Claude Code for Salesforce
 
 ## Context
 
-No tool lets you vibe code *anything* with Salesforce — admin work, platform dev, custom apps, Agentforce agents, Data Cloud — from a terminal. Vibeforce fills this gap: an open-source CLI agent that understands Salesforce deeply but writes code in **any language**, deploys anywhere, and can train org-specific models that learn your company's data and conventions.
+No tool lets you vibe code *anything* with Salesforce — admin work, platform dev, custom apps, Agentforce agents, Data Cloud — from a terminal. Harnessforce fills this gap: an open-source CLI agent that understands Salesforce deeply but writes code in **any language**, deploys anywhere, and can train org-specific models that learn your company's data and conventions.
 
 ## Feasibility Corrections (from review)
 
@@ -52,7 +52,7 @@ Layer 3: Robot Framework + CumulusCI — auto-invoked as skill when Playwright c
 
 ## CLI Greeting (Agent Astro)
 
-On launch, display Agent Astro character (Salesforce mascot astronaut) as hand-designed Unicode block art with ANSI colors (Salesforce blue + white), plus figlet-rendered "Vibeforce" text. Libraries: `chalk` (ANSI styling), `figlet` (ASCII text), `gradient-string` (optional color gradients). Render via Ink (React for CLI).
+On launch, display Agent Astro character (Salesforce mascot astronaut) as hand-designed Unicode block art with ANSI colors (Salesforce blue + white), plus figlet-rendered "Harnessforce" text. Libraries: `chalk` (ANSI styling), `figlet` (ASCII text), `gradient-string` (optional color gradients). Render via Ink (React for CLI).
 
 ```
    ╭──────╮
@@ -72,19 +72,19 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 ---
 
 ### Feature 1: Core Agent Runtime
-**What**: Fork Deep Agents JS, create `createVibeforceAgent()`, wire up Ink TUI, Agent Astro greeting
+**What**: Fork Deep Agents JS, create `createHarnessforceAgent()`, wire up Ink TUI, Agent Astro greeting
 **Depends on**: Nothing (foundation)
-**Key files**: `libs/deepagents/` (fork), `libs/vibeforce/src/index.ts`, `apps/cli/`
-**Deliverable**: `vibeforce` command launches, shows Agent Astro, accepts natural language, streams responses, calls tools
+**Key files**: `libs/deepagents/` (fork), `libs/harnessforce/src/index.ts`, `apps/cli/`
+**Deliverable**: `harnessforce` command launches, shows Agent Astro, accepts natural language, streams responses, calls tools
 
 **Sub-tasks**:
 - Fork deepagentsjs, restructure as pnpm monorepo
 - Add `@langchain/mcp-adapters` for MCP support
-- Create `libs/vibeforce` package with `createVibeforceAgent()` wrapping `createDeepAgent()`
+- Create `libs/harnessforce` package with `createHarnessforceAgent()` wrapping `createDeepAgent()`
 - Build Ink TUI: Agent Astro greeting, InputBar, MessageList, Spinner
 - Wire up LLM API (Anthropic by default, model-agnostic via `init_chat_model`)
-- Implement `vibeforce config set` for API keys (store in OS keychain via `keytar`)
-- Implement `vibeforce init` — scaffolds `.vibeforce/`, detects `sfdx-project.json`, guides first-time setup
+- Implement `harnessforce config set` for API keys (store in OS keychain via `keytar`)
+- Implement `harnessforce init` — scaffolds `.harnessforce/`, detects `sfdx-project.json`, guides first-time setup
 
 ---
 
@@ -98,7 +98,7 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 - `sf_list_orgs`, `sf_get_org_info`, `sf_describe_object`, `sf_query`, `sf_run_apex`, `sf_deploy`, `sf_retrieve`
 - OrgPicker component (Ink select list on startup)
 - StatusBar showing connected org, type (prod/sandbox/scratch), API version
-- sf-context middleware: fetch org metadata on connect, cache in `.vibeforce/org-cache/`
+- sf-context middleware: fetch org metadata on connect, cache in `.harnessforce/org-cache/`
 - Multi-org switching via `/org` command or natural language
 - **Sandbox management**: `sf org create sandbox`, `sf org list --all`, sandbox refresh, sandbox login
 
@@ -115,9 +115,9 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 - ToolConfirm component (shows what will happen, user approves/denies)
 - **Production org detection**: auto-escalate writes to require confirmation with warning
 - **Dry-run mode**: default to `sf project deploy start --dry-run` before real deploys; show validation results
-- **Pre-deploy snapshot**: `sf project retrieve start` before destructive deploys, store in `.vibeforce/snapshots/`
-- **Rollback**: `vibeforce rollback` restores from latest snapshot
-- **Audit logging**: log all tool calls + args + results to `.vibeforce/audit.log` (JSON lines format)
+- **Pre-deploy snapshot**: `sf project retrieve start` before destructive deploys, store in `.harnessforce/snapshots/`
+- **Rollback**: `harnessforce rollback` restores from latest snapshot
+- **Audit logging**: log all tool calls + args + results to `.harnessforce/audit.log` (JSON lines format)
 - **PII awareness**: warn when SOQL results contain fields likely to be PII (Email, Phone, SSN patterns); option to mask before sending to LLM
 
 ---
@@ -149,7 +149,7 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 - Curated list of 30+ UI-only operations with Setup page URLs
 - Screen recording support (for demo/documentation purposes)
 - **Robot Framework fallback skill**: when Playwright click fails (Shadow DOM, blocked element), agent auto-generates `.robot` file using CumulusCI keywords and executes via `robot` CLI. Bundled as a required skill, not optional.
-- Auto-install: `vibeforce init` ensures `pip install robotframework cumulusci` is run (or prompts user)
+- Auto-install: `harnessforce init` ensures `pip install robotframework cumulusci` is run (or prompts user)
 
 ---
 
@@ -212,10 +212,10 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 
 **Model provider sub-tasks**:
 - Provider registry using LangChain's `init_chat_model("provider:model-id")` pattern
-- Config file `~/.vibeforce/models.yaml` with providers, API keys (env var refs), defaults
+- Config file `~/.harnessforce/models.yaml` with providers, API keys (env var refs), defaults
 - `/model` slash command for mid-session switching (interactive menu)
-- `vibeforce model:list` — show all available models across providers
-- `vibeforce provider:add` — interactive wizard to add new provider (cloud, local, gateway)
+- `harnessforce model:list` — show all available models across providers
+- `harnessforce provider:add` — interactive wizard to add new provider (cloud, local, gateway)
 - Cloud providers: Anthropic, OpenAI, Google (via LangChain, 50+ providers)
 - Local models: Ollama (`http://localhost:11434`), vLLM (`http://localhost:8000/v1`)
 - Task-aware routing: haiku for classification, opus for planning, sonnet for execution
@@ -232,7 +232,7 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 - **Mid tier**: LoRA on K2.5, 32x H100 ($160-250K)
 - **Full tier**: Full fine-tune on 256x H100 ($800K-1.2M)
 - Trained model served via vLLM, registered as local provider in `models.yaml`
-- CLI: `vibeforce model extract`, `vibeforce model train`, `vibeforce model status`, `vibeforce model set-active`
+- CLI: `harnessforce model extract`, `harnessforce model train`, `harnessforce model status`, `harnessforce model set-active`
 - SalesforceBench evaluation harness (200 core + 30 Agentforce problems)
 - Static analysis pipeline: ApexPMD + ESLint + Agent Script grammar parser
 
@@ -245,17 +245,17 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 
 **Sub-tasks**:
 - Subagent routing: main agent dispatches to admin/dev/agentforce/appbuilder subagents, each with tool subsets
-- Session persistence: conversation history saved in `.vibeforce/sessions/`
+- Session persistence: conversation history saved in `.harnessforce/sessions/`
 - Error handling: parse SF deployment errors, suggest fixes, auto-retry
 - Change visibility: post-action summary of what changed (files written, metadata deployed)
-- `vibeforce init` guided onboarding
-- `vibeforce rollback` restore from snapshot
-- `vibeforce history` session replay
-- npm publish: `@vibeforce/cli`, `@vibeforce/core`
+- `harnessforce init` guided onboarding
+- `harnessforce rollback` restore from snapshot
+- `harnessforce history` session replay
+- npm publish: `@harnessforce/cli`, `@harnessforce/core`
 - Docs: README, getting-started guide, command reference
 - MIT license, CONTRIBUTING guide, GitHub Actions CI
 
-## Agent Team Structure (for building Vibeforce)
+## Agent Team Structure (for building Harnessforce)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -283,17 +283,17 @@ Each feature is independent and can be built by a dedicated agent team. The **In
 ## Monorepo Structure
 
 ```
-vibeforce/
+harnessforce/
 ├── libs/
 │   ├── deepagents/          # Forked core (minimal changes, sync with upstream)
-│   └── vibeforce/           # SF agent library
+│   └── harnessforce/           # SF agent library
 │       ├── tools/           # ~22 SF-specific tools (pruned)
 │       ├── middleware/       # sf-context, sf-permissions
 │       ├── prompts/         # Layered system prompts with SF domain knowledge
 │       └── docs/            # Cached SF PDF guides
 ├── apps/
 │   └── cli/                 # Ink TUI (Agent Astro, InputBar, MessageList, ToolConfirm, OrgPicker)
-│       └── greeting.ts      # Agent Astro Unicode art + figlet "Vibeforce"
+│       └── greeting.ts      # Agent Astro Unicode art + figlet "Harnessforce"
 ├── skills/                  # Reusable workflow definitions (SKILL.md files)
 ├── evals/                   # SalesforceBench + integration tests
 └── docs/                    # User-facing documentation
@@ -314,21 +314,21 @@ vibeforce/
 ## Distribution & Auto-Update
 
 ```bash
-npm install -g @vibeforce/cli
-vibeforce
+npm install -g @harnessforce/cli
+harnessforce
 ```
 
 **Required**: Node.js 20+, Salesforce CLI (`sf`), LLM API key
-**Required**: Python 3.9+ with `robotframework` + `cumulusci` (auto-installed via `vibeforce init`; used as fallback when Playwright clicks are blocked by Shadow DOM)
+**Required**: Python 3.9+ with `robotframework` + `cumulusci` (auto-installed via `harnessforce init`; used as fallback when Playwright clicks are blocked by Shadow DOM)
 
 ### Auto-Update on Launch
 
-Every time the user runs `vibeforce`, the CLI performs a lightweight update check before entering the REPL:
+Every time the user runs `harnessforce`, the CLI performs a lightweight update check before entering the REPL:
 
 ```
-vibeforce
-  → Check npm registry for latest @vibeforce/cli version (cached, max 1 check/hour)
-  → If newer version: auto-install via `npm install -g @vibeforce/cli@latest` + restart
+harnessforce
+  → Check npm registry for latest @harnessforce/cli version (cached, max 1 check/hour)
+  → If newer version: auto-install via `npm install -g @harnessforce/cli@latest` + restart
   → Pull latest skills from GitHub repo (git pull or fetch tarball of skills/ directory)
   → Pull latest system prompts and doc cache updates
   → Show changelog diff if major/minor version changed
@@ -336,29 +336,29 @@ vibeforce
 ```
 
 **What auto-updates**:
-- CLI binary (`@vibeforce/cli` from npm)
-- Skills (SKILL.md files from GitHub `vibeforce/skills/`)
+- CLI binary (`@harnessforce/cli` from npm)
+- Skills (SKILL.md files from GitHub `harnessforce/skills/`)
 - System prompts (SF platform knowledge, governor limits, metadata type mappings)
 - Cached SF documentation PDFs (when new API versions ship)
 - Curated metadata → automation layer mappings (unsupported metadata types list)
 
 **How it works**:
-- Skills and prompts stored in `~/.vibeforce/cache/` (separate from user config)
-- On launch: `fetch("https://api.github.com/repos/{org}/vibeforce/releases/latest")` → compare with local version
+- Skills and prompts stored in `~/.harnessforce/cache/` (separate from user config)
+- On launch: `fetch("https://api.github.com/repos/{org}/harnessforce/releases/latest")` → compare with local version
 - If skills changed: download delta (just the changed SKILL.md files, not full repo)
-- If CLI version changed: prompt user to update (`npm install -g @vibeforce/cli@latest`)
+- If CLI version changed: prompt user to update (`npm install -g @harnessforce/cli@latest`)
 - All updates are fast (<2s for skill sync) and non-blocking (background fetch while REPL loads)
 - Offline mode: skip update check, use cached versions
 
 **User control**:
-- `vibeforce config set auto-update false` — disable auto-updates
-- `vibeforce update` — force update check
-- `vibeforce update --skills-only` — just pull latest skills
-- Pinned versions: `vibeforce config set version-pin 1.2.0` — stay on specific version
+- `harnessforce config set auto-update false` — disable auto-updates
+- `harnessforce update` — force update check
+- `harnessforce update --skills-only` — just pull latest skills
+- Pinned versions: `harnessforce config set version-pin 1.2.0` — stay on specific version
 
 ## Verification
 
-1. `vibeforce` → Agent Astro greeting, org detection, OrgPicker
+1. `harnessforce` → Agent Astro greeting, org detection, OrgPicker
 2. "Show me all Account fields" → `sf_describe_object`
 3. "Query top 10 Opportunities by Amount" → generates SOQL, runs `sf_query`
 4. "Create Warranty__c with Status and ExpiryDate fields" → writes metadata XML → `sf project deploy --dry-run` → confirm → deploy

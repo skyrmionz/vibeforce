@@ -1,5 +1,5 @@
 /**
- * Slash command registry for the Vibeforce TUI.
+ * Slash command registry for the Harnessforce TUI.
  *
  * Two command types:
  *   - local: executed in-process, result displayed directly
@@ -26,8 +26,8 @@ import {
   loadHooks,
   openInEditor,
   getTodos,
-} from "vibeforce-core";
-import type { Skill } from "vibeforce-core";
+} from "harnessforce-core";
+import type { Skill } from "harnessforce-core";
 import { execSync } from "node:child_process";
 import {
   formatTable,
@@ -108,7 +108,7 @@ const modelCommand: SlashCommand = {
 
 const setKeyCommand: SlashCommand = {
   name: "set-key",
-  description: "Save your OpenRouter API key (persists to ~/.vibeforce/models.yaml)",
+  description: "Save your OpenRouter API key (persists to ~/.harnessforce/models.yaml)",
   type: "local",
   execute: async (args) => {
     const key = args.trim();
@@ -120,7 +120,7 @@ const setKeyCommand: SlashCommand = {
       const { writeFileSync, mkdirSync, existsSync } = await import("node:fs");
       const { join } = await import("node:path");
       const home = process.env.HOME ?? process.env.USERPROFILE ?? "~";
-      const configDir = join(home, ".vibeforce");
+      const configDir = join(home, ".harnessforce");
       const configPath = join(configDir, "models.yaml");
 
       if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
@@ -152,7 +152,7 @@ const setKeyCommand: SlashCommand = {
       // Also set in current process
       process.env.OPENROUTER_API_KEY = key;
 
-      return `API key saved. Restart vibeforce to connect.`;
+      return `API key saved. Restart harnessforce to connect.`;
     } catch (err: any) {
       return `Error saving key: ${err.message}`;
     }
@@ -170,7 +170,7 @@ const modelListCommand: SlashCommand = {
     const models = registry.listModels();
 
     if (models.length === 0) {
-      return "No models configured. Run `vibeforce provider:add` to get started.";
+      return "No models configured. Run `harnessforce provider:add` to get started.";
     }
 
     const defaultId = config.defaultModel;
@@ -378,7 +378,7 @@ const doctorCommand: SlashCommand = {
       checks.push(`  Robot FW    NOT FOUND (optional)`);
     }
 
-    return `Vibeforce Doctor\n\n${checks.join("\n")}\n`;
+    return `Harnessforce Doctor\n\n${checks.join("\n")}\n`;
   },
 };
 
@@ -400,22 +400,22 @@ const rollbackCommand: SlashCommand = {
 
 const initCommand: SlashCommand = {
   name: "init",
-  description: "Run first-time setup (scaffold .vibeforce/, check deps)",
+  description: "Run first-time setup (scaffold .harnessforce/, check deps)",
   type: "local",
   execute: async (_args, ctx) => {
     const { mkdirSync, existsSync, writeFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const cwd = process.cwd();
-    const vfDir = join(cwd, ".vibeforce");
+    const vfDir = join(cwd, ".harnessforce");
     const skillsDir = join(cwd, "skills");
 
     const steps: string[] = [];
 
     if (!existsSync(vfDir)) {
       mkdirSync(vfDir, { recursive: true });
-      steps.push("Created .vibeforce/ directory");
+      steps.push("Created .harnessforce/ directory");
     } else {
-      steps.push(".vibeforce/ already exists");
+      steps.push(".harnessforce/ already exists");
     }
 
     if (!existsSync(skillsDir)) {
@@ -428,13 +428,13 @@ const initCommand: SlashCommand = {
     const configPath = join(vfDir, "config.json");
     if (!existsSync(configPath)) {
       writeFileSync(configPath, JSON.stringify({ initialized: true }, null, 2));
-      steps.push("Created .vibeforce/config.json");
+      steps.push("Created .harnessforce/config.json");
     }
 
     ensureConfigFile();
-    steps.push("Ensured model config at ~/.vibeforce/config.json");
+    steps.push("Ensured model config at ~/.harnessforce/config.json");
 
-    return `Vibeforce initialized:\n\n  ${steps.join("\n  ")}\n`;
+    return `Harnessforce initialized:\n\n  ${steps.join("\n  ")}\n`;
   },
 };
 
@@ -1163,7 +1163,7 @@ const rememberCommand: SlashCommand = {
   type: "prompt",
   getPrompt: (args: string) => {
     const extra = args.trim() ? `\n\nSpecifically, remember: ${args}` : "";
-    return `Review this conversation and save any important learnings, corrections, or project-specific knowledge to .vibeforce/agent.md. Create the file if it doesn't exist. Use a structured format with headers and bullet points.${extra}`;
+    return `Review this conversation and save any important learnings, corrections, or project-specific knowledge to .harnessforce/agent.md. Create the file if it doesn't exist. Use a structured format with headers and bullet points.${extra}`;
   },
 };
 
@@ -1201,7 +1201,7 @@ const resumeCommand: SlashCommand = {
     const lines = sessions.slice(0, 10).map((s, i) =>
       `  ${i + 1}. ${s.id.slice(0, 8)}... (${s.messageCount} messages, ${new Date(s.lastMessageAt).toLocaleString()})`,
     );
-    return `Previous sessions:\n\n${lines.join("\n")}\n\nUse: vibeforce --resume <session-id> to resume.`;
+    return `Previous sessions:\n\n${lines.join("\n")}\n\nUse: harnessforce --resume <session-id> to resume.`;
   },
 };
 
@@ -1229,11 +1229,11 @@ const undoCommand: SlashCommand = {
 
 const hooksCommand: SlashCommand = {
   name: "hooks",
-  description: "List configured hooks from .vibeforce/settings.json",
+  description: "List configured hooks from .harnessforce/settings.json",
   type: "local",
   execute: async () => {
     const hooks = loadHooks();
-    if (hooks.length === 0) return "No hooks configured.\nAdd hooks to .vibeforce/settings.json";
+    if (hooks.length === 0) return "No hooks configured.\nAdd hooks to .harnessforce/settings.json";
     const lines = hooks.map((h) => `  ${h.event}: ${h.command} ${(h.args || []).join(" ")}`);
     return `Configured hooks:\n\n${lines.join("\n")}`;
   },
@@ -1330,9 +1330,9 @@ const approveCommand: SlashCommand = {
 
 const versionCommand: SlashCommand = {
   name: "version",
-  description: "Show the current Vibeforce version",
+  description: "Show the current Harnessforce version",
   type: "local",
-  execute: async () => `Vibeforce v${process.env.npm_package_version ?? "0.7.4"}`,
+  execute: async () => `Harnessforce v${process.env.npm_package_version ?? "0.7.4"}`,
 };
 
 const changelogCommand: SlashCommand = {
@@ -1340,7 +1340,7 @@ const changelogCommand: SlashCommand = {
   description: "Open the changelog / release notes in the browser",
   type: "local",
   execute: async () => {
-    try { (await import("node:child_process")).execSync("open https://github.com/skyrmionz/vibeforce/releases"); } catch {}
+    try { (await import("node:child_process")).execSync("open https://github.com/skyrmionz/harnessforce/releases"); } catch {}
     return "Opened changelog in browser.";
   },
 };
@@ -1350,7 +1350,7 @@ const feedbackCommand: SlashCommand = {
   description: "Open GitHub Issues to submit feedback",
   type: "local",
   execute: async () => {
-    try { (await import("node:child_process")).execSync("open https://github.com/skyrmionz/vibeforce/issues/new"); } catch {}
+    try { (await import("node:child_process")).execSync("open https://github.com/skyrmionz/harnessforce/issues/new"); } catch {}
     return "Opened GitHub Issues in browser.";
   },
 };
@@ -1364,11 +1364,11 @@ const tokensCommand: SlashCommand = {
 
 const reloadCommand: SlashCommand = {
   name: "reload",
-  description: "Reload configuration from ~/.vibeforce/models.yaml",
+  description: "Reload configuration from ~/.harnessforce/models.yaml",
   type: "local",
   execute: async () => {
     ensureConfigFile();
-    return "Configuration reloaded from ~/.vibeforce/models.yaml";
+    return "Configuration reloaded from ~/.harnessforce/models.yaml";
   },
 };
 

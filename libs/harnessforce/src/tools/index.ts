@@ -1,5 +1,5 @@
 /**
- * Tool exports for Vibeforce agent.
+ * Tool exports for Harnessforce agent.
  */
 
 // ── Core filesystem & shell tools ──────────────────────────────────────────

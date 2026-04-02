@@ -1,7 +1,7 @@
 /**
  * File history — save and restore previous versions of files.
  *
- * Versions are stored under `.vibeforce/file-history/{hash}.json`.
+ * Versions are stored under `.harnessforce/file-history/{hash}.json`.
  */
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -12,7 +12,7 @@ import { resolve, join } from "node:path";
 // Helpers
 // ---------------------------------------------------------------------------
 
-const HISTORY_DIR = resolve(process.cwd(), ".vibeforce", "file-history");
+const HISTORY_DIR = resolve(process.cwd(), ".harnessforce", "file-history");
 const MAX_VERSIONS = 10;
 
 function hashPath(filePath: string): string {

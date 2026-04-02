@@ -20,7 +20,7 @@ import {
   addProvider as persistProvider,
   removeProvider as persistRemoveProvider,
   ensureConfigFile,
-} from 'vibeforce-core';
+} from 'harnessforce-core';
 
 // ----------------------------------------------------------------
 // model:list
@@ -34,7 +34,7 @@ const modelList = new Command('model-list')
     const models = registry.listModels();
 
     if (models.length === 0) {
-      console.log('No models configured. Run `vibeforce provider:add` to get started.');
+      console.log('No models configured. Run `harnessforce provider:add` to get started.');
       return;
     }
 
@@ -74,7 +74,7 @@ const modelSelect = new Command('model-select')
     const match = all.find((m) => m.id === id || m.model === id);
 
     if (!match) {
-      console.error(`Error: Model "${id}" not found. Run \`vibeforce model:list\` to see available models.`);
+      console.error(`Error: Model "${id}" not found. Run \`harnessforce model:list\` to see available models.`);
       process.exit(1);
     }
     console.log(`Switched to ${match.model} (${match.provider})`);
@@ -94,7 +94,7 @@ const modelDefault = new Command('model-default')
     const match = all.find((m) => m.id === id || m.model === id);
 
     if (!match) {
-      console.error(`Error: Model "${id}" not found. Run \`vibeforce model:list\` to see available models.`);
+      console.error(`Error: Model "${id}" not found. Run \`harnessforce model:list\` to see available models.`);
       process.exit(1);
     }
     persistDefaultModel(match.id);

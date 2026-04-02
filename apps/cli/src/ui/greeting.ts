@@ -104,7 +104,7 @@ export function renderGreeting(options?: GreetingOptions): string {
   const info = [
     "",
     "",
-    `  ${bold(cyan("Vibeforce")) + dim(` v${version}`)}`,
+    `  ${bold(cyan("Harnessforce")) + dim(` v${version}`)}`,
     "",
     org ? `  ${dim("org:")} ${org}` : `  ${dim("no org connected")}`,
     `  ${dim(cwd)}`,

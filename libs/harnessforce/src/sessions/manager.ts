@@ -1,7 +1,7 @@
 /**
  * Session persistence — save and resume conversations.
  *
- * Sessions are stored as JSONL files in .vibeforce/sessions/{id}.jsonl
+ * Sessions are stored as JSONL files in .harnessforce/sessions/{id}.jsonl
  * where each line is a JSON-encoded message with a timestamp.
  */
 
@@ -81,10 +81,10 @@ function parseJsonlLine(line: string): Message | null {
 /**
  * Create a session manager that persists conversations as JSONL files.
  *
- * @param sessionsDir - Directory to store session files (default: .vibeforce/sessions)
+ * @param sessionsDir - Directory to store session files (default: .harnessforce/sessions)
  */
 export function createSessionManager(
-  sessionsDir: string = ".vibeforce/sessions",
+  sessionsDir: string = ".harnessforce/sessions",
 ): SessionManager {
   let currentSessionId: string | null = null;
 

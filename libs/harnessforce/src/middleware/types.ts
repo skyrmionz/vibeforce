@@ -1,5 +1,5 @@
 /**
- * Shared types for the Vibeforce permission & safety middleware.
+ * Shared types for the Harnessforce permission & safety middleware.
  */
 
 // ---------------------------------------------------------------------------
