@@ -402,7 +402,7 @@ export async function createVibeforceAgent(
   prompt += `\n\n## Available Skills\n\n${skillsSummary}`;
 
   // ── Salesforce deep knowledge (only for SFDX projects) ───────────────
-  if (projectContext.isSfdxProject) {
+  if (projectContext.isSfdxProject || projectContext.defaultOrg) {
     const sfKnowledgeBlock = [
       "## Salesforce Platform Deep Knowledge",
       "",
@@ -583,6 +583,11 @@ export async function createVibeforceAgent(
               usageMeta.input_tokens ?? 0,
               usageMeta.output_tokens ?? 0,
             );
+          }
+        } else if (event.event === "on_llm_end") {
+          const usageMeta = event.data?.output?.usage_metadata;
+          if (usageMeta) {
+            sessionCostTracker.addUsage(modelId, usageMeta.input_tokens ?? 0, usageMeta.output_tokens ?? 0);
           }
         } else if (
           event.event === "on_chat_model_stream" &&

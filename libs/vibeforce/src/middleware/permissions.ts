@@ -71,6 +71,18 @@ export const TOOL_RISK_MAP: Record<string, RiskLevel> = {
   dc_ingest_bulk: 'destructive',
   dc_create_identity_resolution: 'destructive',
   dc_create_segment: 'destructive',
+  sf_scratch_org_create: 'write',
+  sf_scratch_org_delete: 'destructive',
+  sf_scratch_org_list: 'read',
+  sf_package_create: 'write',
+  sf_package_version_create: 'write',
+  sf_package_install: 'destructive',
+  sf_deploy_status: 'read',
+  sf_deploy_cancel: 'destructive',
+  sf_test_coverage: 'read',
+  sf_data_export: 'read',
+  sf_sandbox_create: 'write',
+  sf_event_log: 'read',
 };
 
 /**

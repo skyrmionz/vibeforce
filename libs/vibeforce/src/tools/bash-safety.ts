@@ -73,13 +73,13 @@ const PATTERNS: Pattern[] = [
   },
   {
     regex: /curl\s.*\|\s*(ba)?sh/,
-    severity: "warning",
-    reason: "Piping curl output to shell — code will execute unseen",
+    severity: "block",
+    reason: "Piping curl to shell is dangerous — download the script first, review it, then run it",
   },
   {
     regex: /wget\s.*\|\s*(ba)?sh/,
-    severity: "warning",
-    reason: "Piping wget output to shell — code will execute unseen",
+    severity: "block",
+    reason: "Piping wget to shell is dangerous — download the script first, review it, then run it",
   },
   {
     regex: /chmod\s+777/,

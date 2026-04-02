@@ -389,6 +389,12 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
           }
         }
       } catch (err: any) {
+        if (err.message?.includes("402") || err.message?.includes("Insufficient credits")) {
+          setMessages(prev => [...prev, {
+            role: "system",
+            content: "\u26A0 API credits exhausted.\n\nAdd credits: https://openrouter.ai/settings/credits\nOr switch to free model: /model openrouter:qwen/qwen3.6-plus-preview:free"
+          }]);
+        }
         fullResponse += `\nError: ${err.message}`;
       }
 
