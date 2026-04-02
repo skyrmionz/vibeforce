@@ -51,7 +51,7 @@ export function estimateMessagesTokens(messages: Message[]): number {
 // ---------------------------------------------------------------------------
 
 /**
- * Generate a summary prompt from older messages.
+ * Generate a summary prompt from older messages (string truncation fallback).
  * Returns a single "context summary" message that replaces the originals.
  */
 export function summarizeMessages(messages: Message[]): Message {
@@ -59,7 +59,6 @@ export function summarizeMessages(messages: Message[]): Message {
 
   for (const msg of messages) {
     const role = msg.role === "user" ? "User" : "Assistant";
-    // Truncate very long messages in the summary
     const content =
       msg.content.length > 500
         ? msg.content.slice(0, 497) + "..."
@@ -81,6 +80,40 @@ End of conversation summary. The recent messages follow below.
     content: summary,
     timestamp: new Date().toISOString(),
   };
+}
+
+/**
+ * LLM-based summarization — uses a cheap model to generate a proper summary.
+ * Falls back to string truncation if the LLM call fails.
+ *
+ * Claude Code uses Haiku for this; we use whatever cheap model is available via OpenRouter.
+ */
+export async function summarizeMessagesWithLLM(
+  messages: Message[],
+  llmCall?: (prompt: string) => Promise<string>,
+): Promise<Message> {
+  if (!llmCall) return summarizeMessages(messages);
+
+  try {
+    const transcript = messages.map((msg) => {
+      const role = msg.role === "user" ? "User" : "Assistant";
+      const content = msg.content.length > 1000 ? msg.content.slice(0, 997) + "..." : msg.content;
+      return `[${role}]: ${content}`;
+    }).join("\n");
+
+    const prompt = `Summarize this conversation in 500 words or less. Preserve: key decisions, files modified, errors encountered, and the user's current goal. Omit: tool output details, intermediate reasoning, repeated attempts.\n\n${transcript}`;
+
+    const summary = await llmCall(prompt);
+
+    return {
+      role: "system",
+      content: `<context_summary>\n${summary}\n</context_summary>`,
+      timestamp: new Date().toISOString(),
+    };
+  } catch {
+    // Fall back to string truncation
+    return summarizeMessages(messages);
+  }
 }
 
 /**

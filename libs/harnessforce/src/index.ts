@@ -129,6 +129,9 @@ export { getSfData } from "./tools/index.js";
 // ── Config ──────────────────────────────────────────────────────────────────
 export { TIMEOUTS } from "./config/timeouts.js";
 
+// ── Services ────────────────────────────────────────────────────────────────
+export { extractAndSaveMemories } from "./services/extract-memories.js";
+
 // ── Middleware ────────────────────────────────────────────────────────────────
 export {
   composeMiddleware,
@@ -145,6 +148,7 @@ export {
   estimateTokens,
   estimateMessagesTokens,
   summarizeMessages,
+  summarizeMessagesWithLLM,
   // Memory
   readMemorySources,
   buildMemoryPrompt,
@@ -382,7 +386,8 @@ export async function createHarnessforceAgent(
       : SYSTEM_PROMPT;
 
   // Tool-specific guidance
-  const toolGuidance = buildToolGuidancePrompt(true);
+  // Core tools only — saves ~7K tokens/turn vs including all 57 tools
+  const toolGuidance = buildToolGuidancePrompt(false);
   if (toolGuidance) {
     prompt += `\n\n${toolGuidance}`;
   }
@@ -590,11 +595,23 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
               : output?.content ?? JSON.stringify(output);
           let contentStr = typeof content === "string" ? content : String(content);
 
-          // Truncate large tool outputs to prevent context bloat
-          // (edit_file/write_file are small confirmations — skip truncation)
+          // Truncate large tool outputs + persist full result to disk (Claude Code pattern)
           const MAX_TOOL_OUTPUT = 4_000;
           if (contentStr.length > MAX_TOOL_OUTPUT && !["edit_file", "write_file"].includes(event.name)) {
-            contentStr = contentStr.slice(0, MAX_TOOL_OUTPUT) + `\n... (truncated, ${contentStr.length} chars total)`;
+            // Save full result to disk so agent can re-read if needed
+            try {
+              const resultsDir = ".harnessforce/tool-results";
+              mkdirSync(resultsDir, { recursive: true });
+              const ts = new Date().toISOString().replace(/[:.]/g, "-");
+              const filePath = `${resultsDir}/${ts}-${event.name}.txt`;
+              const { writeFileSync } = await import("node:fs");
+              writeFileSync(filePath, contentStr, "utf-8");
+              contentStr = contentStr.slice(0, MAX_TOOL_OUTPUT) +
+                `\n... (truncated, ${contentStr.length} chars total — full output saved to ${filePath})`;
+            } catch {
+              contentStr = contentStr.slice(0, MAX_TOOL_OUTPUT) +
+                `\n... (truncated, ${contentStr.length} chars total)`;
+            }
           }
 
           appendAuditLog({

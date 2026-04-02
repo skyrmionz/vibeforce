@@ -53,6 +53,7 @@ export {
   estimateTokens,
   estimateMessagesTokens,
   summarizeMessages,
+  summarizeMessagesWithLLM,
 } from './summarization.js';
 export type { SummarizationConfig } from './summarization.js';
 

@@ -257,24 +257,22 @@ program
       })
     );
 
-    // Handle graceful shutdown
-    process.on("SIGINT", () => {
-      // Save current session before exit (best-effort)
+    // Handle graceful shutdown (Claude Code pattern: cleanup registry)
+    const gracefulShutdown = () => {
+      // 1. Save session state
+      try { sessionManager.save([]); } catch { /* best-effort */ }
+      // 2. Clean up browser if open
       try {
-        sessionManager.save([]);
-      } catch { /* best-effort */ }
+        import("harnessforce-core").then(({ closeBrowser }) => closeBrowser?.()).catch(() => {});
+      } catch { /* no browser */ }
+      // 3. Unmount TUI
       instance.unmount();
       process.exit(0);
-    });
+    };
 
-    process.on("SIGTERM", () => {
-      // Save current session before exit (best-effort)
-      try {
-        sessionManager.save([]);
-      } catch { /* best-effort */ }
-      instance.unmount();
-      process.exit(0);
-    });
+    process.on("SIGINT", gracefulShutdown);
+
+    process.on("SIGTERM", gracefulShutdown);
 
     await instance.waitUntilExit();
   });
