@@ -59,11 +59,16 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const [menuJustSelected, setMenuJustSelected] = useState(false);
   const [inputHistory, setInputHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [exiting, setExiting] = useState(false);
 
   useInput((_input, key) => {
     if (key.ctrl && _input === "c") {
-      exit();
-      process.exit(0);
+      setExiting(true);
+      setTimeout(() => {
+        exit();
+        process.exit(0);
+      }, 100);
+      return;
     }
 
     // ESC to cancel streaming (interrupt the agent)
@@ -511,48 +516,57 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
         </Box>
       )}
 
-      {/* Thinking/loading — right above input container */}
-      {streaming && !currentTool && !currentResponse && (
-        <Box marginBottom={0}>
-          <Text color="#00A1E0">{"  Harnessing..."}</Text>
-        </Box>
-      )}
-      {agentLoading && messages.length === 0 && (
-        <Box marginBottom={0}>
-          <Text color="#00A1E0">{"  Initializing agent..."}</Text>
-        </Box>
-      )}
+      {!exiting && (
+        <>
+          {/* Thinking/loading — right above input container */}
+          {streaming && !currentTool && !currentResponse && (
+            <Box marginBottom={0}>
+              <Text color="#00A1E0">{"  Harnessing..."}</Text>
+            </Box>
+          )}
+          {agentLoading && messages.length === 0 && (
+            <Box marginBottom={0}>
+              <Text color="#00A1E0">{"  Initializing agent..."}</Text>
+            </Box>
+          )}
 
-      {/* Input container with blue bars */}
-      <Box flexDirection="column" marginTop={0}>
-        <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? process.stdout.columns - 2 : 60)}</Text>
-        <Box paddingX={1}>
-          <Text color="#00A1E0" bold>
-            {"❯ "}
-          </Text>
-          <TextInput
-            value={input}
-            onChange={(val) => {
-              // Ctrl+U sends a special character (U+0015) — clear input
-              if (val.includes('\u0015')) {
-                setInput("");
-                return;
-              }
-              setInput(val);
-            }}
-            onSubmit={handleSubmit}
-            placeholder={streaming ? "Type to interrupt or add context..." : "Ask Harnessforce anything... (type / for commands)"}
+          {/* Input container with blue bars */}
+          <Box flexDirection="column" marginTop={0}>
+            <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? process.stdout.columns - 2 : 60)}</Text>
+            <Box paddingX={1}>
+              <Text color="#00A1E0" bold>
+                {"❯ "}
+              </Text>
+              <TextInput
+                value={input}
+                onChange={(val) => {
+                  if (val.includes('\u0015')) {
+                    setInput("");
+                    return;
+                  }
+                  setInput(val);
+                }}
+                onSubmit={handleSubmit}
+                placeholder={streaming ? "Type to interrupt or add context..." : "Ask Harnessforce anything... (type / for commands)"}
+              />
+            </Box>
+            <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? process.stdout.columns - 2 : 60)}</Text>
+          </Box>
+
+          {/* Mode + status underneath input */}
+          <StatusBar
+            permissionMode={currentPermissionMode}
+            model={currentModel}
+            org={org}
           />
-        </Box>
-        <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? process.stdout.columns - 2 : 60)}</Text>
-      </Box>
+        </>
+      )}
 
-      {/* Mode + status underneath input */}
-      <StatusBar
-        permissionMode={currentPermissionMode}
-        model={currentModel}
-        org={org}
-      />
+      {exiting && (
+        <Box marginTop={1}>
+          <Text dimColor>  Session ended.</Text>
+        </Box>
+      )}
     </Box>
   );
 }
