@@ -900,6 +900,216 @@ const setupCommand: SlashCommand = {
 };
 
 // ---------------------------------------------------------------------------
+// Extended Salesforce commands
+// ---------------------------------------------------------------------------
+
+const scratchCreateCommand: SlashCommand = {
+  name: "scratch-create",
+  description: "Create a new scratch org from a definition file",
+  type: "local",
+  execute: async (args) => {
+    const parts = args.trim().split(/\s+/);
+    const defFile = parts[0];
+    if (!defFile) return "Usage: /scratch-create <definition-file> [alias]";
+    const alias = parts[1];
+    try {
+      const sfArgs = ["create", "scratch", "--definition-file", defFile];
+      if (alias) sfArgs.push("--alias", alias);
+      const result = await runSfCommand("org", sfArgs, { timeout: 300_000 });
+      if (!result.success) return `Error: ${result.raw}`;
+      const data = result.data as any;
+      const orgId = data?.orgId ?? data?.id ?? "";
+      const username = data?.username ?? "";
+      return `Scratch org created${alias ? ` (${alias})` : ""}${orgId ? `\nOrg ID: ${orgId}` : ""}${username ? `\nUsername: ${username}` : ""}`;
+    } catch (err: any) {
+      return `Error creating scratch org: ${err.message}`;
+    }
+  },
+};
+
+const scratchDeleteCommand: SlashCommand = {
+  name: "scratch-delete",
+  description: "Delete a scratch org",
+  type: "local",
+  execute: async (args) => {
+    const targetOrg = args.trim();
+    if (!targetOrg) return "Usage: /scratch-delete <alias-or-username>";
+    try {
+      const result = await runSfCommand("org", [
+        "delete", "scratch", "--target-org", targetOrg, "--no-prompt",
+      ]);
+      if (!result.success) return `Error: ${result.raw}`;
+      return `Scratch org "${targetOrg}" deleted.`;
+    } catch (err: any) {
+      return `Error deleting scratch org: ${err.message}`;
+    }
+  },
+};
+
+const packageCreateCommand: SlashCommand = {
+  name: "package-create",
+  description: "Create a new Salesforce package",
+  type: "local",
+  execute: async (args) => {
+    const parts = args.trim().split(/\s+/);
+    const name = parts[0];
+    if (!name) return "Usage: /package-create <name> [Managed|Unlocked]";
+    const packageType = parts[1] ?? "Unlocked";
+    try {
+      const result = await runSfCommand("package", [
+        "create", "--name", name, "--package-type", packageType,
+      ]);
+      if (!result.success) return `Error: ${result.raw}`;
+      return `Package "${name}" created (${packageType}).`;
+    } catch (err: any) {
+      return `Error creating package: ${err.message}`;
+    }
+  },
+};
+
+const packageVersionCommand: SlashCommand = {
+  name: "package-version",
+  description: "Create a new package version",
+  type: "local",
+  execute: async (args) => {
+    const pkg = args.trim();
+    if (!pkg) return "Usage: /package-version <package-id-or-alias>";
+    try {
+      const result = await runSfCommand("package", [
+        "version", "create", "--package", pkg,
+      ], { timeout: 600_000 });
+      if (!result.success) return `Error: ${result.raw}`;
+      const data = result.data as any;
+      const versionId = data?.SubscriberPackageVersionId ?? data?.id ?? "";
+      return `Package version created.${versionId ? `\nVersion ID: ${versionId}` : ""}`;
+    } catch (err: any) {
+      return `Error creating package version: ${err.message}`;
+    }
+  },
+};
+
+const coverageCommand: SlashCommand = {
+  name: "coverage",
+  description: "Run Apex tests and show code coverage (alias for /test-coverage)",
+  type: "local",
+  execute: async () => {
+    try {
+      const result = await runSfCommand("apex", [
+        "run", "test", "--code-coverage", "--result-format", "json",
+      ], { timeout: 300_000 });
+      if (!result.success) return `Error: ${result.raw}`;
+      const data = result.data as any;
+      const coverage = data?.coverage?.coverage ?? data?.codeCoverage ?? [];
+      if (Array.isArray(coverage) && coverage.length > 0) {
+        const headers = ["Class", "Coverage %", "Lines Covered", "Lines Missed"];
+        const rows = coverage.map((c: any) => {
+          const covered = c.numLinesCovered ?? 0;
+          const uncovered = c.numLinesUncovered ?? 0;
+          const total = covered + uncovered;
+          const pct = total > 0 ? Math.round((covered / total) * 100) : 0;
+          return [c.name ?? "", `${pct}%`, String(covered), String(uncovered)];
+        });
+        return formatTable(headers, rows);
+      }
+      return `Test run complete.\n${result.raw}`;
+    } catch (err: any) {
+      return `Error running tests: ${err.message}`;
+    }
+  },
+};
+
+const deployHistoryCommand: SlashCommand = {
+  name: "deploy-history",
+  description: "Show the most recent deployment report",
+  type: "local",
+  execute: async () => {
+    try {
+      const result = await runSfCommand("project", ["deploy", "report"]);
+      if (!result.success) return `Error: ${result.raw}`;
+      const data = result.data as any;
+      const status = data?.status ?? "Unknown";
+      const components = data?.numberComponentsDeployed ?? "?";
+      const errors = data?.numberComponentErrors ?? 0;
+      return `Deploy Status: ${status}\nComponents deployed: ${components}\nErrors: ${errors}${errors > 0 ? `\n\n${result.raw}` : ""}`;
+    } catch (err: any) {
+      return `Error checking deploy status: ${err.message}`;
+    }
+  },
+};
+
+const orgDiffCommand: SlashCommand = {
+  name: "org-diff",
+  description: "Compare metadata between two orgs",
+  type: "prompt",
+  getPrompt: (args) =>
+    `Compare metadata between these two orgs: ${args}`,
+};
+
+const dataExportCommand: SlashCommand = {
+  name: "data-export",
+  description: "Run a SOQL query and export results as CSV",
+  type: "local",
+  execute: async (args) => {
+    if (!args.trim()) return "Usage: /data-export <SOQL>\nExample: /data-export SELECT Id, Name FROM Account LIMIT 100";
+    try {
+      const result = await runSfCommand(
+        "data",
+        ["query", "--query", args.trim(), "--result-format", "csv"],
+        { skipJson: true },
+      );
+      if (!result.success) return `Error: ${result.raw}`;
+      return result.raw;
+    } catch (err: any) {
+      return `Error exporting data: ${err.message}`;
+    }
+  },
+};
+
+const limitsWatchCommand: SlashCommand = {
+  name: "limits-watch",
+  description: "Show current org limits (alias for /org-limits)",
+  type: "local",
+  execute: async () => {
+    try {
+      const result = await runSfCommand("org", ["list", "limits"]);
+      if (!result.success) return `Error: ${result.raw}`;
+      const limits = Array.isArray(result.data) ? result.data : [];
+      if (limits.length === 0) return "No limits data returned.";
+      const headers = ["Limit", "Remaining", "Max"];
+      const rows = limits.map((l: any) => [
+        l.name ?? "",
+        String(l.remaining ?? ""),
+        String(l.max ?? ""),
+      ]);
+      return formatTable(headers, rows);
+    } catch (err: any) {
+      return `Error fetching limits: ${err.message}`;
+    }
+  },
+};
+
+const sandboxCreateCommand: SlashCommand = {
+  name: "sandbox-create",
+  description: "Create a new Salesforce sandbox",
+  type: "local",
+  execute: async (args) => {
+    const parts = args.trim().split(/\s+/);
+    const name = parts[0];
+    if (!name) return "Usage: /sandbox-create <name> [definition-file]";
+    const defFile = parts[1];
+    try {
+      const sfArgs = ["create", "sandbox", "--name", name];
+      if (defFile) sfArgs.push("--definition-file", defFile);
+      const result = await runSfCommand("org", sfArgs, { timeout: 300_000 });
+      if (!result.success) return `Error: ${result.raw}`;
+      return `Sandbox "${name}" creation started.`;
+    } catch (err: any) {
+      return `Error creating sandbox: ${err.message}`;
+    }
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Built-in prompt commands
 // ---------------------------------------------------------------------------
 
@@ -1221,6 +1431,17 @@ const builtInCommands: SlashCommand[] = [
   deployCancelCommand,
   testCoverageCommand,
   logsCommand,
+  // Extended Salesforce commands
+  scratchCreateCommand,
+  scratchDeleteCommand,
+  packageCreateCommand,
+  packageVersionCommand,
+  coverageCommand,
+  deployHistoryCommand,
+  orgDiffCommand,
+  dataExportCommand,
+  limitsWatchCommand,
+  sandboxCreateCommand,
   // Salesforce prompt commands
   apexCommand,
   lwcCommand,

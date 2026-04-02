@@ -60,11 +60,28 @@ export {
   discoveryTools,
 } from "./discovery.js";
 
+export {
+  SfScratchOrgCreateTool,
+  SfScratchOrgDeleteTool,
+  SfScratchOrgListTool,
+  SfPackageCreateTool,
+  SfPackageVersionCreateTool,
+  SfPackageInstallTool,
+  SfDeployStatusTool,
+  SfDeployCancelTool,
+  SfTestCoverageTool,
+  SfDataExportTool,
+  SfSandboxCreateTool,
+  SfEventLogTool,
+  extendedSfTools,
+} from "./sf-extended.js";
+
 import { coreSfTools } from "./salesforce.js";
 import { discoveryTools } from "./discovery.js";
+import { extendedSfTools } from "./sf-extended.js";
 
-/** All 13 Salesforce tools combined (core SF + discovery). */
-export const allSfTools = [...coreSfTools, ...discoveryTools];
+/** All Salesforce tools combined (core SF + discovery + extended). */
+export const allSfTools = [...coreSfTools, ...discoveryTools, ...extendedSfTools];
 
 // ── Documentation tools ──────────────────────────────────────────────────
 export { SfDocsSearchTool, SfDocsReadTool, docsTools } from "./docs.js";
@@ -153,6 +170,7 @@ export const allTools: StructuredToolInterface[] = [
   ...coreTools,
   ...coreSfTools,
   ...discoveryTools,
+  ...extendedSfTools,
   ...docsTools,
   ...browserTools,
   ...agentforceTools,

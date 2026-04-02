@@ -4,6 +4,7 @@ import TextInput from "ink-text-input";
 import type { VibeforceAgent, VibeforceStreamEvent, SessionManager } from "vibeforce-core";
 import { readMemorySources } from "vibeforce-core";
 import { MarkdownText } from "./markdown.js";
+import { StatusBar } from "./status-bar.js";
 import {
   getCommands,
   findCommand,
@@ -40,6 +41,8 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
   const [selectedHint, setSelectedHint] = useState(-1);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [menuJustSelected, setMenuJustSelected] = useState(false);
+  const [inputHistory, setInputHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
 
   useInput((_input, key) => {
     if (key.ctrl && _input === "c") {
@@ -62,6 +65,34 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
         ...prev,
         { role: "system", content: "Interrupted. You can add more context or ask a new question." },
       ]);
+      return;
+    }
+
+    // Shift+Tab to cycle permission modes
+    if (key.shift && key.tab) {
+      const modes = ["default", "plan", "yolo"];
+      const idx = modes.indexOf(currentPermissionMode);
+      const next = modes[(idx + 1) % modes.length]!;
+      setCurrentPermissionMode(next);
+      setMessages(prev => [...prev, { role: "system", content: `Switched to ${next} mode` }]);
+      return;
+    }
+
+    // Up/Down arrow for input history (when NOT in command menu)
+    if (!showCommandMenu && key.upArrow && inputHistory.length > 0) {
+      const newIndex = historyIndex < inputHistory.length - 1 ? historyIndex + 1 : historyIndex;
+      setHistoryIndex(newIndex);
+      setInput(inputHistory[inputHistory.length - 1 - newIndex] ?? "");
+      return;
+    }
+    if (!showCommandMenu && key.downArrow) {
+      const newIndex = historyIndex > 0 ? historyIndex - 1 : -1;
+      setHistoryIndex(newIndex);
+      if (newIndex === -1) {
+        setInput("");
+      } else {
+        setInput(inputHistory[inputHistory.length - 1 - newIndex] ?? "");
+      }
       return;
     }
 
@@ -133,6 +164,10 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
 
       const trimmed = value.trim();
       if (!trimmed) return;
+
+      // Add to input history
+      setInputHistory(prev => [...prev, trimmed]);
+      setHistoryIndex(-1);
 
       // If streaming, interrupt and queue the new message
       if (streaming) {
@@ -375,8 +410,13 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
   return (
     <Box flexDirection="column" paddingX={1}>
       {/* Message history */}
-      {messages.map((msg, i) => (
-        <Box key={i} marginBottom={0}>
+      {messages.map((msg, i) => {
+        // Show turn separator between assistant/tool messages and user messages
+        const prevMsg = i > 0 ? messages[i - 1] : undefined;
+        const showSeparator = msg.role === "user" && prevMsg && (prevMsg.role === "assistant" || prevMsg.role === "tool");
+        return (
+        <Box key={i} flexDirection="column" marginBottom={0}>
+          {showSeparator && <Text dimColor>{"  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"}</Text>}
           {msg.role === "user" ? (
             <Text>
               <Text color="#00A1E0" bold>
@@ -402,7 +442,8 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
             </Box>
           )}
         </Box>
-      ))}
+        );
+      })}
 
       {/* Streaming response */}
       {streaming && currentResponse && (
@@ -460,10 +501,12 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
         </Box>
       )}
 
-      {/* Plan mode banner */}
-      {currentPermissionMode === 'plan' && (
-        <Text color="#F5A623" bold>  📋 PLAN MODE — read-only exploration. Use /approve to execute.</Text>
-      )}
+      {/* Status bar */}
+      <StatusBar
+        permissionMode={currentPermissionMode}
+        model={currentModel}
+        org={org}
+      />
 
       {/* Input — always visible so user can type while agent is working */}
       {(

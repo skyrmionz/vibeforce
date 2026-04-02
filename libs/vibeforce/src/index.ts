@@ -19,6 +19,15 @@ import { AGENTFORCE_PROMPT } from "./prompts/agentforce.js";
 import { DATA_CLOUD_PROMPT } from "./prompts/datacloud.js";
 import { SYSTEM_PROMPT } from "./prompts/system.js";
 import { buildToolGuidancePrompt } from "./prompts/tool-guidance.js";
+import { SF_GOVERNOR_LIMITS_PROMPT } from "./prompts/sf-governor-limits.js";
+import { SF_TRIGGER_PATTERNS_PROMPT } from "./prompts/sf-trigger-patterns.js";
+import { SF_TESTING_PROMPT } from "./prompts/sf-testing.js";
+import { SF_FLOW_PROMPT } from "./prompts/sf-flow.js";
+import { SF_LWC_PROMPT } from "./prompts/sf-lwc.js";
+import { SF_SOQL_PROMPT } from "./prompts/sf-soql.js";
+import { SF_API_STRATEGY_PROMPT } from "./prompts/sf-api-strategy.js";
+import { SF_DEPLOYMENT_PROMPT } from "./prompts/sf-deployment.js";
+import { SF_APEX_ARCHITECTURE_PROMPT } from "./prompts/sf-apex-architecture.js";
 import {
   getActiveOutputStyle,
   type OutputStyleConfig,
@@ -36,6 +45,7 @@ import {
 import { buildMemoryPrompt } from "./middleware/memory.js";
 import { detectPiiFields } from "./middleware/pii.js";
 import { riskOf } from "./middleware/permissions.js";
+import { compactMessages } from "./middleware/summarization.js";
 import { sessionCostTracker } from "./cost/tracker.js";
 import { executeHooks } from "./hooks/index.js";
 import { stripDangerousUnicode } from "./tools/unicode-safety.js";
@@ -218,6 +228,15 @@ export {
   TOOL_GUIDANCE,
   buildToolGuidancePrompt,
 } from "./prompts/tool-guidance.js";
+export { SF_GOVERNOR_LIMITS_PROMPT } from "./prompts/sf-governor-limits.js";
+export { SF_TRIGGER_PATTERNS_PROMPT } from "./prompts/sf-trigger-patterns.js";
+export { SF_TESTING_PROMPT } from "./prompts/sf-testing.js";
+export { SF_FLOW_PROMPT } from "./prompts/sf-flow.js";
+export { SF_LWC_PROMPT } from "./prompts/sf-lwc.js";
+export { SF_SOQL_PROMPT } from "./prompts/sf-soql.js";
+export { SF_API_STRATEGY_PROMPT } from "./prompts/sf-api-strategy.js";
+export { SF_DEPLOYMENT_PROMPT } from "./prompts/sf-deployment.js";
+export { SF_APEX_ARCHITECTURE_PROMPT } from "./prompts/sf-apex-architecture.js";
 
 // ── Sessions ────────────────────────────────────────────────────────────────
 export {
@@ -296,6 +315,7 @@ export type VibeforceStreamEvent =
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; content: string }
   | { type: "approval_required"; tool: string; args: Record<string, unknown>; risk: string }
+  | { type: "system"; content: string }
   | { type: "done" }
   | { type: "error"; error: string };
 
@@ -380,6 +400,25 @@ export async function createVibeforceAgent(
     prompt += `\n\n${memoryBlock}`;
   }
   prompt += `\n\n## Available Skills\n\n${skillsSummary}`;
+
+  // ── Salesforce deep knowledge (only for SFDX projects) ───────────────
+  if (projectContext.isSfdxProject) {
+    const sfKnowledgeBlock = [
+      "## Salesforce Platform Deep Knowledge",
+      "",
+      SF_GOVERNOR_LIMITS_PROMPT,
+      SF_TRIGGER_PATTERNS_PROMPT,
+      SF_TESTING_PROMPT,
+      SF_FLOW_PROMPT,
+      SF_LWC_PROMPT,
+      SF_SOQL_PROMPT,
+      SF_API_STRATEGY_PROMPT,
+      SF_DEPLOYMENT_PROMPT,
+      SF_APEX_ARCHITECTURE_PROMPT,
+    ].join("\n\n");
+    prompt += `\n\n${sfKnowledgeBlock}`;
+  }
+
   if (systemPrompt) {
     prompt += `\n\n${systemPrompt}`;
   }
@@ -568,7 +607,45 @@ export async function createVibeforceAgent(
 
       yield { type: "done" };
     } catch (err: any) {
-      yield { type: "error", error: err.message ?? String(err) };
+      const errMsg = err.message ?? String(err);
+
+      // ── Reactive compaction: detect context-too-long errors ──────────
+      const isContextOverflow =
+        /prompt_too_long|context_length_exceeded|maximum context length/i.test(errMsg);
+
+      if (isContextOverflow) {
+        yield {
+          type: "system",
+          content:
+            "Context limit reached. The conversation history is too long. " +
+            "Please try a shorter message or start a new session with /clear.",
+        };
+
+        // Attempt to compact the checkpointer state for future turns
+        try {
+          const state = await graph.getState({ configurable: { thread_id: tid } });
+          if (state?.values?.messages && Array.isArray(state.values.messages)) {
+            const compacted = compactMessages(
+              state.values.messages.map((m: any) => ({
+                role: m._getType?.() === "human" ? "user" : "assistant",
+                content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+              })),
+              { maxTokens: 60_000, keepRecentMessages: 8 },
+            );
+            // Log compaction for debugging
+            appendAuditLog({
+              timestamp: new Date().toISOString(),
+              event: "context_compacted",
+              originalMessages: state.values.messages.length,
+              compactedMessages: compacted.length,
+            });
+          }
+        } catch {
+          // best-effort — compaction failure should not crash the agent
+        }
+      } else {
+        yield { type: "error", error: errMsg };
+      }
     }
   }
 
