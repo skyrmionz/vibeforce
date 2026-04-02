@@ -33,7 +33,8 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
   const { exit } = useApp();
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [input, setInput] = useState("");
-  const [currentPermissionMode, setCurrentPermissionMode] = useState(initialPermissionMode ?? "default");
+  const [currentPermissionMode, setCurrentPermissionMode] = useState("plan");
+  const [isFirstTurn, setIsFirstTurn] = useState(true);
   const [streaming, setStreaming] = useState(false);
   const [currentResponse, setCurrentResponse] = useState("");
   const [currentTool, setCurrentTool] = useState<string | null>(null);
@@ -74,7 +75,6 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       const idx = modes.indexOf(currentPermissionMode);
       const next = modes[(idx + 1) % modes.length]!;
       setCurrentPermissionMode(next);
-      setMessages(prev => [...prev, { role: "system", content: `Switched to ${next} mode` }]);
       return;
     }
 
@@ -298,6 +298,12 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
         return;
       }
 
+      // Auto-switch from plan to default after first turn
+      if (isFirstTurn) {
+        setIsFirstTurn(false);
+        setCurrentPermissionMode("default");
+      }
+
       setStreaming(true);
       setCurrentResponse("");
       setCurrentTool(null);
@@ -410,7 +416,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       setCurrentTool(null);
       setStreaming(false);
     },
-    [agent, threadId, currentPermissionMode]
+    [agent, threadId, currentPermissionMode, isFirstTurn]
   );
 
   return (
@@ -507,16 +513,10 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
         </Box>
       )}
 
-      {/* Status bar */}
-      <StatusBar
-        permissionMode={currentPermissionMode}
-        model={currentModel}
-        org={org}
-      />
-
-      {/* Input — always visible so user can type while agent is working */}
-      {(
-        <Box marginTop={1}>
+      {/* Input container with blue bars */}
+      <Box flexDirection="column" marginTop={1}>
+        <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? Math.min(process.stdout.columns - 2, 80) : 60)}</Text>
+        <Box paddingX={1}>
           <Text color="#00A1E0" bold>
             {"❯ "}
           </Text>
@@ -534,7 +534,15 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
             placeholder={streaming ? "Type to interrupt or add context..." : "Ask Harnessforce anything... (type / for commands)"}
           />
         </Box>
-      )}
+        <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? Math.min(process.stdout.columns - 2, 80) : 60)}</Text>
+      </Box>
+
+      {/* Mode + status underneath input */}
+      <StatusBar
+        permissionMode={currentPermissionMode}
+        model={currentModel}
+        org={org}
+      />
     </Box>
   );
 }

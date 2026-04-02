@@ -77,46 +77,10 @@ program
     const ctx = await detectProjectContext(process.cwd());
     let orgAlias = opts.org || ctx.defaultOrg;
 
-    // If no org set, check for authenticated orgs and prompt
-    if (!orgAlias && !opts.resume) {
-      try {
-        const { execSync } = await import("node:child_process");
-        const orgListRaw = execSync("sf org list --json 2>/dev/null", { encoding: "utf-8", timeout: 10_000 });
-        const orgList = JSON.parse(orgListRaw);
-        const allOrgs = [
-          ...(orgList.result?.nonScratchOrgs ?? []),
-          ...(orgList.result?.scratchOrgs ?? []),
-        ];
-
-        if (allOrgs.length === 0) {
-          console.log("\n  No Salesforce orgs found. Use /org-login to authenticate one.\n");
-        } else if (allOrgs.length === 1) {
-          orgAlias = allOrgs[0].alias || allOrgs[0].username;
-          console.log(`\n  Using org: ${orgAlias}\n`);
-        } else {
-          // Multiple orgs — show list and ask to pick
-          console.log("\n  Authenticated orgs:");
-          allOrgs.slice(0, 10).forEach((o: any, i: number) => {
-            const name = o.alias || o.username;
-            const type = o.isScratch ? "scratch" : o.isSandbox ? "sandbox" : "production";
-            const def = o.isDefaultUsername ? " (default)" : "";
-            console.log(`    ${i + 1}. ${name} (${type})${def}`);
-          });
-          console.log(`\n  Use /org <alias> to switch, or /org-login to add a new org.\n`);
-
-          // Use the default org if one exists
-          const defaultOrg = allOrgs.find((o: any) => o.isDefaultUsername);
-          if (defaultOrg) {
-            orgAlias = defaultOrg.alias || defaultOrg.username;
-          }
-        }
-      } catch { /* sf CLI not available or failed */ }
-    }
-
-    // Print the greeting
+    // Print the greeting immediately (don't wait for org list)
     console.log(renderGreeting({
       version: program.version() ?? "0.1.0",
-      org: orgAlias,
+      org: orgAlias || undefined,
       cwd: process.cwd(),
     }));
 
@@ -126,6 +90,38 @@ program
     }
     if (ctx.defaultOrg && !opts.org) {
       console.log(`  Default org: ${ctx.defaultOrg}`);
+    }
+
+    // Discover orgs in background (non-blocking — sf org list takes 5-10s)
+    if (!orgAlias && !opts.resume) {
+      import("node:child_process").then(({ execFile }) => {
+        execFile("sf", ["org", "list", "--json"], { encoding: "utf-8", timeout: 15_000 }, (err, stdout) => {
+          if (err || !stdout) return;
+          try {
+            const orgList = JSON.parse(stdout);
+            const allOrgs = [
+              ...(orgList.result?.nonScratchOrgs ?? []),
+              ...(orgList.result?.scratchOrgs ?? []),
+            ];
+
+            if (allOrgs.length === 0) {
+              console.log("\n  No Salesforce orgs found. Use /org-login to authenticate one.\n");
+            } else if (allOrgs.length === 1) {
+              const detected = allOrgs[0].alias || allOrgs[0].username;
+              console.log(`\n  Detected org: ${detected}\n`);
+            } else {
+              console.log("\n  Authenticated orgs:");
+              allOrgs.slice(0, 10).forEach((o: any, i: number) => {
+                const name = o.alias || o.username;
+                const type = o.isScratch ? "scratch" : o.isSandbox ? "sandbox" : "production";
+                const def = o.isDefaultUsername ? " (default)" : "";
+                console.log(`    ${i + 1}. ${name} (${type})${def}`);
+              });
+              console.log(`\n  Use /org <alias> to switch, or /org-login to add a new org.\n`);
+            }
+          } catch { /* parse error — skip */ }
+        });
+      }).catch(() => { /* child_process import failed */ });
     }
 
     // Create session manager
