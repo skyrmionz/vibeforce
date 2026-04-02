@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { appendFileSync, mkdirSync, existsSync } from "node:fs";
+import { appendFileSync, mkdirSync, existsSync, globSync } from "node:fs";
 import { dirname } from "node:path";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import type { StructuredToolInterface } from "@langchain/core/tools";
@@ -230,6 +230,8 @@ export {
 export type { OutputStyleConfig } from "./prompts/output-styles.js";
 export {
   TOOL_GUIDANCE,
+  CORE_TOOL_GUIDANCE,
+  EXTENDED_TOOL_GUIDANCE,
   buildToolGuidancePrompt,
 } from "./prompts/tool-guidance.js";
 export { SF_GOVERNOR_LIMITS_PROMPT } from "./prompts/sf-governor-limits.js";
@@ -374,9 +376,14 @@ export async function createHarnessforceAgent(
   // Combine all tools (raw — middleware is handled at event-stream level)
   const combinedTools = [...allTools, ...extraTools];
 
-  // Load skills and build prompt
+  // Load skills and build prompt — limit to top 10 for system prompt brevity
   const skills = loadSkills(skillsDir);
-  const skillsSummary = getSkillSummaries(skills);
+  const topSkills = skills.slice(0, 10);
+  const skillsSummary = getSkillSummaries(topSkills);
+  const skillNote =
+    skills.length > 10
+      ? `\n\n${skills.length} skills available total. Use /skill-list to see all.`
+      : "";
 
   // ── Assemble system prompt ──────────────────────────────────────────────
   const activeStyle = getActiveOutputStyle(outputStyle);
@@ -389,7 +396,7 @@ export async function createHarnessforceAgent(
       : SYSTEM_PROMPT;
 
   // Tool-specific guidance
-  const toolGuidance = buildToolGuidancePrompt();
+  const toolGuidance = buildToolGuidancePrompt(true);
   if (toolGuidance) {
     prompt += `\n\n${toolGuidance}`;
   }
@@ -412,24 +419,67 @@ export async function createHarnessforceAgent(
     prompt += `\n\n${forceInstructions}`;
   }
 
-  prompt += `\n\n## Available Skills\n\n${skillsSummary}`;
+  prompt += `\n\n## Available Skills\n\n${skillsSummary}${skillNote}`;
 
   // ── Salesforce deep knowledge (only for SFDX projects) ───────────────
   if (projectContext.isSfdxProject || projectContext.defaultOrg) {
+    const cwd = process.cwd();
+
+    // Detect project content to conditionally inject relevant SF prompts
+    const hasApex = globSync("**/*.cls", { cwd }).length > 0;
+    const hasLWC = globSync("**/*.js-meta.xml", { cwd }).length > 0;
+    const hasFlows = globSync("**/*.flow-meta.xml", { cwd }).length > 0;
+    const hasAgentScript = globSync("**/*.agent", { cwd }).length > 0;
+    const hasDetectedFiles = hasApex || hasLWC || hasFlows || hasAgentScript;
+
+    const sfPrompts: string[] = [];
+
+    if (!hasDetectedFiles) {
+      // No detectable SF files but has a connected org — include ALL prompts
+      // since we can't know what the user will ask about
+      sfPrompts.push(
+        SF_GOVERNOR_LIMITS_PROMPT,
+        SF_TRIGGER_PATTERNS_PROMPT,
+        SF_TESTING_PROMPT,
+        SF_FLOW_PROMPT,
+        SF_LWC_PROMPT,
+        SF_SOQL_PROMPT,
+        SF_API_STRATEGY_PROMPT,
+        SF_DEPLOYMENT_PROMPT,
+        SF_APEX_ARCHITECTURE_PROMPT,
+        SF_INTEGRATION_PROMPT,
+        SF_METADATA_PATTERNS_PROMPT,
+      );
+      if (hasAgentScript) sfPrompts.push(AGENTFORCE_PROMPT);
+    } else {
+      // Always include core SF prompts everyone needs
+      sfPrompts.push(
+        SF_GOVERNOR_LIMITS_PROMPT,
+        SF_SOQL_PROMPT,
+        SF_DEPLOYMENT_PROMPT,
+        SF_METADATA_PATTERNS_PROMPT,
+      );
+
+      // Conditional on detected project content
+      if (hasApex) {
+        sfPrompts.push(
+          SF_APEX_ARCHITECTURE_PROMPT,
+          SF_TRIGGER_PATTERNS_PROMPT,
+          SF_TESTING_PROMPT,
+        );
+      }
+      if (hasLWC) sfPrompts.push(SF_LWC_PROMPT);
+      if (hasFlows) sfPrompts.push(SF_FLOW_PROMPT);
+      if (hasAgentScript) sfPrompts.push(AGENTFORCE_PROMPT);
+
+      // Include these if any SF work detected
+      sfPrompts.push(SF_API_STRATEGY_PROMPT, SF_INTEGRATION_PROMPT);
+    }
+
     const sfKnowledgeBlock = [
       "## Salesforce Platform Deep Knowledge",
       "",
-      SF_GOVERNOR_LIMITS_PROMPT,
-      SF_TRIGGER_PATTERNS_PROMPT,
-      SF_TESTING_PROMPT,
-      SF_FLOW_PROMPT,
-      SF_LWC_PROMPT,
-      SF_SOQL_PROMPT,
-      SF_API_STRATEGY_PROMPT,
-      SF_DEPLOYMENT_PROMPT,
-      SF_APEX_ARCHITECTURE_PROMPT,
-      SF_INTEGRATION_PROMPT,
-      SF_METADATA_PATTERNS_PROMPT,
+      ...sfPrompts,
     ].join("\n\n");
     prompt += `\n\n${sfKnowledgeBlock}`;
   }
@@ -626,6 +676,21 @@ export async function createHarnessforceAgent(
       }
 
       yield { type: "done" };
+
+      // ── Context size estimation (structural placeholder) ─────────────
+      // Estimate conversation size after each complete turn.
+      // When the conversation grows large, the checkpointer's MemorySaver
+      // retains all messages. Future: implement argument truncation on
+      // older tool results to reclaim context space before hitting limits.
+      const estimatedTokens = effectiveMessage.length / 4;
+      if (estimatedTokens > 40_000) {
+        appendAuditLog({
+          timestamp: new Date().toISOString(),
+          event: "context_size_warning",
+          estimatedTokens,
+          note: "Conversation approaching context limits. Consider /clear or auto-compaction.",
+        });
+      }
     } catch (err: any) {
       const errMsg = err.message ?? String(err);
 

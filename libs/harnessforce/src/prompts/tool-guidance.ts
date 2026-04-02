@@ -6,9 +6,11 @@
  * best practices, and example patterns.
  */
 
-export const TOOL_GUIDANCE: Record<string, string> = {
-  // ── Core Filesystem & Shell ──────────────────────────────────────────────
-
+/**
+ * Core tools — always included in the system prompt.
+ * These are the tools every session uses regardless of project type.
+ */
+export const CORE_TOOL_GUIDANCE: Record<string, string> = {
   read_file: `### read_file
 - **When to use:** Reading file contents before editing, exploring unfamiliar code, reviewing generated output.
 - **vs alternatives:** Prefer over \`execute("cat ...")\` — read_file respects sandboxing and provides line numbers.
@@ -202,7 +204,14 @@ export const TOOL_GUIDANCE: Record<string, string> = {
   - Check picklist values before setting field values.
   - Look for formula fields (calculated) vs editable fields.
 - **Example:** \`sf_describe_object({ objectName: "Account" })\``,
+};
 
+/**
+ * Extended tools — included when relevant or when explicitly requested.
+ * These cover specialized areas: testing, data ops, browser, Agentforce,
+ * Data Cloud, docs, web, and planning tools.
+ */
+export const EXTENDED_TOOL_GUIDANCE: Record<string, string> = {
   sf_run_tests: `### sf_run_tests
 - **When to use:** Running Apex tests — validation before deploy, checking coverage, verifying changes.
 - **vs alternatives:** Use sf_deploy with --dry-run for deploy validation. Use execute for custom test scripts.
@@ -590,18 +599,47 @@ export const TOOL_GUIDANCE: Record<string, string> = {
 };
 
 /**
+ * Combined guidance — backward-compatible alias for all tools.
+ */
+export const TOOL_GUIDANCE: Record<string, string> = {
+  ...CORE_TOOL_GUIDANCE,
+  ...EXTENDED_TOOL_GUIDANCE,
+};
+
+/**
  * Build a combined tool guidance section for the system prompt.
- * Only includes guidance for tools that are listed.
+ *
+ * @param includeExtended - If true, include extended tool guidance alongside
+ *   core guidance. If false or omitted, only core guidance is included (with a
+ *   note about additional tools). Pass a string[] to filter to specific tools.
  */
 export function buildToolGuidancePrompt(
-  toolNames?: string[],
+  includeExtended?: boolean | string[],
 ): string {
-  const entries = toolNames
-    ? Object.entries(TOOL_GUIDANCE).filter(([k]) => toolNames.includes(k))
-    : Object.entries(TOOL_GUIDANCE);
+  let entries: [string, string][];
+
+  if (Array.isArray(includeExtended)) {
+    // Filter mode: specific tool names
+    entries = Object.entries(TOOL_GUIDANCE).filter(([k]) =>
+      includeExtended.includes(k),
+    );
+  } else if (includeExtended) {
+    // Include all guidance
+    entries = Object.entries(TOOL_GUIDANCE);
+  } else {
+    // Core only
+    entries = Object.entries(CORE_TOOL_GUIDANCE);
+  }
 
   if (entries.length === 0) return "";
 
   const sections = entries.map(([, v]) => v).join("\n\n");
-  return `## Tool-Specific Guidance\n\n${sections}`;
+
+  // When showing core only, add a note about extended tools
+  const extendedNote =
+    !includeExtended
+      ? "\n\nAdditional tool guidance available for browser, Data Cloud, Agentforce, docs, and web tools. These tools work as described in their schemas."
+      : "";
+
+  return `## Tool-Specific Guidance\n\n${sections}${extendedNote}`;
 }
