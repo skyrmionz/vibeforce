@@ -9,6 +9,10 @@
   Admin work, Apex development, Agentforce agents, Data Cloud, custom apps -- all from your terminal.
 </p>
 
+<p align="center">
+  <img src="docs/harnessforce-cli.png" alt="Harnessforce CLI" width="700" />
+</p>
+
 ---
 
 ## What is Harnessforce?
