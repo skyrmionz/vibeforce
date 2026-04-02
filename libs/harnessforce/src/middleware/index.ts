@@ -68,6 +68,7 @@ export {
   createMemoryMiddleware,
   readMemorySources,
   buildMemoryPrompt,
+  loadForceInstructions,
 } from './memory.js';
 export type { MemoryConfig } from './memory.js';
 

@@ -431,10 +431,91 @@ const initCommand: SlashCommand = {
       steps.push("Created .harnessforce/config.json");
     }
 
+    // Create template FORCE.md if it doesn't exist
+    const forcePath = join(cwd, "FORCE.md");
+    if (!existsSync(forcePath)) {
+      writeFileSync(forcePath, FORCE_MD_TEMPLATE, "utf-8");
+      steps.push("Created FORCE.md project instructions template");
+    } else {
+      steps.push("FORCE.md already exists");
+    }
+
+    // Add FORCE.local.md to .gitignore if not already there
+    const gitignorePath = join(cwd, ".gitignore");
+    if (existsSync(gitignorePath)) {
+      const { readFileSync } = await import("node:fs");
+      const gitignore = readFileSync(gitignorePath, "utf-8");
+      if (!gitignore.includes("FORCE.local.md")) {
+        const { appendFileSync } = await import("node:fs");
+        appendFileSync(gitignorePath, "\n# Harnessforce local overrides\nFORCE.local.md\n");
+        steps.push("Added FORCE.local.md to .gitignore");
+      }
+    }
+
     ensureConfigFile();
     steps.push("Ensured model config at ~/.harnessforce/config.json");
 
     return `Harnessforce initialized:\n\n  ${steps.join("\n  ")}\n`;
+  },
+};
+
+// ---------------------------------------------------------------------------
+// FORCE.md template
+// ---------------------------------------------------------------------------
+
+const FORCE_MD_TEMPLATE = `# Project Instructions
+
+<!-- This file tells Harnessforce how to work in this project. -->
+<!-- Commit this file to version control. Use FORCE.local.md for personal overrides. -->
+
+## Salesforce Org
+<!-- Describe the target org, edition, and any org-specific constraints. -->
+<!-- Example: "Production org, Enterprise Edition. Always deploy to sandbox first." -->
+
+## Coding Conventions
+<!-- Code style rules, naming conventions, patterns to follow. -->
+<!-- Example: "Use camelCase for Apex variables. All triggers must be handler-based." -->
+
+## Deployment Rules
+<!-- Deployment process, required checks, approvals. -->
+<!-- Example: "Run all tests before deploying. Never deploy directly to production." -->
+
+## Custom Patterns
+<!-- Any project-specific patterns, libraries, or tools the agent should know about. -->
+`;
+
+// ---------------------------------------------------------------------------
+// /force command
+// ---------------------------------------------------------------------------
+
+const forceCommand: SlashCommand = {
+  name: "force",
+  description: "Show current FORCE.md instructions or create one with /force create",
+  type: "local",
+  execute: async (args) => {
+    const { existsSync, readFileSync, writeFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { loadForceInstructions } = await import("harnessforce-core");
+    const cwd = process.cwd();
+
+    if (args.trim() === "create") {
+      const forcePath = join(cwd, "FORCE.md");
+      if (existsSync(forcePath)) {
+        return `FORCE.md already exists at ${forcePath}`;
+      }
+      writeFileSync(forcePath, FORCE_MD_TEMPLATE, "utf-8");
+      return `Created FORCE.md at ${forcePath}\nEdit it to add your project instructions.`;
+    }
+
+    const instructions = loadForceInstructions(cwd);
+    if (!instructions) {
+      return "No FORCE.md found. Use /force create to create one.";
+    }
+
+    // Show a friendlier view: strip the XML tags for display
+    return instructions
+      .replace("<force-instructions>\n", "")
+      .replace("\n</force-instructions>", "");
   },
 };
 
@@ -1393,6 +1474,7 @@ const builtInCommands: SlashCommand[] = [
   doctorCommand,
   rollbackCommand,
   initCommand,
+  forceCommand,
   commitCommand,
   diffCommand,
   deployCommand,

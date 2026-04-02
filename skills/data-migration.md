@@ -343,3 +343,204 @@ if (MigrationSettings__c.getOrgDefaults().Disable_Triggers__c) {
 - Target records don't meet lookup filter criteria
 - Temporarily deactivate lookup filters during migration
 - Fix data to meet filter requirements
+
+## Operational Patterns
+
+Day-to-day data operations beyond full migrations: describe-first, test data seeding, data cleanup, and bulk operational patterns.
+
+### Describe-First Pattern
+
+**Always describe an object before querying or inserting.** This prevents field name typos, reveals required fields, and shows relationship structure.
+
+```
+execute("sf sobject describe --sobject Account --target-org target-org")
+```
+
+From the describe output, extract:
+- **Field API names** — exact names for SOQL and DML
+- **Required fields** — fields that must be populated on insert
+- **Field types** — to format values correctly (dates, picklists, etc.)
+- **Relationship names** — for cross-object queries
+- **Record types** — if multiple exist, which is default
+
+For a quick field list without full describe output:
+
+```
+execute("sf data query --query \"SELECT QualifiedApiName, DataType, IsRequired, IsCustom FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = 'Account' ORDER BY QualifiedApiName\" --target-org target-org --result-format table")
+```
+
+### Test Data Factories (Anonymous Apex)
+
+Create reusable test data for development and testing:
+
+**Basic Account + Contact factory:**
+
+```apex
+// scripts/seed-test-data.apex
+// Configurable counts
+Integer accountCount = 10;
+Integer contactsPerAccount = 3;
+
+List<Account> accounts = new List<Account>();
+for (Integer i = 1; i <= accountCount; i++) {
+    accounts.add(new Account(
+        Name = 'Test Account ' + i,
+        Industry = (Math.mod(i, 3) == 0 ? 'Technology' : Math.mod(i, 3) == 1 ? 'Finance' : 'Healthcare'),
+        BillingCity = 'San Francisco',
+        BillingState = 'CA',
+        Phone = '415-555-' + String.valueOf(1000 + i)
+    ));
+}
+insert accounts;
+System.debug('Created ' + accounts.size() + ' accounts');
+
+List<Contact> contacts = new List<Contact>();
+for (Account a : accounts) {
+    for (Integer j = 1; j <= contactsPerAccount; j++) {
+        contacts.add(new Contact(
+            AccountId = a.Id,
+            FirstName = 'Test',
+            LastName = a.Name + ' Contact ' + j,
+            Email = 'test' + j + '@' + a.Name.replaceAll(' ', '').toLowerCase() + '.com',
+            Title = (Math.mod(j, 3) == 0 ? 'VP' : Math.mod(j, 3) == 1 ? 'Director' : 'Manager')
+        ));
+    }
+}
+insert contacts;
+System.debug('Created ' + contacts.size() + ' contacts');
+```
+
+```
+execute("sf apex run --file scripts/seed-test-data.apex --target-org target-org")
+```
+
+**Opportunity pipeline factory:**
+
+```apex
+// scripts/seed-opportunities.apex
+List<Account> accounts = [SELECT Id, Name FROM Account WHERE Name LIKE 'Test Account%' LIMIT 10];
+if (accounts.isEmpty()) {
+    System.debug('ERROR: Run seed-test-data.apex first');
+    return;
+}
+
+List<Opportunity> opps = new List<Opportunity>();
+String[] stages = new String[]{'Prospecting', 'Qualification', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'};
+for (Account a : accounts) {
+    for (Integer i = 0; i < 3; i++) {
+        opps.add(new Opportunity(
+            Name = a.Name + ' Opp ' + (i + 1),
+            AccountId = a.Id,
+            StageName = stages[Math.mod(i, stages.size())],
+            CloseDate = Date.today().addDays(30 * (i + 1)),
+            Amount = Math.round(Math.random() * 100000)
+        ));
+    }
+}
+insert opps;
+System.debug('Created ' + opps.size() + ' opportunities');
+```
+
+### Data Cleanup Scripts
+
+Remove test data safely:
+
+**Delete by naming convention:**
+
+```
+execute("sf data query --query \"SELECT Id FROM Contact WHERE Account.Name LIKE 'Test Account%'\" --target-org target-org --result-format csv > data/cleanup/contacts-to-delete.csv")
+execute("sf data delete bulk --sobject Contact --file data/cleanup/contacts-to-delete.csv --target-org target-org --wait 10")
+```
+
+```
+execute("sf data query --query \"SELECT Id FROM Account WHERE Name LIKE 'Test Account%'\" --target-org target-org --result-format csv > data/cleanup/accounts-to-delete.csv")
+execute("sf data delete bulk --sobject Account --file data/cleanup/accounts-to-delete.csv --target-org target-org --wait 10")
+```
+
+**Always delete children before parents** (Contacts before Accounts, OpportunityLineItems before Opportunities).
+
+**Apex-based cleanup (for complex cleanup logic):**
+
+```apex
+// scripts/cleanup-test-data.apex
+// Delete in reverse dependency order
+List<Opportunity> opps = [SELECT Id FROM Opportunity WHERE Account.Name LIKE 'Test Account%'];
+if (!opps.isEmpty()) {
+    delete opps;
+    System.debug('Deleted ' + opps.size() + ' opportunities');
+}
+
+List<Contact> contacts = [SELECT Id FROM Contact WHERE Account.Name LIKE 'Test Account%'];
+if (!contacts.isEmpty()) {
+    delete contacts;
+    System.debug('Deleted ' + contacts.size() + ' contacts');
+}
+
+List<Account> accounts = [SELECT Id FROM Account WHERE Name LIKE 'Test Account%'];
+if (!accounts.isEmpty()) {
+    delete accounts;
+    System.debug('Deleted ' + accounts.size() + ' accounts');
+}
+```
+
+```
+execute("sf apex run --file scripts/cleanup-test-data.apex --target-org target-org")
+```
+
+### External ID Upsert Pattern
+
+Use external IDs for idempotent data loads — safe to run multiple times:
+
+```
+execute("sf data upsert bulk --sobject Account --file data/accounts.csv --external-id External_Key__c --target-org target-org --wait 10")
+```
+
+Key rules:
+- External ID field must exist and be marked as External ID in metadata
+- External ID values must be unique per object
+- On upsert: matching external ID → update; no match → insert
+- Relationships can reference external IDs: `Account.External_Key__c` in child CSV header
+
+### Bulk Query with CSV Export
+
+For large data exports:
+
+```
+execute("sf data query --query \"SELECT Id, Name, Industry, CreatedDate FROM Account WHERE CreatedDate > LAST_N_DAYS:90\" --target-org target-org --result-format csv --bulk > data/export/recent-accounts.csv")
+```
+
+Flags:
+- `--bulk` — use Bulk API v2 (required for >50K records)
+- `--result-format csv` — CSV output for spreadsheet/import use
+- `--result-format json` — JSON output for programmatic use
+- `--wait <minutes>` — wait for bulk job to complete
+
+### Record Count Validation
+
+Quick validation script to compare expected vs actual counts:
+
+```
+execute("sf data query --query \"SELECT COUNT(Id) FROM Account\" --target-org target-org --result-format json")
+execute("sf data query --query \"SELECT COUNT(Id) FROM Contact\" --target-org target-org --result-format json")
+execute("sf data query --query \"SELECT COUNT(Id) FROM Opportunity\" --target-org target-org --result-format json")
+```
+
+### Data Quality Checks
+
+Find records with missing required data:
+
+```
+execute("sf data query --query \"SELECT Id, Name FROM Account WHERE BillingCity = null OR BillingState = null\" --target-org target-org --result-format table")
+```
+
+Find duplicate records:
+
+```
+execute("sf data query --query \"SELECT Name, COUNT(Id) cnt FROM Account GROUP BY Name HAVING COUNT(Id) > 1 ORDER BY COUNT(Id) DESC\" --target-org target-org --result-format table")
+```
+
+Find orphaned child records:
+
+```
+execute("sf data query --query \"SELECT Id, LastName FROM Contact WHERE AccountId = null\" --target-org target-org --result-format table")
+```

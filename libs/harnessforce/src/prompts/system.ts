@@ -127,6 +127,18 @@ ${AGENTFORCE_PROMPT}
 
 ${DATA_CLOUD_PROMPT}
 
+## FORCE.md Instructions
+
+If FORCE.md files exist in the project or user home directory, they contain
+instructions you MUST follow. These are hand-authored by the user or team and
+take priority over default behavior. Do NOT modify FORCE.md files. For things
+you learn during conversations, save to .harnessforce/agent.md instead.
+
+FORCE.md files are loaded in priority order:
+1. ~/.harnessforce/FORCE.md — user-global preferences
+2. FORCE.md in any parent directory up to the project root
+3. FORCE.local.md in the current directory — local overrides (not committed)
+
 ## Actions with Care
 
 Before taking any action, consider:

@@ -56,10 +56,7 @@ force-app/main/default/aiAuthoringBundles/{AgentName}/{AgentName}.bundle-meta.xm
 \`\`\`xml
 <?xml version="1.0" encoding="UTF-8"?>
 <AiAuthoringBundle xmlns="http://soap.sforce.com/2006/04/metadata">
-    <bundleName>{AgentName}</bundleName>
-    <bundleType>agent</bundleType>
-    <description>{Description}</description>
-    <masterLabel>{Agent Label}</masterLabel>
+    <bundleType>AGENT</bundleType>
 </AiAuthoringBundle>
 \`\`\`
 
@@ -67,9 +64,12 @@ force-app/main/default/aiAuthoringBundles/{AgentName}/{AgentName}.bundle-meta.xm
 
 1. **config:** — Agent identity. \`developer_name\` MUST match the folder name.
 2. **variables:** — Mutable, linked, typed variables for the agent session.
-3. **system:** — Instructions and system messages (welcome, error, fallback).
-4. **start_agent:** — Single entry point; always uses \`topic_selector\`.
-5. **topic blocks** — Conversational flows with reasoning and actions.
+3. **system:** — Instructions and system messages (welcome, error).
+4. **connection messaging:** — Escalation routing (service agents only).
+5. **knowledge:** — Knowledge base config (optional).
+6. **language:** — Locale settings (optional).
+7. **start_agent topic_selector:** — Single entry point; always name it \`topic_selector\`.
+8. **topic blocks** — Conversational flows with reasoning and actions.
 
 ### Key Syntax Rules
 
@@ -81,164 +81,333 @@ force-app/main/default/aiAuthoringBundles/{AgentName}/{AgentName}.bundle-meta.xm
 - **\`|\`** for natural language text passed to the LLM.
 - **\`{!expression}\`** for variable injection / merge fields.
 - **\`@action\`**, **\`@topic\`**, **\`@output\`** for cross-references.
+- **Do NOT include \`agent_type\`** in the .agent file (server crash).
+- **\`start_agent\` MUST include \`description:\`, \`reasoning: instructions:\`, and \`reasoning: actions:\`**.
+- **\`start_agent\` instructions**: "You are a router only. Do NOT answer directly."
+- **\`after_reasoning:\`** has NO \`instructions:\` wrapper — content goes directly under the block.
+- **\`connection messaging:\`** (singular), NOT \`connections:\`.
 
 ### Variable Types
 
-- \`text\` — string values
-- \`number\` — numeric values
-- \`boolean\` — True/False
-- \`record\` — Salesforce record (linked to SObject)
-- \`list\` — collection of values
-- \`object\` — complex object
+- \`string\` — text values (mutable + linked)
+- \`number\` — numeric values (mutable + linked, but use \`object\` + \`complex_data_type_name\` for action I/O)
+- \`boolean\` — True/False (mutable + linked)
+- \`date\` — date values (mutable + linked)
+- \`timestamp\` — date+time values (mutable + linked, use instead of \`datetime\` for mutable vars)
+- \`currency\` — monetary values (mutable + linked)
+- \`id\` — Salesforce record ID (mutable + linked)
+- \`object\` — complex object (mutable only, NOT linked)
+- \`list[T]\` — collection (mutable only, NOT linked)
 
-### Action Target Types (22 total)
+Rules:
+- Mutable variables MUST have an inline default: \`order_id: mutable string = ""\`
+- Linked variables MUST have \`source:\` and CANNOT have a default
+- \`...\` is for slot-filling only (in \`with param=...\`), never as a default value
 
-1. \`flow://\` — Invoke an autolaunched Flow
-2. \`apex://\` — Invoke an Apex @InvocableMethod
-3. \`retriever://\` — Search knowledge articles or files
-4. \`externalService://\` — Call an External Service action
-5. \`prompt://\` — Run a Prompt Template
-6. \`emailAlert://\` — Send an email alert
-7. \`quickAction://\` — Execute a Quick Action
-8. \`recommendation://\` — Get AI recommendations
-9. \`customNotification://\` — Send a custom notification
-10. \`chatterPost://\` — Post to Chatter
-11. \`approval://\` — Submit for approval
-12. \`knowledgeArticle://\` — Search Knowledge
-13. \`survey://\` — Launch a Survey
-14. \`analyticsReport://\` — Run an Analytics report
-15. \`dashboard://\` — Reference a Dashboard
-16. \`record://\` — CRUD on records
-17. \`integration://\` — MuleSoft integration
-18. \`dataCloud://\` — Data Cloud query
-19. \`commerceAction://\` — Commerce Cloud action
-20. \`messagingAction://\` — Messaging action
-21. \`caseAction://\` — Case management action
-22. \`omniAction://\` — OmniStudio action
+---
 
-### Architecture Patterns
+## Action Target Types (22 total)
 
-#### Hub-and-Spoke
-Central router topic dispatches to specialized topics, which return to the hub.
-Best for: multi-domain agents (support + sales + billing).
+1. \`flow://Flow_Api_Name\` — Autolaunched Flow
+2. \`apex://ClassName\` — Apex @InvocableMethod (class name only, no method)
+3. \`retriever://RetrieverName\` — Knowledge retrieval
+4. \`externalService://ServiceName.operationName\` — External Service
+5. \`prompt://TemplateName\` — Prompt Template
+6. \`standardInvocableAction://ActionName\` — Built-in Salesforce action
+7. \`quickAction://ActionName\` — Quick Action
+8. \`api://ApiName\` — REST API
+9. \`apexRest://EndpointName\` — Custom Apex REST endpoint
+10. \`mcpTool://ToolName\` — MCP Tool
+11. \`emailAlert://AlertName\` — Email alert
+12. \`customNotification://NotifName\` — Custom notification
+13. \`chatterPost://PostAction\` — Chatter post
+14. \`approval://ApprovalAction\` — Approval process
+15. \`knowledgeArticle://ArticleSearch\` — Knowledge article search
+16. \`survey://SurveyName\` — Launch survey
+17. \`analyticsReport://ReportName\` — Analytics report
+18. \`dashboard://DashboardName\` — Dashboard reference
+19. \`record://RecordAction\` — Record CRUD
+20. \`integration://IntegrationName\` — MuleSoft integration
+21. \`dataCloud://QueryName\` — Data Cloud query
+22. \`commerceAction://ActionName\` — Commerce Cloud action
+
+---
+
+## Two-Level Action System (CRITICAL)
+
+### Level 1: Action Definitions (inside \`topic > actions:\`)
+
+Defines WHAT the action is: \`target:\`, \`inputs:\`, \`outputs:\`.
+
+\`\`\`
+actions:
+    create_case:
+        description: "Create a support case"
+        target: "flow://Create_Support_Case"
+        require_user_confirmation: False
+        inputs:
+            subject: string
+                description: "Case subject"
+                is_required: True
+            desc_text: string
+                description: "Case description"
+        outputs:
+            case_id: string
+                description: "Created case ID"
+                is_displayable: True
+                is_used_by_planner: True
+\`\`\`
+
+### Level 2: Action Invocations (inside \`topic > reasoning > actions:\`)
+
+Defines HOW to call it: \`with\`/\`set\` bindings.
+
+\`\`\`
+reasoning:
+    actions:
+        create_new_case: @actions.create_case
+            description: "Create a new support case"
+            with subject = @variables.case_subject
+            with desc_text = ...
+            set @variables.case_id = @outputs.case_id
+            available when @variables.is_verified == True
+\`\`\`
+
+Key rules:
+- Reference Level 1 via \`@actions.action_name\`
+- Use \`with param = value\` for input binding (NOT \`inputs:\`)
+- Use \`set @variables.target = @outputs.source\` for output capture
+- Use \`with param = ...\` for LLM slot-filling
+- Use \`available when\` for conditional visibility
+- \`@utils.setVariables\` does NOT support \`set\` or \`transition to\`
+
+---
+
+## Architecture Patterns
+
+### Hub-and-Spoke (Most Common)
+
+Central \`topic_selector\` routes to specialized spoke topics. Each spoke has "back to hub" transition.
+Do NOT create a separate routing topic — \`start_agent\` IS the router.
 
 \`\`\`
 start_agent topic_selector:
-\t-> @topic.Router
+    description: "Route user requests to the appropriate topic"
+    reasoning:
+        instructions: |
+            You are a router only. Do NOT answer questions directly.
+            Always use a transition action to route immediately.
+        actions:
+            to_orders: @utils.transition to @topic.order_support
+                description: "Order questions"
+            to_returns: @utils.transition to @topic.return_support
+                description: "Return or refund requests"
 
-topic Router:
-\treasoning:
-\t\tinstructions: |
-\t\t\tDetermine the customer's intent and route to the right topic.
-\t\t\tIf warranty-related -> @topic.WarrantyCheck
-\t\t\tIf billing-related -> @topic.BillingHelp
-\t\t\tOtherwise -> @topic.GeneralHelp
+topic order_support:
+    description: "Handle order inquiries"
+    reasoning:
+        instructions: ->
+            | Help the customer with their order.
+        actions:
+            lookup: @actions.get_order
+                description: "Look up order"
+            back: @utils.transition to @topic.topic_selector
+                description: "Route to a different topic"
 \`\`\`
 
-#### Verification Gate
-Identity check before sensitive operations. The gate topic must succeed before
-any data-access topic runs.
+### Verification Gate
+
+Identity check before sensitive operations. Protected transitions use \`available when\`.
 
 \`\`\`
-topic VerifyIdentity:
-\treasoning:
-\t\tinstructions: |
-\t\t\tAsk for the customer's email and last 4 of SSN.
-\t\t\tCall @action.VerifyCustomer to validate.
-\t\t\tIf verified, set {!IsVerified} = True.
-\t\tactions:
-\t\t\t-> @action.VerifyCustomer
+topic identity_verification:
+    reasoning:
+        instructions: ->
+            if @variables.is_verified == True:
+                | Identity verified! How can I help?
+            else:
+                | Please verify your identity.
+        actions:
+            verify: @actions.verify_identity
+                with email = ...
+                set @variables.is_verified = @outputs.verified
+            to_account: @utils.transition to @topic.account_mgmt
+                available when @variables.is_verified == True
 \`\`\`
 
-#### Post-Action Loop
-After an action completes, re-evaluate whether to continue, escalate, or end.
+### Post-Action Loop
+
+Post-action checks at TOP of \`instructions: ->\` trigger on re-resolution:
 
 \`\`\`
-topic HandleReturn:
-\treasoning:
-\t\tinstructions: |
-\t\t\tProcess the return using @action.ProcessReturn.
-\t\t\tAfter completion, ask if the customer needs anything else.
-\t\t\tIf yes -> @topic.Router
-\t\t\tIf no -> end conversation with a thank you message.
-\t\tactions:
-\t\t\t-> @action.ProcessReturn
+reasoning:
+    instructions: ->
+        # POST-ACTION CHECK (at TOP)
+        if @variables.refund_status == "Approved":
+            transition to @topic.confirmation
+
+        # PRE-LLM: Load data
+        run @actions.load_risk_score
+            with customer_id = @variables.customer_id
+            set @variables.risk_score = @outputs.score
+
+        | Risk score: {!@variables.risk_score}
+        if @variables.risk_score >= 80:
+            | HIGH RISK - Offer retention package.
+        else:
+            | STANDARD - Follow normal process.
 \`\`\`
 
 ### Full Example
 
 \`\`\`
 config:
-\tdeveloper_name: WarrantyHelper
-\tlabel: Warranty Helper
-\tdescription: Handles warranty inquiries for products
+    developer_name: "WarrantyHelper"
+    agent_label: "Warranty Helper"
+    description: "Handles warranty inquiries for products"
+    default_agent_user: "einsteinagent@00dxx000001234.ext"
 
 variables:
-\tCustomerEmail:
-\t\ttype: text
-\t\tlinked: True
-\tProductSerialNumber:
-\t\ttype: text
-\tWarrantyStatus:
-\t\ttype: text
-\tIsVerified:
-\t\ttype: boolean
-\t\tdefault: False
+    CustomerEmail:
+        type: text
+        linked: True
+    ProductSerialNumber:
+        type: text
+    WarrantyStatus:
+        type: text
+    IsVerified:
+        type: boolean
+        default: False
 
 system:
-\tinstructions: |
-\t\tYou are a warranty support agent. Help customers check warranty
-\t\tstatus, file claims, and understand coverage. Always verify the
-\t\tcustomer's identity before accessing account data.
-\twelcome_message: |
-\t\tHello! I'm your warranty assistant. I can help you check warranty
-\t\tstatus, file a claim, or answer coverage questions.
-\t\tHow can I help you today?
-\terror_message: |
-\t\tI'm sorry, I encountered an issue. Let me connect you with a
-\t\thuman agent who can help.
+    instructions: |
+        You are a warranty support agent. Help customers check warranty
+        status, file claims, and understand coverage. Always verify the
+        customer's identity before accessing account data.
+    messages:
+        welcome: |
+            Hello! I'm your warranty assistant. How can I help you today?
+        error: |
+            I'm sorry, I encountered an issue. Let me connect you with a human agent.
 
 start_agent topic_selector:
-\t-> @topic.SelectTopic
-
-topic SelectTopic:
-\treasoning:
-\t\tinstructions: |
-\t\t\tDetermine what the customer needs:
-\t\t\tIf they want to check warranty status -> @topic.WarrantyCheck
-\t\t\tIf they want to file a claim -> @topic.FileClaim
-\t\t\tIf identity is not verified -> @topic.VerifyIdentity
+    description: "Route user requests"
+    reasoning:
+        instructions: |
+            You are a router only. Do NOT answer questions directly.
+            If warranty-related -> use to_warranty
+            If filing a claim -> use to_claims
+            If not verified -> use to_verify
+        actions:
+            to_warranty: @utils.transition to @topic.WarrantyCheck
+                description: "Warranty status questions"
+            to_claims: @utils.transition to @topic.FileClaim
+                description: "File a warranty claim"
+            to_verify: @utils.transition to @topic.VerifyIdentity
+                description: "Verify customer identity"
 
 topic VerifyIdentity:
-\treasoning:
-\t\tinstructions: |
-\t\t\tAsk the customer for their email address and product serial number.
-\t\t\tCall @action.LookupCustomer to verify their identity.
-\t\t\tIf found, set {!IsVerified} = True and continue.
-\t\t\tIf not found, apologize and suggest they contact support directly.
-\t\tactions:
-\t\t\t-> @action.LookupCustomer
+    description: "Verify customer identity"
+    reasoning:
+        instructions: ->
+            | Please provide your email and product serial number.
+            | Use the verify action to confirm your identity.
+        actions:
+            verify: @actions.LookupCustomer
+                with email = ...
+                set @variables.IsVerified = @outputs.found
+            back: @utils.transition to @topic.topic_selector
+                description: "Route elsewhere"
 
-topic WarrantyCheck:
-\treasoning:
-\t\tinstructions: |
-\t\t\tCheck warranty status for the customer's product.
-\t\t\tUse the serial number from {!ProductSerialNumber}.
-\t\t\tCall @action.CheckWarrantyStatus to look up coverage.
-\t\t\tPresent the results clearly with expiration date and coverage type.
-\t\tactions:
-\t\t\t-> @action.CheckWarrantyStatus
-
-topic FileClaim:
-\treasoning:
-\t\tinstructions: |
-\t\t\tGuide the customer through filing a warranty claim.
-\t\t\tCollect: issue description, date of issue, photos if available.
-\t\t\tCall @action.CreateWarrantyClaim to submit.
-\t\t\tProvide the claim number and expected timeline.
-\t\tactions:
-\t\t\t-> @action.CreateWarrantyClaim
+    actions:
+        LookupCustomer:
+            description: "Verify customer by email"
+            target: "flow://Lookup_Customer"
+            inputs:
+                email: string
+                    description: "Customer email"
+            outputs:
+                found: boolean
+                    description: "Whether customer was found"
 \`\`\`
+
+---
+
+## Complex Data Type Mapping (Agent Script to Lightning)
+
+Bare \`number\` works for variables but FAILS at publish for action I/O. Use \`object\` + \`complex_data_type_name\`:
+
+| Data Type | \`complex_data_type_name\` | Notes |
+|-----------|--------------------------|-------|
+| Integer (Flow target) | \`lightning__numberType\` | NOT \`integerType\` for flows |
+| Integer (Apex target) | \`lightning__integerType\` | NOT \`numberType\` for apex |
+| Decimal / Double | \`lightning__doubleType\` | Floating-point numbers |
+| DateTime | \`lightning__dateTimeStringType\` | Use this tested default |
+| Currency | \`lightning__currencyType\` | Monetary values |
+| SObject record | \`lightning__recordInfoType\` | Account, Contact, etc. |
+| List of strings | \`lightning__textType\` | Collection of text |
+| Apex Inner Class | \`@apexClassType/Ns__InnerClass\` | Namespace required |
+
+**Decision tree:**
+1. Variable with \`number\`? Use \`number\` directly, no complex type needed
+2. Action I/O integer, Flow target? Use \`object\` + \`lightning__numberType\`
+3. Action I/O integer, Apex target? Use \`object\` + \`lightning__integerType\`
+4. Action I/O decimal? Use \`object\` + \`lightning__doubleType\`
+
+---
+
+## Top 10 Gotchas
+
+1. **\`developer_name\` must match folder name** — Case-sensitive. Mismatch causes silent publish failure.
+2. **No \`agent_type\` in config** — Causes null pointer crash on server. Set via Setup UI after publish.
+3. **Bare \`number\` in action I/O** — Works in variables, fails at publish in action inputs/outputs. Use \`object\` + \`complex_data_type_name\`.
+4. **\`start_agent\` answers directly** — Without "You are a router only" instruction, the LLM answers instead of routing. SMALL_TALK grounding pattern.
+5. **\`else if\` not supported** — Use compound \`if x and y:\` or sequential flat ifs.
+6. **Tab vs spaces** — Server rejects space-based indentation. Tabs only.
+7. **Reserved field names** — \`description\`, \`label\`, \`language\`, \`escalate\` cannot be variable/field names. Use \`desc_text\`, \`label_text\`, etc.
+8. **\`after_reasoning:\` with \`instructions:\`** — NO wrapper. Content goes directly under the block. Adding \`instructions:\` causes compile error.
+9. **Level 1 vs Level 2 action names** — Testing Center reports Level 2 invocation names, not Level 1 definitions. Using wrong level causes false test failures.
+10. **Bundle metadata file naming** — Must be \`<Name>.bundle-meta.xml\`, NOT \`.aiAuthoringBundle-meta.xml\`.
+
+---
+
+## Production Considerations
+
+### Credit Consumption
+- Framework operations (\`@utils.*\`, \`if/else\`, lifecycle hooks, reasoning) are FREE
+- Flow/Apex actions cost 20 credits each per invocation
+- Prompt Templates cost 2-16 credits per invocation
+- Minimize action calls by caching results in variables
+
+### Lifecycle Hooks
+- \`before_reasoning:\` and \`after_reasoning:\` are FREE (no credit cost)
+- Content goes DIRECTLY under the block (no \`instructions:\` wrapper)
+- Use \`before_reasoning:\` for data prep, \`after_reasoning:\` for logging/cleanup
+- \`transition to\` works in \`after_reasoning:\` but original topic's hook does not run if topic changes mid-reasoning
+
+### Output Flags for Zero-Hallucination Routing
+- \`filter_from_agent: True\` — LLM cannot show value to user (GA standard)
+- \`is_used_by_planner: True\` — LLM can reason about value for routing
+- Combine both for deterministic intent classification without hallucinated responses
+
+### Token and Size Limits
+- Max response: 1,048,576 bytes (1MB)
+- Plan trace limit: 1M characters (frontend), 32k tokens (backend)
+- Active/Committed agents per org: 100 max
+- Loop protection: 3-4 iterations before auto-break to Topic Selector
+
+### Deployment Lifecycle
+\`\`\`
+Validate -> Publish -> Activate -> (Deactivate -> Re-publish -> Re-activate)
+\`\`\`
+
+\`\`\`bash
+sf agent validate authoring-bundle --api-name MyAgent -o TargetOrg --json
+sf agent publish authoring-bundle --api-name MyAgent -o TargetOrg --json
+sf agent activate --api-name MyAgent -o TargetOrg
+\`\`\`
+
+VS Code source tracking does NOT support AiAuthoringBundle. Use CLI directly.
 
 ---
 
@@ -336,19 +505,16 @@ Every agent MUST be evaluated against these safety categories before deployment:
 
 ## End-to-End Build Workflow
 
-1. **Gather requirements** — understand agent purpose, topics, actions, data access needs
-2. **Generate agent spec** — YAML outline with topics, actions, variables, safety requirements
-3. **Write Agent Script** — .agent file following all DSL syntax rules above
-4. **Generate Apex classes** — @InvocableMethod for each apex:// action
-5. **Generate Flow XML** — for each flow:// action
-6. **Generate Permission Sets** — for agent data access
-7. **Write bundle metadata** — .bundle-meta.xml
-8. **Deploy dependencies** — \`sf project deploy start\` (Apex, Flows, PermSets)
-9. **Publish agent** — \`agent_publish\` tool
-10. **Activate agent** — \`agent_activate\` tool
-11. **Test with sample utterances** — \`agent_preview\` tool
-12. **Safety evaluation** — run all 65 assertions across 7 categories
-13. **Iterate** — fix issues found in testing and safety review
+1. **Safety pre-gate** — evaluate request against 7 safety categories (BLOCK/WARN/CLEAN)
+2. **Gather requirements** — 3 rounds: business context, agent design, scenarios
+3. **Setup** — query Einstein Agent User, discover existing targets in org
+4. **Write Agent Script** — .agent file following all DSL syntax rules above
+5. **Verify actions** — 6 post-generation checks to prevent hallucination
+6. **Validate** — \`sf agent validate authoring-bundle\`
+7. **Score** — 100-point rubric (minimum 80 to deploy)
+8. **Preview and fix loop** — max 3 iterations with trace analysis
+9. **Deploy** — publish + activate (dependencies first)
+10. **Test** — structured test suites with safety probes
 `;
 
 export default AGENTFORCE_PROMPT;

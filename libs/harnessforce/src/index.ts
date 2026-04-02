@@ -28,6 +28,8 @@ import { SF_SOQL_PROMPT } from "./prompts/sf-soql.js";
 import { SF_API_STRATEGY_PROMPT } from "./prompts/sf-api-strategy.js";
 import { SF_DEPLOYMENT_PROMPT } from "./prompts/sf-deployment.js";
 import { SF_APEX_ARCHITECTURE_PROMPT } from "./prompts/sf-apex-architecture.js";
+import { SF_INTEGRATION_PROMPT } from "./prompts/sf-integration.js";
+import { SF_METADATA_PATTERNS_PROMPT } from "./prompts/sf-metadata-patterns.js";
 import {
   getActiveOutputStyle,
   type OutputStyleConfig,
@@ -42,7 +44,7 @@ import {
   buildContextPrompt,
   type ProjectContext,
 } from "./context/detector.js";
-import { buildMemoryPrompt } from "./middleware/memory.js";
+import { buildMemoryPrompt, loadForceInstructions } from "./middleware/memory.js";
 import { detectPiiFields } from "./middleware/pii.js";
 import { riskOf } from "./middleware/permissions.js";
 import { compactMessages } from "./middleware/summarization.js";
@@ -160,6 +162,8 @@ export {
   createMemoryMiddleware,
   readMemorySources,
   buildMemoryPrompt,
+  // FORCE.md instructions
+  loadForceInstructions,
 } from "./middleware/index.js";
 export type {
   AuditEntry,
@@ -237,6 +241,8 @@ export { SF_SOQL_PROMPT } from "./prompts/sf-soql.js";
 export { SF_API_STRATEGY_PROMPT } from "./prompts/sf-api-strategy.js";
 export { SF_DEPLOYMENT_PROMPT } from "./prompts/sf-deployment.js";
 export { SF_APEX_ARCHITECTURE_PROMPT } from "./prompts/sf-apex-architecture.js";
+export { SF_INTEGRATION_PROMPT } from "./prompts/sf-integration.js";
+export { SF_METADATA_PATTERNS_PROMPT } from "./prompts/sf-metadata-patterns.js";
 
 // ── Sessions ────────────────────────────────────────────────────────────────
 export {
@@ -399,6 +405,13 @@ export async function createHarnessforceAgent(
   if (memoryBlock) {
     prompt += `\n\n${memoryBlock}`;
   }
+
+  // ── FORCE.md project instructions ──────────────────────────────────────
+  const forceInstructions = loadForceInstructions();
+  if (forceInstructions) {
+    prompt += `\n\n${forceInstructions}`;
+  }
+
   prompt += `\n\n## Available Skills\n\n${skillsSummary}`;
 
   // ── Salesforce deep knowledge (only for SFDX projects) ───────────────
@@ -415,6 +428,8 @@ export async function createHarnessforceAgent(
       SF_API_STRATEGY_PROMPT,
       SF_DEPLOYMENT_PROMPT,
       SF_APEX_ARCHITECTURE_PROMPT,
+      SF_INTEGRATION_PROMPT,
+      SF_METADATA_PATTERNS_PROMPT,
     ].join("\n\n");
     prompt += `\n\n${sfKnowledgeBlock}`;
   }

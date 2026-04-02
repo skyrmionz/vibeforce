@@ -367,3 +367,132 @@ Before any production deployment, verify:
 - Review all sharing rules for the object
 - Check for "View All" on object permission sets
 - Inspect apex sharing (Apex managed sharing records)
+
+## Permission Audit
+
+Dedicated SOQL queries to answer "who has access to what" — use these for security reviews, compliance audits, and troubleshooting access issues.
+
+### Who Has Access to This Object?
+
+Query ObjectPermissions to find all permission sets granting access to a specific object:
+
+```
+execute("sf data query --query \"SELECT Parent.Label, Parent.IsOwnedByProfile, SobjectType, PermissionsRead, PermissionsCreate, PermissionsEdit, PermissionsDelete, PermissionsViewAllRecords, PermissionsModifyAllRecords FROM ObjectPermissions WHERE SobjectType = 'Account' AND PermissionsRead = true ORDER BY Parent.Label\" --target-org target-org --result-format table")
+```
+
+### Who Has Access to This Field?
+
+Query FieldPermissions to check field-level security for a specific field:
+
+```
+execute("sf data query --query \"SELECT Parent.Label, Parent.IsOwnedByProfile, Field, PermissionsRead, PermissionsEdit FROM FieldPermissions WHERE SobjectType = 'Account' AND Field = 'Account.AnnualRevenue' ORDER BY Parent.Label\" --target-org target-org --result-format table")
+```
+
+### All Fields a Permission Set Can Access
+
+List every field permission granted by a specific permission set:
+
+```
+execute("sf data query --query \"SELECT SobjectType, Field, PermissionsRead, PermissionsEdit FROM FieldPermissions WHERE ParentId IN (SELECT Id FROM PermissionSet WHERE Name = 'Sales_Rep_Access') ORDER BY SobjectType, Field\" --target-org target-org --result-format table")
+```
+
+### Who Is Assigned to This Permission Set?
+
+```
+execute("sf data query --query \"SELECT Assignee.Name, Assignee.Username, Assignee.IsActive, PermissionSet.Label FROM PermissionSetAssignment WHERE PermissionSet.Name = 'Sales_Rep_Access' ORDER BY Assignee.Name\" --target-org target-org --result-format table")
+```
+
+### What Permission Sets Does This User Have?
+
+```
+execute("sf data query --query \"SELECT PermissionSet.Label, PermissionSet.Name, PermissionSet.IsOwnedByProfile, PermissionSetGroupId FROM PermissionSetAssignment WHERE AssigneeId = '<user_id>' ORDER BY PermissionSet.Label\" --target-org target-org --result-format table")
+```
+
+### Permission Set Groups and Their Members
+
+```
+execute("sf data query --query \"SELECT PermissionSetGroup.DeveloperName, PermissionSet.Label FROM PermissionSetGroupComponent ORDER BY PermissionSetGroup.DeveloperName\" --target-org target-org --result-format table")
+```
+
+### Users with Dangerous Permissions
+
+Find users with View All Data:
+
+```
+execute("sf data query --query \"SELECT Assignee.Name, Assignee.Username, PermissionSet.Label FROM PermissionSetAssignment WHERE PermissionSet.PermissionsViewAllData = true AND Assignee.IsActive = true ORDER BY Assignee.Name\" --target-org target-org --result-format table")
+```
+
+Find users with Modify All Data:
+
+```
+execute("sf data query --query \"SELECT Assignee.Name, Assignee.Username, PermissionSet.Label FROM PermissionSetAssignment WHERE PermissionSet.PermissionsModifyAllData = true AND Assignee.IsActive = true ORDER BY Assignee.Name\" --target-org target-org --result-format table")
+```
+
+Find users with Author Apex:
+
+```
+execute("sf data query --query \"SELECT Assignee.Name, Assignee.Username, PermissionSet.Label FROM PermissionSetAssignment WHERE PermissionSet.PermissionsAuthorApex = true AND Assignee.IsActive = true ORDER BY Assignee.Name\" --target-org target-org --result-format table")
+```
+
+### Setup Audit Trail — Recent Admin Changes
+
+```
+execute("sf data query --query \"SELECT CreatedDate, CreatedBy.Name, Action, Section, Display FROM SetupAuditTrail ORDER BY CreatedDate DESC LIMIT 50\" --target-org target-org --result-format table")
+```
+
+Filter to permission-related changes:
+
+```
+execute("sf data query --query \"SELECT CreatedDate, CreatedBy.Name, Action, Section, Display FROM SetupAuditTrail WHERE Section IN ('Manage Users', 'Permission Sets', 'Profiles', 'Sharing Rules') ORDER BY CreatedDate DESC LIMIT 50\" --target-org target-org --result-format table")
+```
+
+### FLS Audit Workflow
+
+Complete workflow to audit field-level security for an object:
+
+**Step 1: List all custom fields on the object**
+
+```
+execute("sf data query --query \"SELECT QualifiedApiName, DataType, IsCustom FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = 'My_Object__c' AND IsCustom = true ORDER BY QualifiedApiName\" --target-org target-org --result-format table")
+```
+
+**Step 2: Check which permission sets grant access to each field**
+
+```
+execute("sf data query --query \"SELECT Parent.Label, Field, PermissionsRead, PermissionsEdit FROM FieldPermissions WHERE SobjectType = 'My_Object__c' ORDER BY Field, Parent.Label\" --target-org target-org --result-format table")
+```
+
+**Step 3: Identify fields with NO permission set granting access (orphaned fields)**
+
+Compare the field list from Step 1 with fields appearing in Step 2. Any field not in FieldPermissions is invisible to all non-admin users.
+
+**Step 4: Fix gaps — add field permissions to the appropriate permission set**
+
+```xml
+<fieldPermissions>
+    <field>My_Object__c.Missing_Field__c</field>
+    <readable>true</readable>
+    <editable>false</editable>
+</fieldPermissions>
+```
+
+Deploy the updated permission set:
+
+```
+execute("sf project deploy start --source-dir force-app/main/default/permissionsets/My_PermSet.permissionset-meta.xml --target-org target-org")
+```
+
+### Profile vs Permission Set — Decision Guide
+
+| Use Case | Profile | Permission Set |
+|----------|---------|---------------|
+| License assignment | Yes (required) | No |
+| Page layout assignment | Yes | No |
+| Login hours / IP ranges | Yes | Yes (with restrictions) |
+| Object CRUD | Minimize — use Minimum Access profile | Yes (primary) |
+| Field-level security | Minimize | Yes (primary) |
+| System permissions | Minimize | Yes (primary) |
+| Record type assignment | Yes | Yes |
+| App visibility | Yes | Yes |
+
+**Best practice:** Use the "Minimum Access" profile for all users and layer on permission sets for all actual access. This makes access auditable and composable.
