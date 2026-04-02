@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager } from "harnessforce-core";
@@ -19,7 +19,8 @@ interface Message {
 }
 
 interface AppProps {
-  agent: HarnessforceAgent;
+  agent?: HarnessforceAgent | null;
+  agentPromise?: Promise<HarnessforceAgent | null>;
   skillsDir?: string;
   org?: string;
   model?: string;
@@ -29,10 +30,24 @@ interface AppProps {
   permissionMode?: string;
 }
 
-export default function App({ agent, skillsDir = "./skills", org, model: initialModel, sessionManager, initialMessages, threadId, permissionMode: initialPermissionMode }: AppProps) {
+export default function App({ agent: initialAgent, agentPromise, skillsDir = "./skills", org, model: initialModel, sessionManager, initialMessages, threadId, permissionMode: initialPermissionMode }: AppProps) {
   const { exit } = useApp();
+  const [agent, setAgent] = useState<HarnessforceAgent | null>(initialAgent ?? null);
+  const [agentLoading, setAgentLoading] = useState(!initialAgent && !!agentPromise);
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [input, setInput] = useState("");
+
+  // Resolve agent from promise when it arrives
+  useEffect(() => {
+    if (agentPromise && !initialAgent) {
+      agentPromise.then((resolved) => {
+        if (resolved) setAgent(resolved);
+        setAgentLoading(false);
+      }).catch(() => {
+        setAgentLoading(false);
+      });
+    }
+  }, []);
   const [currentPermissionMode, setCurrentPermissionMode] = useState("plan");
   const [isFirstTurn, setIsFirstTurn] = useState(true);
   const [streaming, setStreaming] = useState(false);
@@ -49,12 +64,6 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
     if (key.ctrl && _input === "c") {
       exit();
       process.exit(0);
-    }
-
-    // Ctrl+U to clear input line
-    if (key.ctrl && _input === "u") {
-      setInput("");
-      return;
     }
 
     // ESC to cancel streaming (interrupt the agent)
@@ -282,19 +291,15 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
   const streamToAgent = useCallback(
     async (message: string) => {
       if (!agent) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "system",
-            content:
-              "No API key configured. Use /set-key to set it now:\n\n" +
-              "  /set-key sk-or-your-key-here\n\n" +
-              "Or set it in your terminal before launching:\n\n" +
-              "  export OPENROUTER_API_KEY=sk-or-...\n  harnessforce\n\n" +
-              "Get a key at https://openrouter.ai/keys\n" +
-              "Slash commands still work — type / to see them.",
-          },
-        ]);
+        const msg = agentLoading
+          ? "Agent is still loading — try again in a moment."
+          : "No API key configured. Use /set-key to set it now:\n\n" +
+            "  /set-key sk-or-your-key-here\n\n" +
+            "Or set it in your terminal before launching:\n\n" +
+            "  export OPENROUTER_API_KEY=sk-or-...\n  harnessforce\n\n" +
+            "Get a key at https://openrouter.ai/keys\n" +
+            "Slash commands still work — type / to see them.";
+        setMessages((prev) => [...prev, { role: "system", content: msg }]);
         return;
       }
 
@@ -416,7 +421,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       setCurrentTool(null);
       setStreaming(false);
     },
-    [agent, threadId, currentPermissionMode, isFirstTurn]
+    [agent, agentLoading, threadId, currentPermissionMode, isFirstTurn]
   );
 
   return (
@@ -480,6 +485,13 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
         </Box>
       )}
 
+      {/* Agent loading indicator */}
+      {agentLoading && messages.length === 0 && (
+        <Box>
+          <Text color="#00A1E0">{"  Initializing agent..."}</Text>
+        </Box>
+      )}
+
       {/* Scrollable command menu */}
       {!streaming && showCommandMenu && hints.length > 0 && (
         <Box flexDirection="column" marginLeft={2} marginBottom={0}>
@@ -515,7 +527,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
 
       {/* Input container with blue bars */}
       <Box flexDirection="column" marginTop={1}>
-        <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? Math.min(process.stdout.columns - 2, 80) : 60)}</Text>
+        <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? process.stdout.columns - 2 : 60)}</Text>
         <Box paddingX={1}>
           <Text color="#00A1E0" bold>
             {"❯ "}
@@ -534,7 +546,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
             placeholder={streaming ? "Type to interrupt or add context..." : "Ask Harnessforce anything... (type / for commands)"}
           />
         </Box>
-        <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? Math.min(process.stdout.columns - 2, 80) : 60)}</Text>
+        <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? process.stdout.columns - 2 : 60)}</Text>
       </Box>
 
       {/* Mode + status underneath input */}

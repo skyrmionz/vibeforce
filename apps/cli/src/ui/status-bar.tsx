@@ -26,7 +26,7 @@ export function StatusBar({ permissionMode, model, org, tokenCount, gitBranch }:
       {org && <Text dimColor>• org:{org}</Text>}
       {tokenCount !== undefined && <Text dimColor>• {tokenCount}tok</Text>}
       {gitBranch && <Text dimColor>• {gitBranch}</Text>}
-      <Text dimColor>• shift+tab</Text>
+      <Text dimColor>• shift+tab to change agent mode</Text>
     </Box>
   );
 }

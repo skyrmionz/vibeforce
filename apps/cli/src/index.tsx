@@ -44,16 +44,18 @@ program
   .option("-r, --resume <id>", "Resume a previous session by ID")
   .option("-n, --non-interactive <task>", "Run a single task without TUI and exit")
   .action(async (opts) => {
-    // Auto-update check (non-blocking, background)
-    try {
-      const { execSync } = await import("node:child_process");
-      const currentVersion = program.version() ?? "0.0.0";
-      const latest = execSync("npm view harnessforce version 2>/dev/null", { encoding: "utf-8", timeout: 5000 }).trim();
-      if (latest && latest !== currentVersion) {
-        console.log(`\n  Update available: ${currentVersion} → ${latest}`);
-        console.log(`  Run: npm install -g harnessforce\n`);
-      }
-    } catch { /* offline or npm not available — skip silently */ }
+    // Auto-update check (truly non-blocking)
+    const currentVersion = program.version() ?? "0.0.0";
+    import("node:child_process").then(({ execFile }) => {
+      execFile("npm", ["view", "harnessforce", "version"], { encoding: "utf-8", timeout: 5000 }, (err, stdout) => {
+        if (err || !stdout) return;
+        const latest = stdout.trim();
+        if (latest && latest !== currentVersion) {
+          console.log(`\n  Update available: ${currentVersion} → ${latest}`);
+          console.log(`  Run: npm install -g harnessforce\n`);
+        }
+      });
+    }).catch(() => {});
 
     // Resolve API key: flag > env vars > config file
     let apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY;
@@ -163,26 +165,22 @@ program
         `The user's default Salesforce org alias is: ${orgAlias}`;
     }
 
-    // Create the agent (may be null if no API key)
-    let agent: Awaited<ReturnType<typeof createHarnessforceAgent>> | null = null;
-    try {
-      agent = await createHarnessforceAgent({
-        model: opts.model,
-        apiKey,
-        skillsDir: opts.skillsDir,
-        systemPrompt,
-        projectContext: ctx,
-      });
-    } catch (err: any) {
-      if (!apiKey) {
-        // Expected — no key, agent won't work but slash commands will
-      } else {
-        console.error(`  Error creating agent: ${err.message}`);
-      }
-    }
-
-    // ── Non-interactive mode ──────────────────────────────────────────────
+    // ── Non-interactive mode — must await agent ──────────────────────────
     if (opts.nonInteractive) {
+      let agent: Awaited<ReturnType<typeof createHarnessforceAgent>> | null = null;
+      try {
+        agent = await createHarnessforceAgent({
+          model: opts.model,
+          apiKey,
+          skillsDir: opts.skillsDir,
+          systemPrompt,
+          projectContext: ctx,
+        });
+      } catch (err: any) {
+        console.error(`Error creating agent: ${err.message}`);
+        process.exit(1);
+      }
+
       const task = opts.nonInteractive as string;
       if (!agent) {
         console.error("Error: Cannot run non-interactive mode without an API key.");
@@ -231,10 +229,24 @@ program
       process.exit(1);
     }
 
-    // Render the Ink TUI with slash command context
+    // Create agent in background — TUI renders immediately
+    const agentPromise = apiKey
+      ? createHarnessforceAgent({
+          model: opts.model,
+          apiKey,
+          skillsDir: opts.skillsDir,
+          systemPrompt,
+          projectContext: ctx,
+        }).catch((err: any) => {
+          console.error(`  Error creating agent: ${err.message}`);
+          return null;
+        })
+      : Promise.resolve(null);
+
+    // Render the Ink TUI immediately (agent loads in background)
     const instance = render(
       React.createElement(App, {
-        agent: agent!,
+        agentPromise,
         skillsDir: opts.skillsDir,
         org: orgAlias,
         model: opts.model,

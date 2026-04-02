@@ -39,7 +39,7 @@ function execSafe(cmd: string, cwd: string): string | null {
     return execSync(cmd, {
       cwd,
       encoding: "utf-8",
-      timeout: 10_000,
+      timeout: 3_000,
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
   } catch {
