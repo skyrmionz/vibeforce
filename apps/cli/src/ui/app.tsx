@@ -520,12 +520,12 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
         <>
           {/* Thinking/loading — right above input container */}
           {streaming && !currentTool && !currentResponse && (
-            <Box marginBottom={0}>
+            <Box marginTop={1} marginBottom={0}>
               <Text color="#00A1E0">{"  Harnessing..."}</Text>
             </Box>
           )}
           {agentLoading && messages.length === 0 && (
-            <Box marginBottom={0}>
+            <Box marginTop={1} marginBottom={0}>
               <Text color="#00A1E0">{"  Initializing agent..."}</Text>
             </Box>
           )}
