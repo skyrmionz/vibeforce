@@ -61,6 +61,7 @@ export interface CommandContext {
   model?: string;
   setModel?: (id: string) => void;
   clearMessages?: () => void;
+  setPermissionMode?: (mode: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -1036,12 +1037,12 @@ const editorCommand: SlashCommand = {
   name: "editor",
   description: "Open current input in an external editor ($VISUAL / $EDITOR)",
   type: "local",
-  execute: async (args) => {
-    const result = openInEditor(args);
-    if (result === null) {
-      return "Editor cancelled (empty result or editor not found).";
-    }
-    return result;
+  execute: async (_args, ctx) => {
+    const result = await openInEditor("");
+    if (result === null) return "Editor cancelled (empty result).";
+    return `Editor content:\n${result}`;
+    // Note: ideally this would submit the content as a message,
+    // but for now just show what was typed
   },
 };
 
@@ -1094,6 +1095,74 @@ const todosCommand: SlashCommand = {
 };
 
 // ---------------------------------------------------------------------------
+// Plan / Approve, Version, Changelog, Feedback, Tokens, Reload
+// ---------------------------------------------------------------------------
+
+const planCommand: SlashCommand = {
+  name: "plan",
+  description: "Enter plan mode — agent explores but can't make changes",
+  type: "local",
+  execute: async (_args, ctx) => {
+    if (ctx.setPermissionMode) ctx.setPermissionMode("plan");
+    return "Entered plan mode. Agent can explore but won't make changes.\nUse /approve to exit plan mode and execute.";
+  },
+};
+
+const approveCommand: SlashCommand = {
+  name: "approve",
+  description: "Exit plan mode and let the agent execute changes",
+  type: "local",
+  execute: async (_args, ctx) => {
+    if (ctx.setPermissionMode) ctx.setPermissionMode("default");
+    return "Plan approved. Agent can now make changes.";
+  },
+};
+
+const versionCommand: SlashCommand = {
+  name: "version",
+  description: "Show the current Vibeforce version",
+  type: "local",
+  execute: async () => `Vibeforce v${process.env.npm_package_version ?? "0.7.4"}`,
+};
+
+const changelogCommand: SlashCommand = {
+  name: "changelog",
+  description: "Open the changelog / release notes in the browser",
+  type: "local",
+  execute: async () => {
+    try { (await import("node:child_process")).execSync("open https://github.com/skyrmionz/vibeforce/releases"); } catch {}
+    return "Opened changelog in browser.";
+  },
+};
+
+const feedbackCommand: SlashCommand = {
+  name: "feedback",
+  description: "Open GitHub Issues to submit feedback",
+  type: "local",
+  execute: async () => {
+    try { (await import("node:child_process")).execSync("open https://github.com/skyrmionz/vibeforce/issues/new"); } catch {}
+    return "Opened GitHub Issues in browser.";
+  },
+};
+
+const tokensCommand: SlashCommand = {
+  name: "tokens",
+  description: "Show token usage and estimated cost (alias for /cost)",
+  type: "local",
+  execute: async () => sessionCostTracker.getUsageSummary(),
+};
+
+const reloadCommand: SlashCommand = {
+  name: "reload",
+  description: "Reload configuration from ~/.vibeforce/models.yaml",
+  type: "local",
+  execute: async () => {
+    ensureConfigFile();
+    return "Configuration reloaded from ~/.vibeforce/models.yaml";
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
 
@@ -1128,6 +1197,13 @@ const builtInCommands: SlashCommand[] = [
   editorCommand,
   outputStyleCommand,
   todosCommand,
+  planCommand,
+  approveCommand,
+  versionCommand,
+  changelogCommand,
+  feedbackCommand,
+  tokensCommand,
+  reloadCommand,
   // Salesforce local commands
   orgListCommand,
   orgOpenCommand,

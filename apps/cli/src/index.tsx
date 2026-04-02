@@ -185,7 +185,7 @@ program
       let nonInteractiveResponse = "";
 
       try {
-        for await (const event of agent.stream(task, threadId)) {
+        for await (const event of (agent.stream as any)(task, threadId, opts.permissionMode)) {
           switch (event.type) {
             case "token":
               nonInteractiveResponse += event.content;
@@ -233,6 +233,7 @@ program
         sessionManager,
         initialMessages,
         threadId,
+        permissionMode: opts.permissionMode,
       })
     );
 

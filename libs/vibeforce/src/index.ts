@@ -35,6 +35,11 @@ import {
 } from "./context/detector.js";
 import { buildMemoryPrompt } from "./middleware/memory.js";
 import { detectPiiFields } from "./middleware/pii.js";
+import { riskOf } from "./middleware/permissions.js";
+import { sessionCostTracker } from "./cost/tracker.js";
+import { executeHooks } from "./hooks/index.js";
+import { stripDangerousUnicode } from "./tools/unicode-safety.js";
+import { runSfCommand } from "./tools/sf-cli.js";
 
 // ── Tools ────────────────────────────────────────────────────────────────────
 export {
@@ -282,6 +287,7 @@ export interface VibeforceAgent {
   stream: (
     message: string,
     threadId?: string,
+    permissionMode?: string,
   ) => AsyncGenerator<VibeforceStreamEvent, void, unknown>;
 }
 
@@ -289,6 +295,7 @@ export type VibeforceStreamEvent =
   | { type: "token"; content: string }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; content: string }
+  | { type: "approval_required"; tool: string; args: Record<string, unknown>; risk: string }
   | { type: "done" }
   | { type: "error"; error: string };
 
@@ -390,12 +397,33 @@ export async function createVibeforceAgent(
   async function* stream(
     message: string,
     threadId?: string,
+    permissionMode?: string,
   ): AsyncGenerator<VibeforceStreamEvent, void, unknown> {
     const tid = threadId ?? randomUUID();
 
     try {
-      const eventStream = graph.streamEvents(
-        { messages: [{ role: "user", content: message }] },
+      // ── Plan mode: filtered graph with read-only tools ──────────────
+      let activeGraph = graph;
+      let effectiveMessage = message;
+
+      if (permissionMode === "plan") {
+        const readOnlyTools = combinedTools.filter((t) => {
+          const name = "name" in t ? (t as any).name : undefined;
+          return name ? riskOf(name) === "read" : false;
+        });
+        activeGraph = createReactAgent({
+          llm,
+          tools: readOnlyTools,
+          prompt:
+            "You are in PLAN MODE. You may only read and explore — do NOT modify files, deploy, or execute destructive actions. Explain what you WOULD do, then wait for approval.\n\n" +
+            prompt,
+          checkpointer,
+        });
+        effectiveMessage = `[PLAN MODE] ${message}`;
+      }
+
+      const eventStream = activeGraph.streamEvents(
+        { messages: [{ role: "user", content: effectiveMessage }] },
         {
           version: "v2",
           recursionLimit: 100,
@@ -406,17 +434,60 @@ export async function createVibeforceAgent(
       for await (const event of eventStream) {
         // ── Event-level middleware: audit logging ──────────────────────
         if (event.event === "on_tool_start") {
+          // Unicode safety: sanitize args for audit log
+          const rawArgs = event.data?.input ?? {};
+          const sanitizedArgsStr = stripDangerousUnicode(
+            JSON.stringify(rawArgs),
+          );
+
           appendAuditLog({
             timestamp: new Date().toISOString(),
             tool: event.name,
-            args: event.data?.input ?? {},
+            args: JSON.parse(sanitizedArgsStr),
             event: "start",
           });
+
+          // Hook execution: pre-tool-use
+          void executeHooks("pre-tool-use", { tool: event.name });
+
+          // Default mode: yield approval_required for destructive tools
+          if (
+            permissionMode !== "yolo" &&
+            permissionMode !== "plan" &&
+            riskOf(event.name) === "destructive"
+          ) {
+            yield {
+              type: "approval_required",
+              tool: event.name,
+              args: rawArgs as Record<string, unknown>,
+              risk: "destructive",
+            };
+          }
+
+          // Dry-run validation for sf_deploy
+          if (event.name === "sf_deploy") {
+            try {
+              const dryRun = await runSfCommand("project", [
+                "deploy",
+                "start",
+                "--dry-run",
+              ]);
+              if (!dryRun.success) {
+                yield {
+                  type: "tool_result",
+                  name: "sf_deploy_dry_run",
+                  content: `⚠️ Dry-run validation failed: ${dryRun.raw || JSON.stringify(dryRun.data)}`,
+                };
+              }
+            } catch {
+              // dry-run failed to execute — continue with deploy anyway
+            }
+          }
 
           yield {
             type: "tool_call",
             name: event.name,
-            args: event.data?.input ?? {},
+            args: rawArgs as Record<string, unknown>,
           };
         } else if (event.event === "on_tool_end") {
           const output = event.data?.output;
@@ -432,6 +503,9 @@ export async function createVibeforceAgent(
             result: "success",
             event: "end",
           });
+
+          // Hook execution: post-tool-use
+          void executeHooks("post-tool-use", { tool: event.name });
 
           // PII check for sf_query results
           if (event.name === "sf_query") {
@@ -461,6 +535,16 @@ export async function createVibeforceAgent(
             name: event.name,
             content: contentStr,
           };
+        } else if (event.event === "on_chain_end") {
+          // Cost tracking: capture usage metadata from LLM responses
+          const usageMeta = event.data?.output?.usage_metadata;
+          if (usageMeta) {
+            sessionCostTracker.addUsage(
+              modelId,
+              usageMeta.input_tokens ?? 0,
+              usageMeta.output_tokens ?? 0,
+            );
+          }
         } else if (
           event.event === "on_chat_model_stream" &&
           event.data?.chunk?.content

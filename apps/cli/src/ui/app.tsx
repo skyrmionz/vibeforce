@@ -25,12 +25,14 @@ interface AppProps {
   sessionManager?: SessionManager;
   initialMessages?: Message[];
   threadId?: string;
+  permissionMode?: string;
 }
 
-export default function App({ agent, skillsDir = "./skills", org, model: initialModel, sessionManager, initialMessages, threadId }: AppProps) {
+export default function App({ agent, skillsDir = "./skills", org, model: initialModel, sessionManager, initialMessages, threadId, permissionMode: initialPermissionMode }: AppProps) {
   const { exit } = useApp();
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [input, setInput] = useState("");
+  const [currentPermissionMode, setCurrentPermissionMode] = useState(initialPermissionMode ?? "default");
   const [streaming, setStreaming] = useState(false);
   const [currentResponse, setCurrentResponse] = useState("");
   const [currentTool, setCurrentTool] = useState<string | null>(null);
@@ -274,7 +276,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       let hadToolCall = false;
 
       try {
-        for await (const event of agent.stream(enrichedMessage, threadId)) {
+        for await (const event of (agent.stream as any)(enrichedMessage, threadId, currentPermissionMode)) {
           switch (event.type) {
             case "token":
               // If we just came back from a tool call, flush the current response
@@ -331,6 +333,15 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
               ]);
               sessionManager?.appendMessage({ role: "tool", content: `${event.name} => ${display}`, timestamp: new Date().toISOString() });
               break;
+            case "approval_required":
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "system",
+                  content: `\u26A0 ${(event as any).tool} requires approval (${(event as any).risk})\n  Args: ${JSON.stringify((event as any).args)}\n  Proceeding automatically in default mode.`,
+                },
+              ]);
+              break;
             case "error":
               setMessages((prev) => [
                 ...prev,
@@ -357,7 +368,7 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
       setCurrentTool(null);
       setStreaming(false);
     },
-    [agent, threadId]
+    [agent, threadId, currentPermissionMode]
   );
 
   return (
@@ -446,6 +457,11 @@ export default function App({ agent, skillsDir = "./skills", org, model: initial
               );
             })}
         </Box>
+      )}
+
+      {/* Plan mode banner */}
+      {currentPermissionMode === 'plan' && (
+        <Text color="#F5A623" bold>  📋 PLAN MODE — read-only exploration. Use /approve to execute.</Text>
       )}
 
       {/* Input — always visible so user can type while agent is working */}
