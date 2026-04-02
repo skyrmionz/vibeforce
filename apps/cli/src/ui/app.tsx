@@ -61,6 +61,10 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [exiting, setExiting] = useState(false);
 
+  // Cache terminal width and bar string to avoid recalculating on every render
+  const termWidth = useMemo(() => process.stdout.columns || 80, []);
+  const barLine = useMemo(() => "━".repeat(Math.max(termWidth - 2, 20)), [termWidth]);
+
   useInput((_input, key) => {
     if (key.ctrl && _input === "c") {
       setExiting(true);
@@ -147,26 +151,23 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
 
   // Autocomplete hints: filter commands by prefix when input starts with /
   const hints = useMemo(() => {
+    if (!input.startsWith("/") || input.length < 1) return [];
+    const partial = input.slice(1).toLowerCase();
+    const allCmds = getCommands(skillsDir);
+    if (!partial) return allCmds;
+    return allCmds.filter((c) => c.name.toLowerCase().startsWith(partial));
+  }, [input, skillsDir]);
+
+  // Sync menu visibility state from hints (outside useMemo to avoid re-render loops)
+  useEffect(() => {
     if (!input.startsWith("/") || input.length < 1) {
       setShowCommandMenu(false);
       setSelectedHint(-1);
-      return [];
-    }
-    const partial = input.slice(1).toLowerCase();
-    const allCmds = getCommands(skillsDir);
-    let filtered: SlashCommand[];
-    if (!partial) {
-      // Just "/" — show all commands (scrollable)
-      filtered = allCmds;
-      setShowCommandMenu(true);
     } else {
-      filtered = allCmds.filter((c) => c.name.toLowerCase().startsWith(partial));
-      setShowCommandMenu(filtered.length > 0);
+      setShowCommandMenu(hints.length > 0);
+      setSelectedHint((prev) => Math.min(prev, hints.length - 1));
     }
-    // Reset selection when filter changes
-    setSelectedHint((prev) => Math.min(prev, filtered.length - 1));
-    return filtered;
-  }, [input, skillsDir]);
+  }, [hints]);
 
   const handleSubmit = useCallback(
     async (value: string) => {
@@ -443,7 +444,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
           {showSeparator && <Text dimColor>{"  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"}</Text>}
           {msg.role === "user" ? (
             <Box>
-              <Text backgroundColor="#2D3748" color="#FFFFFF">{" ❯ " + msg.content + " ".repeat(Math.max(0, (process.stdout.columns || 80) - msg.content.length - 5))}</Text>
+              <Text backgroundColor="#2D3748" color="#FFFFFF">{" ❯ " + msg.content + " ".repeat(Math.max(0, termWidth - msg.content.length - 5))}</Text>
             </Box>
           ) : msg.role === "tool" ? (
             <Text dimColor>
@@ -532,7 +533,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
 
           {/* Input container with blue bars */}
           <Box flexDirection="column" marginTop={0}>
-            <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? process.stdout.columns - 2 : 60)}</Text>
+            <Text color="#00A1E0">{barLine}</Text>
             <Box paddingX={1}>
               <Text color="#00A1E0" bold>
                 {"❯ "}
@@ -550,7 +551,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
                 placeholder={streaming ? "Type to interrupt or add context..." : "Ask Harnessforce anything... (type / for commands)"}
               />
             </Box>
-            <Text color="#00A1E0">{"━".repeat(process.stdout.columns ? process.stdout.columns - 2 : 60)}</Text>
+            <Text color="#00A1E0">{barLine}</Text>
           </Box>
 
           {/* Mode + status underneath input */}
