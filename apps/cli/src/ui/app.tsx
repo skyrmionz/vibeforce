@@ -435,12 +435,9 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
         <Box key={i} flexDirection="column" marginBottom={0}>
           {showSeparator && <Text dimColor>{"  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"}</Text>}
           {msg.role === "user" ? (
-            <Text>
-              <Text color="#00A1E0" bold>
-                {"❯ "}
-              </Text>
-              <Text>{msg.content}</Text>
-            </Text>
+            <Box>
+              <Text backgroundColor="#2D3748" color="#FFFFFF">{" ❯ " + msg.content + " ".repeat(Math.max(0, (process.stdout.columns || 80) - msg.content.length - 5))}</Text>
+            </Box>
           ) : msg.role === "tool" ? (
             <Text dimColor>
               {"  "}
@@ -454,7 +451,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
               {"\n"}
             </Text>
           ) : (
-            <Box flexDirection="column" marginTop={1} marginBottom={1}>
+            <Box flexDirection="column" marginTop={0} marginBottom={0}>
               <MarkdownText>{msg.content}</MarkdownText>
             </Box>
           )}
@@ -479,9 +476,12 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
         </Box>
       )}
 
+      {/* Spacer to push thinking/loading/menu toward the input container */}
+      <Box flexGrow={1} />
+
       {streaming && !currentTool && !currentResponse && (
         <Box>
-          <Text color="#00A1E0">{"  Vibing..."}</Text>
+          <Text color="#00A1E0">{"  Harnessing..."}</Text>
         </Box>
       )}
 

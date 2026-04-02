@@ -60,9 +60,9 @@ export function MarkdownText({ children }: { children: string }): React.ReactEle
       continue;
     }
 
-    // Empty line
+    // Empty line — minimal spacing (no extra gap)
     if (!line.trim()) {
-      elements.push(<Text key={i}>{" "}</Text>);
+      elements.push(<Text key={i}>{""}</Text>);
       continue;
     }
 
@@ -119,7 +119,7 @@ function renderInline(text: string, lineKey: number): React.ReactElement {
       if (codeIdx > 0) {
         parts.push(<Text key={`${lineKey}-${partIndex++}`}>{remaining.slice(0, codeIdx)}</Text>);
       }
-      parts.push(<Text key={`${lineKey}-${partIndex++}`} color="#F5A623">{codeMatch[1]}</Text>);
+      parts.push(<Text key={`${lineKey}-${partIndex++}`} color="#00A1E0">{codeMatch[1]}</Text>);
       remaining = remaining.slice(codeIdx + codeMatch[0].length);
     }
   }
