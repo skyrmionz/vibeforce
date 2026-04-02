@@ -1,15 +1,12 @@
 # Harnessforce
 
-**An open-source agent harness for Salesforce development** — vibe code anything with Salesforce from your terminal.
-
 <p align="center">
   <img src="apps/cli/src/ui/agent-astro.png" alt="Agent Astro" width="120" />
 </p>
 
 <p align="center">
-  <strong>The Salesforce Vibe Coding Agent</strong><br/>
-  Admin work · Apex development · Agentforce agents · Data Cloud · Custom apps on Heroku<br/>
-  All from your terminal.
+  <strong>An open-source agent harness for Salesforce development</strong><br/>
+  Admin work, Apex development, Agentforce agents, Data Cloud, custom apps on Heroku -- all from your terminal.
 </p>
 
 ## Getting Started
@@ -29,17 +26,12 @@ harnessforce
 
 ### 2. Get an API Key
 
-Harnessforce uses [OpenRouter](https://openrouter.ai) — one API key gives you access to Claude, GPT, Gemini, and 200+ other models.
+Harnessforce uses [OpenRouter](https://openrouter.ai) by default -- one API key gives you access to Claude, GPT, Gemini, and 200+ other models.
 
 1. Go to [openrouter.ai/keys](https://openrouter.ai/keys)
 2. Create a free account and generate an API key
 3. Launch Harnessforce and set your key:
 
-```bash
-harnessforce
-```
-
-Then inside Harnessforce:
 ```
 /set-key sk-or-your-key-here
 ```
@@ -65,17 +57,20 @@ harnessforce
 ### Prerequisites
 
 - **Node.js 20+**
-- **Salesforce CLI** (`sf`) — [install guide](https://developer.salesforce.com/tools/salesforcecli)
+- **Salesforce CLI** (`sf`) -- [install guide](https://developer.salesforce.com/tools/salesforcecli)
 - **Python 3.9+** with `robotframework` + `cumulusci` (optional, for Shadow DOM automation)
 
-### Default Model
+## FORCE.md -- Project Instructions
 
-Harnessforce uses **Claude Opus 4.6** by default via OpenRouter. Switch models anytime:
-```
-/model openrouter:openai/gpt-5.4
-/model openrouter:google/gemini-3.1-pro-preview
-/model openrouter:deepseek/deepseek-v3.2
-```
+FORCE.md files tell Harnessforce how to work in your project, similar to CLAUDE.md for Claude Code. Three layers, merged top-to-bottom:
+
+| File | Purpose | Git tracked? |
+|------|---------|-------------|
+| `./FORCE.md` | Project conventions, coding rules, org info | Yes |
+| `~/.harnessforce/FORCE.md` | Personal preferences (applies to all projects) | N/A |
+| `./FORCE.local.md` | Private overrides (secrets, personal aliases) | No (gitignored) |
+
+Use `/force` to view the current merged instructions, or `/force create` to scaffold a new `FORCE.md` in your project. The `/init` command also creates one automatically.
 
 ## What Can It Do?
 
@@ -87,11 +82,12 @@ Harnessforce uses **Claude Opus 4.6** by default via OpenRouter. Switch models a
 > Set up sharing rules for the Case object
 ```
 
-### Apex & LWC Development
+### Apex and LWC Development
 ```
 > Write an Apex trigger that prevents Opportunity close without a Contact Role, with tests
 > Build an LWC datatable component for Accounts with inline editing
 > Show me the debug logs from my last deployment
+> Analyze my code for governor limit risks
 ```
 
 ### Agentforce Agent Building
@@ -99,119 +95,188 @@ Harnessforce uses **Claude Opus 4.6** by default via OpenRouter. Switch models a
 > Build an Agentforce agent that handles customer warranty inquiries
 > Test my agent with sample utterances
 > Run a safety evaluation on the warranty agent
+> Deploy and activate the agent bundle
 ```
 
 ### Data Cloud
 ```
 > Query my Data Cloud for individuals with recent email interactions
 > List all Data Cloud objects in my org
-> Set up a customer segment for high-value accounts
+> Set up identity resolution and customer segments
 ```
 
-### Custom Apps (Any Language)
+### Custom Apps
 ```
 > Build a Python Flask API that syncs SF Opportunities to Postgres, deploy to Heroku
 > Create a React dashboard showing my SF Accounts
-> Build a Visualforce page showing Account summary, add it to App Launcher
+> Scaffold a Next.js app with Connected App OAuth to Salesforce
 ```
 
-### Model Training
+### DevOps and Org Management
 ```
-> Train a model on my org's data so it understands our custom objects
+> Create a scratch org from my definition file
+> Run all Apex tests and show code coverage
+> Set up a CI/CD pipeline for my Salesforce project
 ```
+
+## Agentforce Support (ADLC)
+
+Harnessforce includes deep support for the Agentforce Development Lifecycle -- four purpose-built skills that cover the full agent creation pipeline:
+
+**Build** (`/agentforce-build`) -- 606-line skill with a 100-point rubric covering topic classification, action mapping, instruction writing, and guardrail design. Generates `.agent` files, Apex actions, Flow XML, and deploys the complete bundle.
+
+**Test** (`/agentforce-test`) -- 521-line skill with two modes: Mode A for quick smoke tests via `sf agent preview`, Mode B for batch testing with structured pass/fail reporting across multiple utterances.
+
+**Observability** (`/agentforce-observability`) -- Analyzes agent session traces from Data Cloud, reproduces issues with live preview, and produces improvement recommendations against the deployed agent.
+
+**Persona Design** (`/agent-persona`) -- Guides structured persona creation: tone, guardrails, escalation rules, and utterance-driven testing to validate personality consistency.
 
 ## Architecture
 
-Harnessforce follows a **"Write Code, Not Tools"** philosophy. Instead of needing a dedicated tool for every Salesforce operation, the agent writes source files (Apex `.cls`, Agent Script `.agent`, Flow XML, metadata XML, LWC `.js`, etc.) and deploys them via the `sf` CLI — just like a developer would.
+Harnessforce follows a **"Write Code, Not Tools"** philosophy. Instead of needing a dedicated tool for every Salesforce operation, the agent writes source files (Apex, Flow XML, LWC, metadata XML, `.agent` files) and deploys them via the `sf` CLI -- just like a developer would.
 
-### 42 Tools
+### By the Numbers
+
+| What | Count |
+|------|-------|
+| Tools | 57 |
+| Skills | 27 |
+| Slash commands | 106 (79 built-in + 27 from skills) |
+| SF knowledge prompts | 18 |
+
+### 57 Tools
 
 | Category | Count | Examples |
 |----------|-------|---------|
-| Core (filesystem + shell) | 8 | read_file, write_file, edit_file, execute, glob, grep |
-| Salesforce CLI | 12 | sf_query, sf_deploy, sf_describe_object, sf_data, sf_run_tests |
-| Discovery | 3 | sf_list_metadata_types, sf_describe_all_sobjects |
-| Browser (Playwright) | 6 | browser_open, browser_click, browser_screenshot |
-| Agentforce | 4 | agent_publish, agent_activate, agent_validate |
-| Data Cloud | 7 | dc_query, dc_ingest_streaming, dc_create_segment |
+| Core (filesystem + shell) | 8 | read_file, write_file, edit_file, execute, glob, grep, ls, task |
+| Salesforce CLI | 12 | sf_query, sf_deploy, sf_describe_object, sf_data, sf_run_tests, sf_org_limits |
+| SF Extended | 12 | scratch_org_create, package_create, sandbox_create, deploy_status, test_coverage |
+| Discovery | 3 | sf_list_metadata_types, sf_describe_all_sobjects, sf_list_metadata_of_type |
+| Browser (Playwright) | 6 | browser_open, browser_click, browser_fill, browser_screenshot |
+| Agentforce | 4 | agent_publish, agent_activate, agent_validate, agent_preview |
+| Data Cloud | 7 | dc_query, dc_list_objects, dc_describe, dc_ingest_streaming, dc_create_segment |
 | Documentation | 2 | sf_docs_search, sf_docs_read |
+| Web | 2 | web_search, web_fetch |
+| Planning | 1 | write_todos |
+
+### 27 Skills
+
+| Category | Skills |
+|----------|--------|
+| Agentforce | agentforce-build, agentforce-test, agentforce-observability, agent-persona |
+| Development | apex-patterns, lwc-development, flow-advanced, metadata-generation, visualforce-app |
+| Testing and CI | test-automation, ci-cd-pipeline, deployment-checklist |
+| Org Management | org-setup, scratch-org-lifecycle, security-hardening, performance-optimization |
+| Data | data-cloud-setup, data-migration |
+| Integration | connected-app-setup, integration-patterns, heroku-deploy, app-scaffold |
+| Packages | package-development, omnistudio-overview |
+| Automation | robot-framework-fallback, skill-creator, remember |
 
 ### 3-Layer Automation
 
 ```
-Layer 1: SF CLI / Metadata API       — write files + sf project deploy (fast, reliable)
-Layer 2: Playwright browser tools    — for Setup operations with no API equivalent
-Layer 3: Robot Framework + CumulusCI — fallback when Shadow DOM blocks Playwright
+Layer 1: SF CLI / Metadata API       -- write files + sf project deploy (fast, reliable)
+Layer 2: Playwright browser tools    -- for Setup operations with no API equivalent
+Layer 3: Robot Framework + CumulusCI -- fallback when Shadow DOM blocks Playwright
 ```
-
-### 8 Skills
-
-Pre-built workflows for complex multi-step tasks:
-- `agentforce-build` / `agentforce-test` — end-to-end Agentforce agent creation
-- `heroku-deploy` — deploy any app to Heroku
-- `app-scaffold` — scaffold Next.js, Flask, Rails, or Spring Boot apps with SF integration
-- `connected-app-setup` — create Connected Apps with OAuth (web server, JWT, client credentials)
-- `visualforce-app` — VF pages + Lightning apps for App Launcher
-- `data-cloud-setup` — configure Data Cloud from scratch
-- `robot-framework-fallback` — Shadow DOM piercing escalation
 
 ### Self-Extending
 
-Harnessforce can handle **any** of Salesforce's ~470+ metadata types by discovering what exists, reading the docs, and writing the correct source files. When it learns something new, it saves it as a skill for future sessions.
+Harnessforce can handle any of Salesforce's ~470+ metadata types by discovering what exists, reading the docs, and writing the correct source files. When it learns something new, it saves it as a skill for future sessions.
 
-### Safety Built-In
+## Permission Modes
 
-- **4 permission modes**: `default` (confirm destructive ops), `plan` (read-only), `yolo` (auto-approve), `safe` (read tools only)
-- **Production org detection**: auto-escalates all writes to require confirmation
-- **Dry-run deploys**: validates before real deployment
-- **Pre-deploy snapshots**: automatic rollback capability
-- **Audit logging**: every tool call logged to `.harnessforce/audit.log`
-- **PII awareness**: warns when query results contain sensitive fields
+Three permission modes control what the agent can do. Cycle through them with **Shift+Tab** during a session:
+
+| Mode | Behavior |
+|------|----------|
+| `default` | Confirms before destructive operations (deploys, deletes, overwrites) |
+| `plan` | Read-only -- agent can explore and analyze but cannot make changes |
+| `yolo` | Auto-approves all operations without confirmation prompts |
+
+Switch modes via slash commands (`/plan`, `/approve`) or the `--permission-mode` CLI flag. Production orgs auto-escalate to require confirmation regardless of mode.
 
 ## Model Support
 
-Harnessforce is model-agnostic. Use any LLM:
+Harnessforce defaults to **Claude Opus 4.6** via OpenRouter. Switch models anytime:
+
+```
+/model openrouter:openai/gpt-5.4
+/model openrouter:google/gemini-3.1-pro-preview
+/model openrouter:deepseek/deepseek-v3.2
+/model openrouter:meta-llama/llama-4-maverick
+```
+
+Use any provider -- cloud or local:
 
 ```bash
-# Cloud providers
+# Cloud providers via OpenRouter
+harnessforce --model openrouter:anthropic/claude-opus-4.6
+
+# Direct provider
 harnessforce --model anthropic:claude-opus-4.6
-harnessforce --model openai:gpt-4o
 
 # Local models (Ollama, vLLM)
 harnessforce provider:add --name local --type local --base-url http://localhost:11434
 harnessforce --model local:llama3
-
-# Switch mid-session
-> /model anthropic:claude-sonnet-4-20250514
 ```
 
 Configure in `~/.harnessforce/models.yaml`:
 ```yaml
-default_model: "anthropic:claude-sonnet-4-20250514"
+default_model: "openrouter:anthropic/claude-opus-4.6"
 providers:
-  anthropic:
-    type: cloud
-    api_key: ${ANTHROPIC_API_KEY}
-    models: [claude-opus-4.6, claude-sonnet-4-20250514, claude-haiku-4]
-  local:
-    type: local
-    base_url: http://localhost:11434
-    auto_discover: true
+  openrouter:
+    type: gateway
+    base_url: "https://openrouter.ai/api/v1"
+    api_key: "sk-or-your-key-here"
+    models:
+      - anthropic/claude-opus-4.6
+      - openai/gpt-5.4
+      - google/gemini-3.1-pro-preview
 ```
 
 ## CLI Commands
 
 ```bash
-harnessforce                          # Launch interactive agent
+# Launch
+harnessforce                          # Interactive agent
 harnessforce --model <id>             # Use specific model
 harnessforce --permission-mode plan   # Read-only mode
 harnessforce --org my-sandbox         # Target specific org
-
-harnessforce model:list               # List available models
-harnessforce model:select <id>        # Switch model
-harnessforce provider:add             # Add model provider
-harnessforce rollback                 # Restore from last snapshot
+harnessforce --resume <session-id>    # Resume a previous session
 ```
+
+Key slash commands inside the agent:
+
+| Command | What it does |
+|---------|-------------|
+| `/help` | List all 106 available commands |
+| `/set-key` | Save your OpenRouter API key |
+| `/model` | Show or switch models |
+| `/org` | Show or switch the target Salesforce org |
+| `/force` | View or create FORCE.md project instructions |
+| `/deploy` | Dry-run validate, then deploy to the org |
+| `/query` | Run a SOQL query |
+| `/describe` | Describe an object's fields |
+| `/agent-build` | Build an Agentforce agent end-to-end |
+| `/agent-test` | Test an Agentforce agent |
+| `/plan` / `/approve` | Toggle plan mode |
+| `/status` | Show current session info |
+| `/doctor` | Check prerequisites |
+| `/cost` | Show token usage and estimated cost |
+| `/undo` | Restore the previous version of the last edited file |
+| `/rollback` | Restore from last deployment snapshot |
+| `/threads` / `/resume` | List or resume previous sessions |
+| `/remember` | Save learnings to agent memory |
+| `/compact` | Summarize older messages to free context |
+
+### Safety Built-In
+
+- **Production org detection**: auto-escalates all writes to require confirmation
+- **Dry-run deploys**: validates before real deployment
+- **Pre-deploy snapshots**: automatic rollback capability
+- **Audit logging**: every tool call logged to `.harnessforce/audit.log`
+- **PII awareness**: warns when query results contain sensitive fields
 
 ## Development
 
