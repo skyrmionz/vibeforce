@@ -30,3 +30,10 @@ playwright-report/
 .claude/
 .vibeforce/
 .harnessforce/
+
+# Private project overrides
+FORCE.local.md
+
+# Agent-generated Salesforce project files
+force-app/
+sfdx-project.json
