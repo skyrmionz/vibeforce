@@ -95,14 +95,20 @@ const modelCommand: SlashCommand = {
       return `Current model: ${ctx.model ?? config.defaultModel}`;
     }
 
+    const modelId = args.trim();
     const registry = new ModelRegistry(config);
     const all = registry.listModels();
-    const match = all.find((m) => m.id === args.trim() || m.model === args.trim());
-    if (!match) {
-      return `Model "${args.trim()}" not found. Use /model:list to see available models.`;
+    const match = all.find((m) => m.id === modelId || m.model === modelId);
+
+    if (match) {
+      if (ctx.setModel) ctx.setModel(match.id);
+      return `Switched to ${match.model} (${match.provider})`;
     }
-    if (ctx.setModel) ctx.setModel(match.id);
-    return `Switched to ${match.model} (${match.provider})`;
+
+    // Allow any model ID — if it contains ":" assume provider:model, otherwise default to openrouter
+    const resolvedId = modelId.includes(":") ? modelId : `openrouter:${modelId}`;
+    if (ctx.setModel) ctx.setModel(resolvedId);
+    return `Switched to ${resolvedId}\n(Custom model — not in /model-list. It will work if your provider supports it.)`;
   },
 };
 
@@ -207,7 +213,7 @@ const skillAddCommand: SlashCommand = {
   execute: async (args, ctx) => {
     const name = args.trim();
     if (!name) {
-      return "Usage: /skill:add <name>";
+      return "Usage: /skill-add <name>";
     }
 
     const template = `---
@@ -723,7 +729,7 @@ const agentPreviewCommand: SlashCommand = {
   type: "local",
   execute: async (args) => {
     const parts = args.trim().split(/\s+/);
-    if (parts.length < 2) return "Usage: /agent:preview <AgentName> <utterance>";
+    if (parts.length < 2) return "Usage: /agent-preview <AgentName> <utterance>";
     const agentName = parts[0]!;
     const utterance = parts.slice(1).join(" ");
     try {

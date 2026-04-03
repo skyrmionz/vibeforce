@@ -72,12 +72,14 @@ export function getDefaultConfig(): ModelConfig {
           'deepseek/deepseek-v3.2',
           // Meta
           'meta-llama/llama-4-maverick',
-          // Qwen (free)
-          'qwen/qwen3.6-plus-preview:free',
           // Mistral
           'mistralai/devstral-2',
-          // Free tier
+          // Free models
+          'qwen/qwen3.6-plus-preview:free',
           'nvidia/nemotron-3-super-120b-a12b:free',
+          'google/gemma-3-27b-it:free',
+          'meta-llama/llama-4-scout:free',
+          'deepseek/deepseek-chat-v3-0324:free',
         ],
       },
     },

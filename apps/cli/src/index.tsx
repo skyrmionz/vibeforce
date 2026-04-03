@@ -140,7 +140,7 @@ program
         if (sessions.length > 0) {
           const latest = sessions[sessions.length - 1];
           if (latest) {
-            console.log(`  Last session: ${latest.id.slice(0, 8)}... (${latest.messageCount} messages). Use --resume ${latest.id.slice(0, 8)} to continue.\n`);
+            console.log(`  Last session: ${latest.id.slice(0, 8)}... (${latest.messageCount} messages). To continue: npx harnessforce --resume ${latest.id.slice(0, 8)}\n`);
           }
         }
       } catch { /* no sessions available */ }
