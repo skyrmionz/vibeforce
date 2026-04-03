@@ -132,6 +132,18 @@ export { TIMEOUTS } from "./config/timeouts.js";
 // ── Services ────────────────────────────────────────────────────────────────
 export { extractAndSaveMemories } from "./services/extract-memories.js";
 
+// ── MCP ─────────────────────────────────────────────────────────────────────
+export {
+  loadMcpConfig, saveMcpConfig, addMcpServer, removeMcpServer,
+  connectMcpServer, connectAllMcpServers, disconnectMcpServer,
+  disconnectAllMcpServers, listConnectedServers,
+} from "./mcp/index.js";
+export type { McpServerConfig, McpConfig } from "./mcp/index.js";
+
+// ── Plugins ─────────────────────────────────────────────────────────────────
+export { loadPlugins, listPluginDirs } from "./plugins/index.js";
+export type { HarnessforcePlugin, LoadedPlugins } from "./plugins/index.js";
+
 // ── Middleware ────────────────────────────────────────────────────────────────
 export {
   composeMiddleware,
@@ -366,6 +378,32 @@ export async function createHarnessforceAgent(
   // Combine all tools (raw — middleware is handled at event-stream level)
   const combinedTools = [...allTools, ...extraTools];
 
+  // ── Plugin tools (load from ~/.harnessforce/plugins/) ───────────────────
+  try {
+    const { loadPlugins } = await import("./plugins/index.js");
+    const pluginResult = await loadPlugins();
+    if (pluginResult.tools.length > 0) {
+      combinedTools.push(...pluginResult.tools);
+    }
+    for (const err of pluginResult.errors) {
+      appendAuditLog({ timestamp: new Date().toISOString(), event: "plugin_error", plugin: err.name, error: err.error });
+    }
+  } catch {
+    // Plugins not available — continue without
+  }
+
+  // ── MCP tools (connect to configured servers) ──────────────────────────
+  try {
+    const { loadMcpConfig, connectAllMcpServers } = await import("./mcp/index.js");
+    const mcpConfig = loadMcpConfig();
+    if (Object.keys(mcpConfig.servers).length > 0) {
+      const mcpTools = await connectAllMcpServers(mcpConfig.servers);
+      combinedTools.push(...mcpTools);
+    }
+  } catch {
+    // MCP not available or no servers configured — continue without
+  }
+
   // Load skills and build prompt — limit to top 10 for system prompt brevity
   const skills = loadSkills(skillsDir);
   const topSkills = skills.slice(0, 10);
@@ -451,6 +489,10 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
     ] as any,
   });
 
+  // ── Subagent system initialization ──────────────────────────────────────
+  const { initSubagentSystem } = await import("./tools/agent-spawn.js");
+  initSubagentSystem(llm, combinedTools as any);
+
   // ── Checkpointer (replaces manual conversationHistory) ──────────────────
   const checkpointer = new MemorySaver();
 
@@ -469,11 +511,11 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
   ): AsyncGenerator<HarnessforceStreamEvent, void, unknown> {
     const tid = threadId ?? randomUUID();
     let ptlRetryCount = 0;
+    let activeGraph = graph;
+    let effectiveMessage = message;
 
     try {
       // ── Plan mode: filtered graph with read-only tools ──────────────
-      let activeGraph = graph;
-      let effectiveMessage = message;
 
       if (permissionMode === "plan") {
         const readOnlyTools = combinedTools.filter((t) => {

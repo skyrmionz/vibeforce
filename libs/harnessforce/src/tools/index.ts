@@ -170,6 +170,11 @@ export { sfKnowledgeTool } from "./sf-knowledge.js";
 
 import { sfKnowledgeTool } from "./sf-knowledge.js";
 
+// ── Subagent system ─────────────────────────────────────────────────────
+export { agentSpawnTool, initSubagentSystem } from "./agent-spawn.js";
+
+import { agentSpawnTool } from "./agent-spawn.js";
+
 // ── Concurrent execution ────────────────────────────────────────────────
 export { executeConcurrently, isConcurrentSafe } from "./concurrent-executor.js";
 
@@ -193,4 +198,5 @@ export const allTools: StructuredToolInterface[] = [
   ...webTools,
   writeTodosTool,
   sfKnowledgeTool,
+  agentSpawnTool,
 ] as StructuredToolInterface[];

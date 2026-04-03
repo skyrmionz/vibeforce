@@ -274,10 +274,13 @@ program
     const gracefulShutdown = () => {
       // 1. Save session state
       try { sessionManager.save([]); } catch { /* best-effort */ }
-      // 2. Clean up browser if open
+      // 2. Clean up browser + MCP servers
       try {
-        import("harnessforce-core").then(({ closeBrowser }) => closeBrowser?.()).catch(() => {});
-      } catch { /* no browser */ }
+        import("harnessforce-core").then(({ closeBrowser, disconnectAllMcpServers }) => {
+          closeBrowser?.();
+          disconnectAllMcpServers?.();
+        }).catch(() => {});
+      } catch { /* cleanup failed */ }
       // 3. Unmount TUI
       instance.unmount();
       process.exit(0);

@@ -1,6 +1,6 @@
 {
   "name": "harnessforce-core",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Harnessforce Salesforce agent library",
   "type": "module",
   "main": "dist/index.js",
@@ -15,6 +15,7 @@
     "@langchain/core": "^1.1.38",
     "@langchain/langgraph": "^1.2.6",
     "@langchain/openai": "^1.4.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "js-yaml": "^4.1.1",
     "playwright": "^1.50.0",
     "zod": "^3.24.0"
@@ -24,7 +25,11 @@
     "@types/node": "^25.5.0",
     "typescript": "^5.7.0"
   },
-  "files": ["dist", "package.json", "README.md"],
+  "files": [
+    "dist",
+    "package.json",
+    "README.md"
+  ],
   "publishConfig": {
     "access": "public"
   },
