@@ -63,6 +63,18 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const [exiting, setExiting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Raw stdin listener for Ctrl+U (ink-text-input intercepts it before useInput can)
+  useEffect(() => {
+    const handler = (data: Buffer) => {
+      // Ctrl+U = 0x15
+      if (data.length === 1 && data[0] === 0x15) {
+        setInput("");
+      }
+    };
+    process.stdin.on("data", handler);
+    return () => { process.stdin.removeListener("data", handler); };
+  }, []);
+
   // Cache terminal width and bar string to avoid recalculating on every render
   const termWidth = useMemo(() => process.stdout.columns || 80, []);
   const barLine = useMemo(() => "━".repeat(Math.max(termWidth - 2, 20)), [termWidth]);
@@ -190,8 +202,8 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
 
   const handleSubmit = useCallback(
     async (value: string) => {
-      // Skip if menu just selected a command (useInput already handled it)
-      if (menuJustSelected) {
+      // Skip if menu just selected a command or menu is still open
+      if (menuJustSelected || (showCommandMenu && selectedHint >= 0)) {
         setMenuJustSelected(false);
         return;
       }
