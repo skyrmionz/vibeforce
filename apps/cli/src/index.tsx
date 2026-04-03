@@ -138,7 +138,7 @@ program
       try {
         const sessions = await sessionManager.list();
         if (sessions.length > 0) {
-          const latest = sessions[sessions.length - 1];
+          const latest = sessions[0]; // sorted most-recent-first
           if (latest) {
             console.log(`  Last session: ${latest.id.slice(0, 8)}... (${latest.messageCount} messages). To continue: npx harnessforce --resume ${latest.id.slice(0, 8)}\n`);
           }

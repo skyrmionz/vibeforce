@@ -149,5 +149,21 @@ export function loadModelConfig(configPath?: string): ModelConfig {
 
   const content = fs.readFileSync(resolvedPath, 'utf-8');
   const raw = yaml.load(content) as RawYamlConfig;
-  return parseRawConfig(raw);
+  const userConfig = parseRawConfig(raw);
+
+  // Merge default models into user config so new models are available
+  const defaults = getDefaultConfig();
+  for (const [providerName, defaultProvider] of Object.entries(defaults.providers)) {
+    const userProvider = userConfig.providers[providerName];
+    if (userProvider) {
+      // Add any models from defaults that the user doesn't already have
+      for (const model of defaultProvider.models) {
+        if (!userProvider.models.includes(model)) {
+          userProvider.models.push(model);
+        }
+      }
+    }
+  }
+
+  return userConfig;
 }

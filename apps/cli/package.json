@@ -1,6 +1,6 @@
 {
   "name": "harnessforce",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "Harnessforce CLI — an open-source agent harness for Salesforce development",
   "type": "module",
   "bin": {
