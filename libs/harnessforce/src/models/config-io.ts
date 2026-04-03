@@ -74,14 +74,29 @@ export function writeConfig(config: ModelConfig): void {
   fs.writeFileSync(configFilePath(), content, 'utf-8');
 }
 
-/** Read the current config from disk (returns defaults if missing). */
+/** Read the current config from disk (returns defaults if missing). Merges new default models. */
 export function readConfig(): ModelConfig {
   const filePath = configFilePath();
   if (!fs.existsSync(filePath)) {
     return getDefaultConfig();
   }
   const raw = yaml.load(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
-  return parseRawConfig(raw as Parameters<typeof parseRawConfig>[0]);
+  const userConfig = parseRawConfig(raw as Parameters<typeof parseRawConfig>[0]);
+
+  // Merge default models so users get new models added in updates
+  const defaults = getDefaultConfig();
+  for (const [providerName, defaultProvider] of Object.entries(defaults.providers)) {
+    const userProvider = userConfig.providers[providerName];
+    if (userProvider) {
+      for (const model of defaultProvider.models) {
+        if (!userProvider.models.includes(model)) {
+          userProvider.models.push(model);
+        }
+      }
+    }
+  }
+
+  return userConfig;
 }
 
 /** Set the persistent default model and write to disk. */
