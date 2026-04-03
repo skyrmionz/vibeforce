@@ -981,6 +981,83 @@ const setupCommand: SlashCommand = {
 };
 
 // ---------------------------------------------------------------------------
+// MCP commands
+// ---------------------------------------------------------------------------
+
+const mcpListCommand: SlashCommand = {
+  name: "mcp-list",
+  description: "List configured MCP servers and their tools",
+  type: "local",
+  execute: async () => {
+    try {
+      const { loadMcpConfig, listConnectedServers } = await import("harnessforce-core");
+      const config = loadMcpConfig();
+      const connected = listConnectedServers();
+      const serverNames = Object.keys(config.servers);
+      if (serverNames.length === 0) return "No MCP servers configured.\n\nAdd one: /mcp-add <name> <command> [args...]\nConfig: ~/.harnessforce/mcp.json";
+      const lines = serverNames.map(name => {
+        const server = config.servers[name]!;
+        const conn = connected.find(c => c.name === name);
+        const status = conn ? `connected (${conn.toolCount} tools)` : (server.enabled === false ? "disabled" : "not connected");
+        return `  ${name}: ${server.command} ${(server.args ?? []).join(" ")} [${status}]`;
+      });
+      return `MCP Servers:\n${lines.join("\n")}\n\nServers auto-connect on agent startup.`;
+    } catch (e: any) { return `Error: ${e.message}`; }
+  },
+};
+
+const mcpAddCommand: SlashCommand = {
+  name: "mcp-add",
+  description: "Add an MCP server (usage: /mcp-add <name> <command> [args...])",
+  type: "local",
+  execute: async (args) => {
+    const parts = args.split(/\s+/);
+    if (parts.length < 2) return "Usage: /mcp-add <name> <command> [args...]\nExample: /mcp-add explorer npx -y claude-code-explorer-mcp";
+    const [name, command, ...cmdArgs] = parts;
+    try {
+      const { addMcpServer } = await import("harnessforce-core");
+      addMcpServer(name!, { name: name!, command: command!, args: cmdArgs });
+      return `Added MCP server "${name}". It will connect on next agent startup.\nOr restart now to connect immediately.`;
+    } catch (e: any) { return `Error: ${e.message}`; }
+  },
+};
+
+const mcpRemoveCommand: SlashCommand = {
+  name: "mcp-remove",
+  description: "Remove an MCP server",
+  type: "local",
+  execute: async (args) => {
+    const name = args.trim();
+    if (!name) return "Usage: /mcp-remove <name>";
+    try {
+      const { removeMcpServer, disconnectMcpServer } = await import("harnessforce-core");
+      const removed = removeMcpServer(name);
+      if (!removed) return `Server "${name}" not found.`;
+      await disconnectMcpServer(name);
+      return `Removed MCP server "${name}".`;
+    } catch (e: any) { return `Error: ${e.message}`; }
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Plugin commands
+// ---------------------------------------------------------------------------
+
+const pluginListCommand: SlashCommand = {
+  name: "plugin-list",
+  description: "List installed plugins",
+  type: "local",
+  execute: async () => {
+    try {
+      const { listPluginDirs } = await import("harnessforce-core");
+      const plugins = listPluginDirs();
+      if (plugins.length === 0) return "No plugins installed.\n\nInstall plugins to ~/.harnessforce/plugins/<name>/index.js\nEach plugin exports { tools?, hooks?, mcpServers? }";
+      return `Installed plugins:\n${plugins.map(p => `  ${p}`).join("\n")}`;
+    } catch (e: any) { return `Error: ${e.message}`; }
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Extended Salesforce commands
 // ---------------------------------------------------------------------------
 
@@ -1540,6 +1617,12 @@ const builtInCommands: SlashCommand[] = [
   scaffoldCommand,
   connectedAppCommand,
   setupCommand,
+  // MCP
+  mcpListCommand,
+  mcpAddCommand,
+  mcpRemoveCommand,
+  // Plugins
+  pluginListCommand,
 ];
 
 /**
