@@ -567,13 +567,23 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
             })),
           );
           if (historyTokens > 60_000) {
-            const compacted = _compactMessages(
-              state.values.messages.map((m: any) => ({
-                role: m._getType?.() === "human" ? "user" : "assistant",
-                content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
-              })),
-              { maxTokens: 40_000, keepRecentMessages: 8 },
-            );
+            // Try LLM-based summarization first, fall back to string truncation
+            const { summarizeMessagesWithLLM: _summarizeLLM } = await import("./middleware/summarization.js");
+            const rawMsgs = state.values.messages.map((m: any) => ({
+              role: m._getType?.() === "human" ? "user" : "assistant",
+              content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+            }));
+            const splitIdx = rawMsgs.length - 8;
+            const olderMsgs = rawMsgs.slice(0, Math.max(0, splitIdx));
+            const recentMsgs = rawMsgs.slice(Math.max(0, splitIdx));
+
+            // Use LLM to summarize older messages (falls back to truncation internally)
+            const llmCall = async (p: string) => {
+              const result = await llm.invoke(p);
+              return typeof result.content === "string" ? result.content : JSON.stringify(result.content);
+            };
+            const summary = await _summarizeLLM(olderMsgs, llmCall);
+            const compacted = [summary, ...recentMsgs];
             // Write compacted history back via updateState
             const { HumanMessage, AIMessage, SystemMessage } = await import("@langchain/core/messages");
             const newMessages = compacted.map((m) => {

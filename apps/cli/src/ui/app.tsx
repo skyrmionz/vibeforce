@@ -4,6 +4,7 @@ import TextInput from "ink-text-input";
 import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager } from "harnessforce-core";
 import { readMemorySources } from "harnessforce-core";
 import { MarkdownText } from "./markdown.js";
+import { DiffView } from "./diff.js";
 import { StatusBar } from "./status-bar.js";
 import {
   getCommands,
@@ -69,10 +70,14 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   useInput((_input, key) => {
     if (key.ctrl && _input === "c") {
       setExiting(true);
+      // Extract memories from conversation before exit (best-effort, non-blocking)
+      import("harnessforce-core").then(({ extractAndSaveMemories }) => {
+        extractAndSaveMemories(messages.map(m => ({ role: m.role, content: m.content }))).catch(() => {});
+      }).catch(() => {});
       setTimeout(() => {
         exit();
         process.exit(0);
-      }, 100);
+      }, 200); // Slightly longer to allow memory extraction
       return;
     }
 
@@ -484,11 +489,25 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
               <Text backgroundColor="#2D3748" color="#FFFFFF">{" ❯ " + msg.content + " ".repeat(Math.max(0, termWidth - msg.content.length - 5))}</Text>
             </Box>
           ) : msg.role === "tool" ? (
-            <Text dimColor>
-              {"  "}
-              <Text color="#F5A623">{"⚡ "}</Text>
-              {msg.content}
-            </Text>
+            msg.toolName === "edit_file" && msg.content.includes("=>") ? (
+              <Box flexDirection="column">
+                <Text dimColor>{"  "}<Text color="#F5A623">{"⚡ "}</Text>{msg.content.split("=>")[0]?.trim()}</Text>
+                {(() => {
+                  // Try to extract old/new from the edit result for diff display
+                  const parts = msg.content.split("=>");
+                  if (parts.length >= 2) {
+                    return <DiffView oldStr={parts[0]?.trim() ?? ""} newStr={parts[1]?.trim() ?? ""} />;
+                  }
+                  return null;
+                })()}
+              </Box>
+            ) : (
+              <Text dimColor>
+                {"  "}
+                <Text color="#F5A623">{"⚡ "}</Text>
+                {msg.content}
+              </Text>
+            )
           ) : msg.role === "system" ? (
             <Text>
               {"\n"}
