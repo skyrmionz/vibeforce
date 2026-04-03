@@ -57,6 +57,10 @@ export {
 } from './summarization.js';
 export type { SummarizationConfig } from './summarization.js';
 
+// Microcompact
+export { microcompactMessages } from './microcompact.js';
+export type { MicrocompactOptions } from './microcompact.js';
+
 // Memory
 export {
   readMemorySources,

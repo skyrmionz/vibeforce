@@ -347,6 +347,8 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
 
       let fullResponse = "";
       let hadToolCall = false;
+      let toolCallCount = 0;
+      const toolCallCounts: Record<string, number> = {};
 
       try {
         for await (const event of (agent.stream as any)(enrichedMessage, threadId, currentPermissionMode, controller.signal)) {
@@ -368,6 +370,8 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
               setCurrentResponse(fullResponse);
               break;
             case "tool_call":
+              toolCallCount++;
+              toolCallCounts[event.name] = (toolCallCounts[event.name] ?? 0) + 1;
               // Flush any accumulated text before the tool call
               if (fullResponse.trim()) {
                 setMessages((prev) => [
@@ -443,6 +447,17 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
         sessionManager?.appendMessage({ role: "assistant", content: fullResponse, timestamp: new Date().toISOString() });
       }
 
+      // Tool use summary (Claude Code pattern — collapse verbose tool blocks)
+      if (toolCallCount >= 3) {
+        const summary = Object.entries(toolCallCounts)
+          .map(([name, count]) => `${name} ×${count}`)
+          .join(", ");
+        setMessages((prev) => [
+          ...prev,
+          { role: "system", content: `Used ${toolCallCount} tools: ${summary}` },
+        ]);
+      }
+
       setCurrentResponse("");
       setCurrentTool(null);
       setStreaming(false);
@@ -452,8 +467,12 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      {/* Message history */}
-      {messages.map((msg, i) => {
+      {/* Message history (virtual scroll — only render last 50 messages) */}
+      {messages.length > 50 && (
+        <Text dimColor>  ↑ {messages.length - 50} older messages hidden</Text>
+      )}
+      {messages.slice(-50).map((msg, _i) => {
+        const i = messages.length > 50 ? _i + messages.length - 50 : _i;
         // Show turn separator between assistant/tool messages and user messages
         const prevMsg = i > 0 ? messages[i - 1] : undefined;
         const showSeparator = msg.role === "user" && prevMsg && (prevMsg.role === "assistant" || prevMsg.role === "tool");

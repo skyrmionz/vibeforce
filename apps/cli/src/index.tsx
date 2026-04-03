@@ -132,8 +132,21 @@ program
     // Generate thread ID for agent checkpointing (reuse resume ID if provided)
     const threadId = opts.resume ?? randomUUID();
 
-    // Resume session if requested
+    // Auto-recovery: hint about recent sessions (Claude Code pattern)
     let initialMessages: Array<{ role: "user" | "assistant" | "tool" | "system"; content: string }> | undefined;
+    if (!opts.resume) {
+      try {
+        const sessions = await sessionManager.list();
+        if (sessions.length > 0) {
+          const latest = sessions[sessions.length - 1];
+          if (latest) {
+            console.log(`  Last session: ${latest.id.slice(0, 8)}... (${latest.messageCount} messages). Use --resume ${latest.id.slice(0, 8)} to continue.\n`);
+          }
+        }
+      } catch { /* no sessions available */ }
+    }
+
+    // Resume session if requested
     if (opts.resume) {
       const loaded = await sessionManager.load(opts.resume);
       if (loaded.length > 0) {

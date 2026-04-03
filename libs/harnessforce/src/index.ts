@@ -468,6 +468,7 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
     abortSignal?: AbortSignal,
   ): AsyncGenerator<HarnessforceStreamEvent, void, unknown> {
     const tid = threadId ?? randomUUID();
+    let ptlRetryCount = 0;
 
     try {
       // ── Plan mode: filtered graph with read-only tools ──────────────
@@ -491,6 +492,26 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
           checkpointer,
         });
         effectiveMessage = `[PLAN MODE] ${message}`;
+      }
+
+      // ── Microcompact: clear old tool results without breaking cache ──
+      // (runs before full compaction — cheaper, preserves prompt cache prefix)
+      try {
+        const mcState = await activeGraph.getState({ configurable: { thread_id: tid } });
+        if (mcState?.values?.messages && Array.isArray(mcState.values.messages)) {
+          const { microcompactMessages } = await import("./middleware/microcompact.js");
+          const mcResult = microcompactMessages(mcState.values.messages, { keepRecentTurns: 3 });
+          if (mcResult.cleared > 0) {
+            appendAuditLog({
+              timestamp: new Date().toISOString(),
+              event: "microcompact",
+              cleared: mcResult.cleared,
+              estimatedTokensSaved: mcResult.estimatedTokensSaved,
+            });
+          }
+        }
+      } catch {
+        // best-effort
       }
 
       // ── Proactive compaction: trim history before it balloons ────────
@@ -729,42 +750,87 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
     } catch (err: any) {
       const errMsg = err.message ?? String(err);
 
-      // ── Reactive compaction: detect context-too-long errors ──────────
+      // ── Reactive compaction + retry (Claude Code pattern) ──────────
       const isContextOverflow =
         /prompt_too_long|context_length_exceeded|maximum context length/i.test(errMsg);
 
-      if (isContextOverflow) {
+      if (isContextOverflow && ptlRetryCount < 3) {
+        ptlRetryCount++;
         yield {
-          type: "system",
-          content:
-            "Context limit reached. The conversation history is too long. " +
-            "Please try a shorter message or start a new session with /clear.",
+          type: "system" as const,
+          content: `Context limit reached. Compacting history and retrying (attempt ${ptlRetryCount}/3)...`,
         };
 
-        // Attempt to compact the checkpointer state for future turns
+        // Compact and write back, then retry the turn
         try {
-          const state = await graph.getState({ configurable: { thread_id: tid } });
+          const state = await activeGraph.getState({ configurable: { thread_id: tid } });
           if (state?.values?.messages && Array.isArray(state.values.messages)) {
+            // Progressive reduction: each retry keeps fewer messages and lower token target
+            const targetTokens = Math.max(20_000, 60_000 - (ptlRetryCount * 15_000));
+            const keepRecent = Math.max(4, 10 - (ptlRetryCount * 2));
             const compacted = _compactMessages(
               state.values.messages.map((m: any) => ({
                 role: m._getType?.() === "human" ? "user" : "assistant",
                 content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
               })),
-              { maxTokens: 60_000, keepRecentMessages: 8 },
+              { maxTokens: targetTokens, keepRecentMessages: keepRecent },
             );
-            // Log compaction for debugging
+            const { HumanMessage: HM, AIMessage: AM, SystemMessage: SM } = await import("@langchain/core/messages");
+            const newMsgs = compacted.map((m) => {
+              if (m.role === "user") return new HM(m.content);
+              if (m.role === "system") return new SM(m.content);
+              return new AM(m.content);
+            });
+            await activeGraph.updateState(
+              { configurable: { thread_id: tid } },
+              { messages: newMsgs },
+            );
             appendAuditLog({
               timestamp: new Date().toISOString(),
-              event: "context_compacted",
-              originalMessages: state.values.messages.length,
+              event: "ptl_recovery_compact",
+              attempt: ptlRetryCount,
+              targetTokens,
+              keepRecent,
               compactedMessages: compacted.length,
             });
+
+            // Retry the turn with compacted history
+            const retryStream = activeGraph.streamEvents(
+              { messages: [{ role: "user", content: effectiveMessage }] },
+              {
+                version: "v2",
+                recursionLimit: 40,
+                configurable: { thread_id: tid },
+                ...(abortSignal ? { signal: abortSignal } : {}),
+              },
+            );
+            for await (const event of retryStream) {
+              // Re-use the same event processing (simplified — emit tokens and tool events)
+              if (event.event === "on_chat_model_stream") {
+                const chunk = event.data?.chunk;
+                if (chunk?.content) {
+                  const text = typeof chunk.content === "string" ? chunk.content : (chunk.content[0]?.text ?? "");
+                  if (text) yield { type: "token" as const, content: text };
+                }
+              } else if (event.event === "on_tool_start") {
+                yield { type: "tool_call" as const, name: event.name, args: (event.data?.input ?? {}) as Record<string, unknown> };
+              } else if (event.event === "on_tool_end") {
+                const output = event.data?.output;
+                let content = typeof output === "string" ? output : output?.content ?? JSON.stringify(output);
+                if (typeof content !== "string") content = String(content);
+                if (content.length > 4_000) content = content.slice(0, 4_000) + `\n... (truncated)`;
+                yield { type: "tool_result" as const, name: event.name, content };
+              }
+            }
+            yield { type: "done" as const };
           }
-        } catch {
-          // best-effort — compaction failure should not crash the agent
+        } catch (retryErr: any) {
+          yield { type: "error" as const, error: `Recovery failed: ${retryErr.message}` };
         }
+      } else if (isContextOverflow) {
+        yield { type: "system" as const, content: "Context limit reached after 3 recovery attempts. Use /clear to start fresh." };
       } else {
-        yield { type: "error", error: errMsg };
+        yield { type: "error" as const, error: errMsg };
       }
     }
   }

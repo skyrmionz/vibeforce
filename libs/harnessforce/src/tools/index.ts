@@ -170,6 +170,9 @@ export { sfKnowledgeTool } from "./sf-knowledge.js";
 
 import { sfKnowledgeTool } from "./sf-knowledge.js";
 
+// ── Concurrent execution ────────────────────────────────────────────────
+export { executeConcurrently, isConcurrentSafe } from "./concurrent-executor.js";
+
 // ── Unicode safety ──────────────────────────────────────────────────────
 export { stripDangerousUnicode, hasDangerousUnicode } from "./unicode-safety.js";
 
