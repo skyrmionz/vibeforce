@@ -36,14 +36,14 @@ The system prompt is built from layered sources, each serving a distinct purpose
 │  + Memory (agent.md files)              │  ← Learnings from previous sessions
 │  + FORCE.md instructions                │  ← User/team project instructions (3 layers)
 │  + Skills summary (top 10)              │  ← Skill names + triggers for agent awareness
-│  + SF Knowledge reference               │  ← Compact list of 13 topics (NOT full content)
+│  + SF Knowledge reference               │  ← Compact list of 16 topics (NOT full content)
 └─────────────────────────────────────────┘
 ```
 
 **What makes this different from Claude Code / Deep Agents:**
 
-- **Domain-specific prompt layers.** The system prompt includes Salesforce platform sections (Agentforce workflow, Data Cloud patterns, metadata patterns, production org safety) that generic harnesses don't have. These live in `libs/harnessforce/src/prompts/` -- 4,147 lines of Salesforce expertise across 18 prompt files.
-- **Lazy-loaded knowledge.** The 13 SF knowledge topics (governor limits, Apex architecture, trigger patterns, LWC, flows, SOQL, deployment, testing, API strategy, integration, metadata patterns, Agentforce, Data Cloud) are NOT injected into the system prompt. The agent gets a one-line summary and uses the `sf_knowledge` tool to load full content on demand. This saves ~21K tokens per turn.
+- **Domain-specific prompt layers.** 4,200+ lines of Salesforce expertise across 18 prompt files in `libs/harnessforce/src/prompts/`. All lazy-loaded via `sf_knowledge` — the system prompt carries only core behavior rules and a topic reference. The agent loads Agentforce, Data Cloud, metadata patterns, governor limits, etc. on demand.
+- **Lazy-loaded knowledge.** All 16 SF knowledge topics are NOT injected into the system prompt. The agent gets a one-line summary and uses the `sf_knowledge` tool to load full content on demand. Topics: governor limits, Apex architecture, trigger patterns, LWC, flows, SOQL, deployment, testing, API strategy, integration, metadata patterns, Agentforce, Data Cloud, self-discovery, unsupported metadata, extensibility. This saves ~25K tokens per turn.
 - **FORCE.md convention.** Like CLAUDE.md for Claude Code, but Salesforce-aware. Three layers merge: `~/.harnessforce/FORCE.md` (user global), `FORCE.md` (project), `FORCE.local.md` (local overrides). See `libs/harnessforce/src/middleware/memory.ts` → `loadForceInstructions()`.
 
 ### Prompt Caching
@@ -150,29 +150,29 @@ Only core tool guidance (~8 tools) is included by default. Extended guidance is 
 
 ## Salesforce Knowledge System
 
-**What makes this the core differentiator.** Generic harnesses know nothing about Salesforce. Harnessforce has 4,147 lines of structured Salesforce expertise spread across 18 prompt files.
+**What makes this the core differentiator.** Generic harnesses know nothing about Salesforce. Harnessforce has 4,200+ lines of structured Salesforce expertise spread across 18 prompt files.
 
 ### Knowledge Architecture
 
-```
-System prompt (always loaded):
-  - SELF_DISCOVERY_PROMPT        → How to explore unfamiliar orgs (51 lines)
-  - UNSUPPORTED_METADATA_PROMPT  → Metadata types needing browser fallback (171 lines)
-  - AGENTFORCE_PROMPT            → Agent Development Lifecycle, Agent Script DSL (520 lines)
-  - DATA_CLOUD_PROMPT            → DMOs, ingestion, identity resolution (54 lines)
+All 16 topics are lazy-loaded via `sf_knowledge` tool (loaded when agent needs them):
 
-On-demand via sf_knowledge tool (loaded when agent needs them):
-  - sf-governor-limits.ts    (40 lines)    → DML, SOQL, CPU, heap limits
-  - sf-trigger-patterns.ts   (210 lines)   → One-trigger-per-object, recursion control
-  - sf-testing.ts            (263 lines)   → Test factories, mocking, governor limit testing
-  - sf-flow.ts               (138 lines)   → Screen flows, auto-launched, orchestrator
-  - sf-lwc.ts                (261 lines)   → Component patterns, wire adapters, events
-  - sf-soql.ts               (212 lines)   → Query optimization, aggregates, polymorphic
-  - sf-api-strategy.ts       (169 lines)   → REST, SOAP, Bulk, Streaming, OAuth
-  - sf-deployment.ts         (207 lines)   → Source tracking, CI/CD, packages, validation
-  - sf-apex-architecture.ts  (426 lines)   → Service layers, selectors, trigger handlers
-  - sf-integration.ts        (184 lines)   → Platform Events, CDC, outbound messaging
-  - sf-metadata-patterns.ts  (227 lines)   → XML structure for all metadata types
+```
+  - sf-governor-limits.ts       → DML, SOQL, CPU, heap limits
+  - sf-trigger-patterns.ts      → One-trigger-per-object, recursion control
+  - sf-testing.ts               → Test factories, Assert class, governor limit testing
+  - sf-flow.ts                  → Record-triggered, screen, orchestrator flows
+  - sf-lwc.ts                   → Component patterns, wire adapters, lwc:dynamic
+  - sf-soql.ts                  → Query optimization, FIELDS(), SOQL for loops
+  - sf-api-strategy.ts          → REST, SOAP, Bulk, Streaming, OAuth (API v66.0)
+  - sf-deployment.ts            → Source tracking, CI/CD, packages, validation
+  - sf-apex-architecture.ts     → Service layers, selectors, trigger handlers
+  - sf-integration.ts           → Platform Events (HighVolume), CDC, Named Credentials
+  - sf-metadata-patterns.ts     → XML structure, Record Types, Custom Metadata Types
+  - agentforce.ts               → ADLC lifecycle, Agent Script DSL
+  - datacloud.ts                → Data 360 DMOs, ingestion, identity resolution
+  - self-discovery.ts           → How to explore unfamiliar orgs
+  - unsupported-metadata.ts     → Metadata types needing browser fallback
+  - extensibility               → Skills, MCP, plugins, FORCE.md, restart requirements
 ```
 
 **File:** `libs/harnessforce/src/tools/sf-knowledge.ts` → `sfKnowledgeTool`
@@ -455,18 +455,18 @@ Built with Ink (React for terminals). Key architecture:
 
 Claude Code is a general-purpose coding agent. It has no awareness of Salesforce, no `sf` CLI integration, no Agentforce tools, no Data Cloud tools, no browser automation for Setup pages, no SFDX project detection, no governor limit knowledge, no deployment safety checks, and no skill system for domain workflows.
 
-Harnessforce replicates Claude Code's core patterns (prompt caching, compaction, abort handling, session persistence, hooks, permission modes) but adds an entire Salesforce-specific layer on top: 35 SF/Agentforce/Data Cloud tools, 13 lazy-loaded knowledge topics, 27 domain skills, context-aware prompt injection, PII detection on query results, and production org safety gates.
+Harnessforce replicates Claude Code's core patterns (prompt caching, compaction, abort handling, session persistence, hooks, permission modes) but adds an entire Salesforce-specific layer on top: 35 SF/Agentforce/Data Cloud tools, 16 lazy-loaded knowledge topics, 27 domain skills, context-aware prompt injection, PII detection on query results, and production org safety gates.
 
 ### vs LangChain Deep Agents
 
-Deep Agents is a reference architecture for building LangGraph agents. Harnessforce uses the same foundation (`createReactAgent`, `MemorySaver`, `streamEvents`) but adds everything needed to make it production-ready for Salesforce work: a full TUI, 59 tools, middleware (compaction, permissions, hooks, cost tracking), a skills system, MCP extensibility, multi-provider model support, and 4,147 lines of Salesforce domain expertise.
+Deep Agents is a reference architecture for building LangGraph agents. Harnessforce uses the same foundation (`createReactAgent`, `MemorySaver`, `streamEvents`) but adds everything needed to make it production-ready for Salesforce work: a full TUI, 59 tools, middleware (compaction, permissions, hooks, cost tracking), a skills system, MCP extensibility, multi-provider model support, and 4,200+ lines of Salesforce domain expertise.
 
 ### The Key Insight
 
 Generic agent harnesses give you a chat loop with file/shell tools. That's necessary but not sufficient for specialized work. Harnessforce's value comes from the layers built around the generic agent:
 
 1. **Domain tools** — SF CLI wrapping, browser automation for Setup, Agentforce lifecycle, Data Cloud operations
-2. **Domain knowledge** — 13 lazy-loaded topics covering every major Salesforce subsystem
+2. **Domain knowledge** — 16 lazy-loaded topics covering every major Salesforce subsystem
 3. **Domain skills** — 27 workflow templates that teach the agent how to approach SF-specific tasks
 4. **Domain safety** — Production org detection, PII field masking, deploy dry-runs, risk-classified tools
 5. **Domain context** — Auto-detection of SFDX projects, orgs, git state injected into every conversation
@@ -492,7 +492,7 @@ libs/harnessforce/src/
 │   ├── datacloud-config.ts     2 Data Cloud config tools
 │   ├── docs.ts                 2 SF docs search/read tools
 │   ├── web-search.ts           2 web tools
-│   ├── sf-knowledge.ts         Lazy-loaded SF knowledge (13 topics)
+│   ├── sf-knowledge.ts         Lazy-loaded SF knowledge (16 topics)
 │   ├── agent-spawn.ts          Subagent with isolated context
 │   └── todos.ts                Task/planning tool
 ├── prompts/
