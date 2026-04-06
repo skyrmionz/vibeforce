@@ -42,8 +42,10 @@ sf project deploy start --source-dir force-app/main/default/classes/MyClass.cls
 sf project deploy start --target-org production --test-level RunLocalTests
 
 # Quick deploy from a previous successful validation
-sf project deploy quick --job-id 0Af...
+sf project deploy quick --job-id 0Af... --target-org production
 \\\`\\\`\\\`
+
+If delta deploys fail due to source tracking issues, clear the tracking cache with \`sf project deploy start --source-dir force-app\` (full deploy) to reset.
 
 ### Change Sets (Legacy)
 - Point-and-click in Setup UI
@@ -89,6 +91,7 @@ For PRODUCTION deployments:
 ## Pre-Deployment Checklist
 
 1. **Validate first** — always run with --dry-run before actual deploy
+   Note: A successful validation does NOT guarantee deployment success. Changes by other users, time-dependent logic, or data differences can cause deployment to fail even after validation passes.
 2. **Check test coverage** — ensure all new/modified Apex has adequate coverage
 3. **Review dependencies** — will removing a field break a flow/class?
 4. **Backup metadata** — retrieve current state before deploying

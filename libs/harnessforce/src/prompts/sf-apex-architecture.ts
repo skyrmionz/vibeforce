@@ -58,9 +58,15 @@ public with sharing class AccountService {
             c.AccountId = masterId;
         }
 
-        // 3. DML
-        update orphanedContacts;
-        delete duplicates;
+        // 3. DML — multiple DML operations should use savepoint for transaction safety
+        Savepoint sp = Database.setSavepoint();
+        try {
+            update orphanedContacts;
+            delete duplicates;
+        } catch (DmlException e) {
+            Database.rollback(sp);
+            throw e;
+        }
     }
 
     // Invocable method for Flow
@@ -108,6 +114,7 @@ public with sharing class AccountService {
 3. Business logic lives HERE, not in triggers, controllers, or selectors
 4. Callable from any entry point (trigger, REST, LWC, batch, flow)
 5. Handle bulkification — methods accept List<SObject>, not single records
+6. Services can publish Platform Events for decoupled integrations
 
 ## Selector Layer (Repository Pattern)
 
@@ -247,7 +254,7 @@ The Apex Enterprise Patterns (fflib) by Andrew Fawcett provide:
 - fflib_SObjectUnitOfWork — manages all DML in a single transaction
 - fflib_Application — factory for creating instances (supports dependency injection)
 
-Use fflib for large projects with multiple developers. For smaller projects, the simple framework above is sufficient.
+fflib is one option for large projects, but simpler patterns (dedicated handler classes, service layers without a framework) are equally valid. Choose based on team size and org complexity.
 
 ## Dependency Injection for Testing
 

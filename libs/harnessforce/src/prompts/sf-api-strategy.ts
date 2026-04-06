@@ -92,7 +92,7 @@ export const SF_API_STRATEGY_PROMPT = `# Salesforce API Strategy — Deep Refere
 
 ### For New Projects
 - Use the LATEST stable API version (check release notes)
-- As of this knowledge: API version 62.0 (Winter '25) is current
+- As of this knowledge: API version 66.0 (Spring '26) is current
 - New API versions ship 3x/year with Salesforce releases
 
 ### For Existing Projects
@@ -105,7 +105,7 @@ export const SF_API_STRATEGY_PROMPT = `# Salesforce API Strategy — Deep Refere
 - **Summer (Jun):** Mid-year release
 - **Winter (Oct):** Year-end release
 - Each release increments the API version by 1
-- Salesforce supports the last 3 years of API versions (~9 versions back)
+- Salesforce deprecates API versions older than 3 years. Always use the latest stable version.
 - Minimum supported version shifts forward with each release
 
 ### API Version in Code

@@ -9,16 +9,16 @@ export const SF_GOVERNOR_LIMITS_PROMPT = `### Governor Limits
 - 150 DML statements per transaction
 - 50,000 records retrieved by SOQL queries
 - 10,000 records processed by DML
-- 6 MB heap size
-- 10-second CPU time limit
+- 6 MB heap size (synchronous)
+- 10,000 ms (10 seconds) CPU time limit (synchronous)
 - 100 callouts per transaction
 - 120-second total callout timeout
 - 10 sendEmail invocations per transaction
 
 **Asynchronous Transaction Limits:**
 - 200 SOQL queries per transaction
-- 12 MB heap size
-- 60-second CPU time limit
+- 12 MB heap size (asynchronous)
+- 60,000 ms (60 seconds) CPU time limit (asynchronous)
 - 100 callouts per transaction (same)
 
 **Bulkification Patterns:**

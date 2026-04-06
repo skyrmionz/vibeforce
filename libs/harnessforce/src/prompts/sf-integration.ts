@@ -23,7 +23,7 @@ Choose the right integration method:
 
 ### Create Event Metadata
 - Object file: \`force-app/main/default/objects/My_Event__e/My_Event__e.object-meta.xml\`
-- Set \`<eventType>HighVolume</eventType>\` (recommended over StandardVolume)
+- Set \`<eventType>HighVolume</eventType>\` (the only supported event type — StandardVolume is deprecated)
 - Set \`<publishBehavior>PublishAfterCommit</publishBehavior>\` for transactional safety
 
 ### Publish from Apex
@@ -40,11 +40,10 @@ if (!sr.isSuccess()) {
 - **Flow:** Platform Event-Triggered Flow (select the __e object)
 - **LWC:** Import from \`lightning/empApi\`, subscribe to \`/event/My_Event__e\`
 
-### Key Limits
-- HighVolume: stored 72 hours, supports replay, no daily limit
-- StandardVolume: counts against daily API limits
+### Key Limits (HighVolume Only)
+- Stored for 96 hours (replay window), supports replay
+- No daily event limit for Enterprise+ (supports 500K+ events daily)
 - Max event size: 1 MB
-- Max daily StandardVolume events: based on org edition
 
 ## Change Data Capture (CDC)
 

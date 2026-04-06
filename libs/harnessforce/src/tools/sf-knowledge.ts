@@ -21,6 +21,25 @@ import { SF_INTEGRATION_PROMPT } from "../prompts/sf-integration.js";
 import { SF_METADATA_PATTERNS_PROMPT } from "../prompts/sf-metadata-patterns.js";
 import { AGENTFORCE_PROMPT } from "../prompts/agentforce.js";
 import { DATA_CLOUD_PROMPT } from "../prompts/datacloud.js";
+import { SELF_DISCOVERY_PROMPT } from "../prompts/self-discovery.js";
+import { UNSUPPORTED_METADATA_PROMPT } from "../prompts/unsupported-metadata.js";
+
+const EXTENSIBILITY_PROMPT = `## Extensibility — What Users Can Customize
+
+Users can extend Harnessforce capabilities. Some changes take effect immediately, others require a restart.
+
+### Immediate (no restart needed):
+- **Skills**: Create/edit markdown files in the \`skills/\` directory. They auto-register as slash commands.
+- **FORCE.md**: Edit project instructions in \`FORCE.md\`, \`~/.harnessforce/FORCE.md\`, or \`FORCE.local.md\`. Loaded every turn.
+- **Agent memory**: Edit \`.harnessforce/agent.md\`. Loaded every turn.
+
+### Requires restart:
+- **MCP servers**: Edit \`~/.harnessforce/mcp.json\`. Servers connect at startup only.
+- **Plugins**: Add JS modules to \`~/.harnessforce/plugins/\`. Loaded at startup only.
+- **Model provider/API key config**: Edit \`~/.harnessforce/models.yaml\`. The running session uses in-memory config. Use \`/provider\` and \`/set-key\` commands instead, or restart.
+
+IMPORTANT: When you edit a file that requires a restart, ALWAYS tell the user: "This change will take effect after you restart Harnessforce."
+`;
 
 const KNOWLEDGE_MAP: Record<string, string> = {
   "governor-limits": SF_GOVERNOR_LIMITS_PROMPT,
@@ -36,6 +55,9 @@ const KNOWLEDGE_MAP: Record<string, string> = {
   "metadata-patterns": SF_METADATA_PATTERNS_PROMPT,
   "agentforce": AGENTFORCE_PROMPT,
   "data-cloud": DATA_CLOUD_PROMPT,
+  "self-discovery": SELF_DISCOVERY_PROMPT,
+  "unsupported-metadata": UNSUPPORTED_METADATA_PROMPT,
+  "extensibility": EXTENSIBILITY_PROMPT,
 };
 
 export const sfKnowledgeTool = tool(
@@ -52,7 +74,7 @@ export const sfKnowledgeTool = tool(
   },
   {
     name: "sf_knowledge",
-    description: "Load deep Salesforce platform knowledge on a specific topic. Available topics: governor-limits, trigger-patterns, testing, flows, lwc, soql, api-strategy, deployment, apex-architecture, integration, metadata-patterns, agentforce, data-cloud. Use this when you need detailed guidance for a Salesforce task.",
+    description: "Load deep Salesforce platform knowledge on a specific topic. Available topics: governor-limits, trigger-patterns, testing, flows, lwc, soql, api-strategy, deployment, apex-architecture, integration, metadata-patterns, agentforce, data-cloud, self-discovery, unsupported-metadata, extensibility. Use this when you need detailed guidance for a Salesforce task.",
     schema: z.object({
       topic: z.string().describe("The knowledge topic to load (e.g. 'apex-architecture', 'deployment', 'agentforce')"),
     }),

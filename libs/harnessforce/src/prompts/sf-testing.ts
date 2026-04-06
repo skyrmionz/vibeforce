@@ -10,7 +10,7 @@ Salesforce requires a MINIMUM of 75% code coverage across all Apex classes and t
 
 Additionally:
 - Every trigger must have at least 1% coverage (effectively: at least one test that fires the trigger).
-- System.assert statements are NOT required for coverage, but are required for meaningful tests.
+- System.assert statements are NOT required for coverage, but are required for meaningful tests. As of API v60.0+, prefer the \\\`Assert\\\` class: \\\`Assert.areEqual()\\\`, \\\`Assert.isTrue()\\\`, \\\`Assert.fail()\\\`. The \\\`System.assert*\\\` methods still work but \\\`Assert\\\` provides better error messages.
 - Test classes themselves (@isTest) do NOT count toward the coverage denominator.
 
 ## Test Class Structure
@@ -51,7 +51,7 @@ private class AccountServiceTest {
         Test.startTest();
         try {
             AccountService.createWithDefaults(acc);
-            System.assert(false, 'Should have thrown exception');
+            Assert.fail('Should have thrown exception');
         } catch (AccountService.ValidationException e) {
             System.assert(e.getMessage().contains('Name is required'));
         }
@@ -78,8 +78,11 @@ private class AccountServiceTest {
 - Reduces redundant setup code and test execution time.
 - Cannot use @TestSetup in classes that have @isTest(SeeAllData=true).
 - @TestSetup methods must be static void with no parameters.
+- Note: @TestSetup data is only accessible via SOQL queries in test methods — you cannot reference the inserted objects directly by variable.
 
 ## TestDataFactory Pattern
+
+TestDataFactory must be annotated with @isTest to avoid counting against org code limits.
 
 \\\`\\\`\\\`apex
 @isTest

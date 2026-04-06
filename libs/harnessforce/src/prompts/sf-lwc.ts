@@ -76,7 +76,7 @@ export default class AccountList extends LightningElement {
 - Parameters prefixed with \$ are REACTIVE — wire re-invokes when they change
 - Wire results are READ-ONLY (immutable). To modify, spread into a new object/array.
 - Wire is provisioned AFTER connectedCallback but timing is not guaranteed
-- Wire caches results — same parameters return cached data
+- Wire caches results — same parameters return cached data. As of Summer '25, wire caching is more aggressive — identical parameters within 300ms return cached data without server calls. Wire cache is per-component instance and cleared on unmount.
 - Use refreshApex() to force re-fetch:
 \\\`\\\`\\\`javascript
 import { refreshApex } from '@salesforce/apex';
@@ -104,10 +104,13 @@ async handleClick() {
     try {
         this.account = await getAccountById({ accountId: this.recordId });
     } catch (error) {
+        // Handle all error shapes — Apex errors have error.body.message,
+        // but network errors may only have error.message.
+        const msg = error?.body?.message || error?.message || 'Unknown error';
         this.dispatchEvent(
             new ShowToastEvent({
                 title: 'Error',
-                message: error.body.message,
+                message: msg,
                 variant: 'error'
             })
         );
@@ -199,6 +202,8 @@ LMS works across:
 - LWC to Visualforce
 - Across Lightning page regions (even utility bar)
 
+LMS now supports scoping: application scope (default), or limited to specific Lightning app pages.
+
 ### 4. Pub/Sub Module (Deprecated pattern — use LMS instead)
 Custom pubsub utility is legacy. LMS is the standard for cross-component communication.
 
@@ -235,6 +240,23 @@ new CustomEvent('selected', { bubbles: true, composed: true, detail: data });
 3. **Debounce user input** — for search fields, wait 300ms after typing stops before calling Apex
 4. **Use wire for read data** — caching reduces server round-trips
 5. **Lazy load components** — use lwc:if/lwc:elseif/lwc:else (not if:true/if:false which are deprecated)
+
+### Dynamic Components (lwc:dynamic)
+\\\`\\\`\\\`html
+<lwc:component lwc:is={dynamicCtor}></lwc:component>
+\\\`\\\`\\\`
+\\\`\\\`\\\`javascript
+import { LightningElement } from 'lwc';
+export default class MyComponent extends LightningElement {
+    dynamicCtor;
+    async connectedCallback() {
+        const { default: Ctor } = await import('c/myDynamicChild');
+        this.dynamicCtor = Ctor;
+    }
+}
+\\\`\\\`\\\`
+Use for lazy loading components to reduce initial bundle size.
+
 6. **Minimize DOM manipulation** — let the framework handle it through reactive data binding
 7. **Use lightning-record-form / lightning-record-edit-form** for standard CRUD — automatic FLS enforcement, no Apex needed
 

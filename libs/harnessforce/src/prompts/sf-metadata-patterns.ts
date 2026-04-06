@@ -124,6 +124,14 @@ Path: \`force-app/main/default/objects/My_Object__c/fields/My_Field__c.field-met
 </CustomField>
 \`\`\`
 
+#### Global Value Set Reference
+\`\`\`xml
+<valueSet>
+    <valueSetName>MyGlobalValueSet</valueSetName>
+</valueSet>
+\`\`\`
+Use Global Value Sets when the same picklist values are shared across multiple objects.
+
 ### Lookup
 \`\`\`xml
 <CustomField xmlns="http://soap.sforce.com/2006/metadataWithDefaults">
@@ -160,6 +168,30 @@ Path: \`force-app/main/default/objects/My_Object__c/fields/My_Field__c.field-met
     <visibleLines>6</visibleLines>
 </CustomField>
 \`\`\`
+
+### Record Types
+\`\`\`xml
+<!-- force-app/main/default/objects/Account/recordTypes/Customer.recordType-meta.xml -->
+<RecordType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Customer</fullName>
+    <active>true</active>
+    <label>Customer</label>
+</RecordType>
+\`\`\`
+
+### Custom Metadata Types
+\`\`\`xml
+<!-- force-app/main/default/customMetadata/App_Config.Default.md-meta.xml -->
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Default</label>
+    <protected>false</protected>
+    <values>
+        <field>Setting_Value__c</field>
+        <value xsi:type="xsd:string">production</value>
+    </values>
+</CustomMetadata>
+\`\`\`
+Custom Metadata Types are deployable and accessible in Apex, Flows, and validation rules without SOQL queries.
 
 ## Validation Rule
 
@@ -220,7 +252,7 @@ Always deploy in this order to avoid dependency errors:
 | Error | Cause | Fix |
 |-------|-------|-----|
 | "Cannot find object" | Object not deployed yet | Deploy object first |
-| "Duplicate value" | Metadata already exists | Use \`--ignore-conflicts\` or delete first |
+| "Duplicate value" | Metadata already exists | Note: The \`--ignore-conflicts\` flag behavior varies by sf CLI version. If it fails, use \`sf project deploy start --source-dir force-app\` for a full deploy instead. |
 | "Invalid field in formula" | Field not deployed yet | Deploy fields before validation rules |
 | "References non-existent field" | Layout references missing field | Deploy fields before layouts |
 | "FIELD_INTEGRITY_EXCEPTION" | Wrong field API name in perm set | Check exact API name with describe |

@@ -6,6 +6,8 @@
 export const DATA_CLOUD_PROMPT = `
 ## Data Cloud Knowledge
 
+> **Note:** Salesforce renamed Data Cloud to Data 360 at Dreamforce 2025. Both names are used interchangeably.
+
 ### Object Types
 - DLO (Data Lake Object, suffix __dll): Raw ingested data from external sources
 - DMO (Data Model Object, suffix __dlm): Harmonized/mapped data following the Salesforce data model
@@ -21,7 +23,7 @@ export const DATA_CLOUD_PROMPT = `
 ### Programmable Operations
 - Querying: dc_query (ANSI SQL via ConnectApi.CdpQuery)
 - Schema discovery: dc_list_objects, dc_describe
-- Streaming ingestion: dc_ingest_streaming (JSON records, near real-time ~15 min latency)
+- Streaming ingestion: dc_ingest_streaming (JSON records, near real-time (latency varies by configuration))
 - Bulk ingestion: dc_ingest_bulk (CSV upload, for large data loads)
 - Identity resolution: dc_create_identity_resolution (match rules for unified profiles)
 - Segments: dc_create_segment (define populations with filter criteria)

@@ -5,11 +5,6 @@
  * knowledge into a single, structured system prompt for the Harnessforce CLI agent.
  */
 
-import { SELF_DISCOVERY_PROMPT } from "./self-discovery.js";
-import { UNSUPPORTED_METADATA_PROMPT } from "./unsupported-metadata.js";
-import { AGENTFORCE_PROMPT } from "./agentforce.js";
-import { DATA_CLOUD_PROMPT } from "./datacloud.js";
-
 export const SYSTEM_PROMPT = `# Harnessforce
 
 You are Harnessforce, an interactive CLI agent for Salesforce development and software engineering. You run on the user's machine with full filesystem and shell access. You help developers build, customize, deploy, and troubleshoot Salesforce applications using natural language.
@@ -134,14 +129,6 @@ For Agentforce agent work, ALWAYS follow the ADLC workflow skills. Do not attemp
 - Confirm with the user before deploying to production.
 - Use \`--dry-run\` or \`--check-only\` flags when available for production validation.
 - Never run destructive changes (delete metadata, truncate data) in production without explicit confirmation.
-
-${SELF_DISCOVERY_PROMPT}
-
-${UNSUPPORTED_METADATA_PROMPT}
-
-${AGENTFORCE_PROMPT}
-
-${DATA_CLOUD_PROMPT}
 
 ## FORCE.md Instructions
 

@@ -81,7 +81,7 @@ force-app/main/default/aiAuthoringBundles/{AgentName}/{AgentName}.bundle-meta.xm
 - **\`|\`** for natural language text passed to the LLM.
 - **\`{!expression}\`** for variable injection / merge fields.
 - **\`@action\`**, **\`@topic\`**, **\`@output\`** for cross-references.
-- **Do NOT include \`agent_type\`** in the .agent file (server crash).
+- **Do NOT include \`agent_type\`** in the .agent file — set it via Setup UI after publish.
 - **\`start_agent\` MUST include \`description:\`, \`reasoning: instructions:\`, and \`reasoning: actions:\`**.
 - **\`start_agent\` instructions**: "You are a router only. Do NOT answer directly."
 - **\`after_reasoning:\`** has NO \`instructions:\` wrapper — content goes directly under the block.
@@ -93,7 +93,6 @@ force-app/main/default/aiAuthoringBundles/{AgentName}/{AgentName}.bundle-meta.xm
 - \`number\` — numeric values (mutable + linked, but use \`object\` + \`complex_data_type_name\` for action I/O)
 - \`boolean\` — True/False (mutable + linked)
 - \`date\` — date values (mutable + linked)
-- \`timestamp\` — date+time values (mutable + linked, use instead of \`datetime\` for mutable vars)
 - \`currency\` — monetary values (mutable + linked)
 - \`id\` — Salesforce record ID (mutable + linked)
 - \`object\` — complex object (mutable only, NOT linked)
@@ -130,6 +129,8 @@ Rules:
 20. \`integration://IntegrationName\` — MuleSoft integration
 21. \`dataCloud://QueryName\` — Data Cloud query
 22. \`commerceAction://ActionName\` — Commerce Cloud action
+
+> **Note:** Only \`flow://\` and \`apex://\` are fully documented. Other targets may be in beta or unsupported.
 
 ---
 
@@ -179,7 +180,6 @@ Key rules:
 - Use \`set @variables.target = @outputs.source\` for output capture
 - Use \`with param = ...\` for LLM slot-filling
 - Use \`available when\` for conditional visibility
-- \`@utils.setVariables\` does NOT support \`set\` or \`transition to\`
 
 ---
 
@@ -269,12 +269,12 @@ config:
 
 variables:
     CustomerEmail:
-        type: text
+        type: string
         linked: True
     ProductSerialNumber:
-        type: text
+        type: string
     WarrantyStatus:
-        type: text
+        type: string
     IsVerified:
         type: boolean
         default: False
@@ -359,7 +359,7 @@ Bare \`number\` works for variables but FAILS at publish for action I/O. Use \`o
 ## Top 10 Gotchas
 
 1. **\`developer_name\` must match folder name** — Case-sensitive. Mismatch causes silent publish failure.
-2. **No \`agent_type\` in config** — Causes null pointer crash on server. Set via Setup UI after publish.
+2. **No \`agent_type\` in config** — Set via Setup UI after publish, not in the .agent file.
 3. **Bare \`number\` in action I/O** — Works in variables, fails at publish in action inputs/outputs. Use \`object\` + \`complex_data_type_name\`.
 4. **\`start_agent\` answers directly** — Without "You are a router only" instruction, the LLM answers instead of routing. SMALL_TALK grounding pattern.
 5. **\`else if\` not supported** — Use compound \`if x and y:\` or sequential flat ifs.
@@ -394,7 +394,6 @@ Bare \`number\` works for variables but FAILS at publish for action I/O. Use \`o
 - Max response: 1,048,576 bytes (1MB)
 - Plan trace limit: 1M characters (frontend), 32k tokens (backend)
 - Active/Committed agents per org: 100 max
-- Loop protection: 3-4 iterations before auto-break to Topic Selector
 
 ### Deployment Lifecycle
 \`\`\`

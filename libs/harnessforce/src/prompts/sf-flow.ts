@@ -23,6 +23,7 @@ export const SF_FLOW_PROMPT = `# Salesforce Flow Best Practices — Deep Referen
 - Fires when a record is created, updated, or deleted
 - Replaces Process Builder and Workflow Rules (both retired)
 - Can run BEFORE save (fast field updates, no extra DML) or AFTER save (create/update other records)
+- As of Winter '25, Record-Triggered Flows also support 'Synchronous After Save' timing — runs after save but within the same transaction.
 - Can schedule actions to run at a future time
 - Use \$Record to reference the triggering record (no query needed)
 - Use \$Record__Prior for old field values in update context
@@ -47,6 +48,13 @@ export const SF_FLOW_PROMPT = `# Salesforce Flow Best Practices — Deep Referen
 - Fires when a platform event is published
 - Runs asynchronously
 - Good for decoupled integrations
+
+### Orchestrator Flows (Summer '24+)
+Multi-step, long-running processes that can pause and wait for user input or external events. Use for:
+- Multi-step approval processes spanning days/weeks
+- Customer journeys with wait conditions
+- Processes requiring human-in-the-loop decisions
+Orchestrator Flows support stages, steps, and interactive/background steps.
 
 ## Flow Governor Limits
 
@@ -77,8 +85,8 @@ Each Get Records element is 1 SOQL query. Combine conditions into a single Get R
 In record-triggered flows, \$Record already has ALL fields of the triggering record. Do NOT use Get Records to re-query the same record.
 
 ### 4. Bulkification
-Record-triggered flows ARE automatically bulkified by Salesforce (as of Spring '22). When 200 records are updated at once, the flow runs once per batch, not once per record. However:
-- Loops within the flow are NOT automatically bulkified — each iteration counts toward the 2,000 element limit
+Record-Triggered Flows are automatically bulkified when records are saved in bulk (API, batch jobs). Single-record UI saves fire the flow once per record. Loops within flows are NOT automatically bulkified — avoid DML/Get Records inside loops.
+- Each loop iteration counts toward the 2,000 element limit
 - Avoid loops with Get/Create/Update Records inside them
 
 ### 5. Entry Conditions

@@ -192,12 +192,14 @@ String query2 = 'SELECT Id, Name FROM Account WHERE Name LIKE \'%' + userInput +
 ### Security: SOQL Injection Prevention
 - ALWAYS use bind variables (:variableName) when possible — they are inherently safe
 - When bind variables are not possible (dynamic field names, object names), use String.escapeSingleQuotes()
+- When using LIKE with user input, sanitize \\\`%\\\` and \\\`_\\\` wildcards in addition to single quotes — these are special LIKE characters that can return unexpected results
 - NEVER concatenate raw user input into SOQL strings
 - Use WITH SECURITY_ENFORCED to enforce FLS:
 \\\`\\\`\\\`soql
 SELECT Id, Name, Secret_Field__c FROM Account WITH SECURITY_ENFORCED
 -- Throws an exception if the running user lacks field-level access to any queried field
 \\\`\\\`\\\`
+- Warning: WITH SECURITY_ENFORCED throws a System.QueryException at runtime if the user lacks access to any queried field. Wrap in try-catch or check field accessibility first with Schema.SObjectType.describe().
 
 ## Query Performance Tips
 
@@ -209,4 +211,24 @@ SELECT Id, Name, Secret_Field__c FROM Account WITH SECURITY_ENFORCED
 6. **Use ALL ROWS** sparingly — includes soft-deleted records, can return massive result sets
 7. **Cache query results** — store in a Map<Id, SObject> or static variable to avoid re-querying
 8. **Use COUNT() for existence checks** — faster than retrieving full records when you only need to know if records exist
+
+## SOQL For Loops
+
+Process large result sets without hitting heap limits:
+\\\`\\\`\\\`apex
+// Processes records in batches of 200 automatically
+for (Account a : [SELECT Id, Name FROM Account WHERE Industry = 'Tech']) {
+    // Process each record — no heap limit risk
+}
+\\\`\\\`\\\`
+Use SOQL for loops when processing more than a few thousand records.
+
+## Dynamic Field Selection (API v59+)
+
+\\\`\\\`\\\`soql
+SELECT FIELDS(ALL) FROM Account LIMIT 200
+SELECT FIELDS(STANDARD) FROM Contact WHERE Id = '003...'
+SELECT FIELDS(CUSTOM) FROM MyObject__c LIMIT 200
+\\\`\\\`\\\`
+FIELDS(ALL) requires LIMIT ≤ 200. Use FIELDS(STANDARD) or FIELDS(CUSTOM) for specific field sets.
 `;
