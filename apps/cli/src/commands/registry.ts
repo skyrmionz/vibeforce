@@ -26,8 +26,12 @@ import {
   loadHooks,
   openInEditor,
   getTodos,
+  addProvider,
+  removeProvider,
+  setDefaultModel,
+  resolveApiKey,
 } from "harnessforce-core";
-import type { Skill } from "harnessforce-core";
+import type { Skill, ModelProvider } from "harnessforce-core";
 import { execSync } from "node:child_process";
 import {
   formatTable,
@@ -162,6 +166,186 @@ const setKeyCommand: SlashCommand = {
     } catch (err: any) {
       return `Error saving key: ${err.message}`;
     }
+  },
+};
+
+/** Auto-detect provider type from URL. */
+function detectProviderType(url: string): ModelProvider["type"] {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") return "local";
+    const host = parsed.hostname.toLowerCase();
+    if (host.includes("openrouter") || host.includes("litellm")) return "gateway";
+    return "cloud";
+  } catch {
+    return "cloud";
+  }
+}
+
+const providerCommand: SlashCommand = {
+  name: "provider",
+  description: "Manage model providers — /provider [list|local|openrouter|add|remove]",
+  type: "local",
+  execute: async (args, ctx) => {
+    ensureConfigFile();
+    const config = readConfig();
+    const parts = args.trim().split(/\s+/);
+    const sub = parts[0]?.toLowerCase() ?? "";
+
+    // /provider (no args) — guided status
+    if (!sub) {
+      const providers = Object.keys(config.providers);
+      if (providers.length === 0) {
+        return [
+          "No provider configured. Quick setup:\n",
+          "  OpenRouter (200+ models, one API key):",
+          "    /provider openrouter",
+          "    /set-key sk-or-your-key-here\n",
+          "  Local models (Ollama):",
+          "    /provider local",
+          "    /model llama3:latest",
+        ].join("\n");
+      }
+
+      const [pName] = config.defaultModel.includes(":")
+        ? config.defaultModel.split(":")
+        : ["openrouter"];
+      const provider = config.providers[pName];
+      if (!provider) {
+        return `Default model points to provider "${pName}" which is not configured.\n\n  /provider list    — see available providers\n  /provider add     — add a new one`;
+      }
+
+      const rawKey = provider.apiKey ? resolveApiKey(provider.apiKey) : "";
+      const keyStatus = provider.type === "local"
+        ? "not needed (local)"
+        : rawKey ? "set" : "missing — run /set-key sk-or-your-key-here";
+      const keyIcon = (provider.type === "local" || rawKey) ? "+" : "x";
+      const modelName = config.defaultModel.includes(":")
+        ? config.defaultModel.split(":").slice(1).join(":")
+        : config.defaultModel;
+
+      const lines = [
+        `Current provider: ${pName} (${provider.type})`,
+        provider.baseUrl ? `  URL: ${provider.baseUrl}` : "",
+        `  API key: ${keyIcon} ${keyStatus}`,
+        `  Model: ${modelName}`,
+        "",
+      ].filter(Boolean);
+
+      if (provider.type !== "local" && !rawKey) {
+        lines.push("Get a key at https://openrouter.ai/keys");
+      } else {
+        lines.push("Ready to go! Type a message to start.");
+      }
+
+      return lines.join("\n");
+    }
+
+    // /provider list
+    if (sub === "list") {
+      const entries = Object.entries(config.providers);
+      if (entries.length === 0) return "No providers configured. Run /provider to get started.";
+
+      const [activeProv] = config.defaultModel.includes(":")
+        ? config.defaultModel.split(":")
+        : ["openrouter"];
+
+      const lines = entries.map(([name, p]) => {
+        const active = name === activeProv ? " (active)" : "";
+        const url = p.baseUrl ? ` — ${p.baseUrl}` : "";
+        return `  ${p.type.toUpperCase().padEnd(7)}  ${name}${active}${url}`;
+      });
+      return `Configured providers:\n\n${lines.join("\n")}\n`;
+    }
+
+    // /provider openrouter — switch to / ensure OpenRouter
+    if (sub === "openrouter") {
+      if (!config.providers.openrouter) {
+        addProvider("openrouter", {
+          name: "openrouter",
+          type: "gateway",
+          baseUrl: "https://openrouter.ai/api/v1",
+          apiKey: "${OPENROUTER_API_KEY}",
+          models: ["anthropic/claude-opus-4.6", "anthropic/claude-4.6-sonnet-20260217", "openai/gpt-5.4"],
+        });
+      }
+      setDefaultModel("openrouter:anthropic/claude-opus-4.6");
+      if (ctx.setModel) ctx.setModel("openrouter:anthropic/claude-opus-4.6");
+
+      const key = resolveApiKey(config.providers.openrouter?.apiKey ?? "${OPENROUTER_API_KEY}");
+      if (!key) {
+        return "Switched to OpenRouter.\n\nNext: set your API key:\n  /set-key sk-or-your-key-here\n\nGet one at https://openrouter.ai/keys";
+      }
+      return "Switched to OpenRouter. Ready to go!";
+    }
+
+    // /provider local [url]
+    if (sub === "local") {
+      const baseUrl = parts[1] || "http://localhost:11434/v1";
+      addProvider("local", {
+        name: "local",
+        type: "local",
+        baseUrl,
+        models: [],
+      });
+      setDefaultModel("local:llama3:latest");
+      if (ctx.setModel) ctx.setModel("local:llama3:latest");
+      return `Switched to local provider (${baseUrl}).\n\nSet your model:\n  /model <model-name>\n\nMake sure Ollama is running: ollama serve`;
+    }
+
+    // /provider add <name> <url> [key]
+    if (sub === "add") {
+      const name = parts[1];
+      const url = parts[2];
+      const key = parts[3];
+
+      if (!name || !url) {
+        return [
+          "Add a provider:\n",
+          "  /provider add <name> <url> [api-key]\n",
+          "Examples:",
+          "  /provider add anthropic https://api.anthropic.com/v1 sk-ant-...",
+          "  /provider add ollama http://localhost:11434/v1",
+          "  /provider add litellm https://my-proxy.example.com sk-...",
+        ].join("\n");
+      }
+
+      const type = detectProviderType(url);
+      addProvider(name, {
+        name,
+        type,
+        baseUrl: url,
+        apiKey: key,
+        models: [],
+      });
+
+      const firstModel = `${name}:your-model-name`;
+      let msg = `Added provider "${name}" (${type}) at ${url}`;
+      if (key) msg += "\n  API key: set";
+      msg += `\n\nNext: set your model:\n  /model ${firstModel}`;
+      return msg;
+    }
+
+    // /provider remove <name>
+    if (sub === "remove") {
+      const name = parts[1];
+      if (!name) return "Usage: /provider remove <name>";
+      const removed = removeProvider(name);
+      if (!removed) return `Provider "${name}" not found. Run /provider list to see configured providers.`;
+      return `Removed provider "${name}".`;
+    }
+
+    // Unknown subcommand — treat as a provider name to switch to
+    if (config.providers[sub]) {
+      const provider = config.providers[sub];
+      const firstModel = provider.models[0];
+      const modelId = firstModel ? `${sub}:${firstModel}` : config.defaultModel;
+      setDefaultModel(modelId);
+      if (ctx.setModel) ctx.setModel(modelId);
+      return `Switched to provider "${sub}" (${provider.type}).${firstModel ? ` Model: ${firstModel}` : ""}`;
+    }
+
+    return `Unknown subcommand "${sub}". Run /provider for help.`;
   },
 };
 
@@ -1543,6 +1727,7 @@ const reloadCommand: SlashCommand = {
 const builtInCommands: SlashCommand[] = [
   helpCommand,
   setKeyCommand,
+  providerCommand,
   modelCommand,
   modelListCommand,
   skillListCommand,

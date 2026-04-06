@@ -15,7 +15,7 @@ try {
   const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8"));
   CLI_VERSION = pkg.version;
 } catch { /* fallback */ }
-import { createHarnessforceAgent, createSessionManager, detectProjectContext, buildContextPrompt } from "harnessforce-core";
+import { createHarnessforceAgent, createSessionManager, detectProjectContext, buildContextPrompt, readConfig, ensureConfigFile, resolveApiKey } from "harnessforce-core";
 import { modelCommands } from "./commands/model.js";
 import { skillCommands } from "./commands/skill.js";
 import { toolCommands } from "./commands/tool.js";
@@ -57,33 +57,44 @@ program
       });
     }).catch(() => {});
 
+    // Read model config (used for API key resolution + greeting)
+    ensureConfigFile();
+    const modelConfig = readConfig();
+
     // Resolve API key: flag > env vars > config file
     let apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY;
 
     // Check config file for saved API key if not found in env
     if (!apiKey) {
-      try {
-        const { readConfig, ensureConfigFile } = await import("harnessforce-core");
-        ensureConfigFile();
-        const config = readConfig();
-        for (const provider of Object.values(config.providers)) {
-          if (provider.apiKey && !provider.apiKey.startsWith("${")) {
-            apiKey = provider.apiKey;
-            break;
-          }
+      for (const provider of Object.values(modelConfig.providers)) {
+        if (provider.apiKey && !provider.apiKey.startsWith("${")) {
+          apiKey = provider.apiKey;
+          break;
         }
-      } catch { /* config not available yet */ }
+      }
     }
 
     // Detect project context
     const ctx = await detectProjectContext(process.cwd());
     let orgAlias = opts.org || ctx.defaultOrg;
+    const [greetingProvider] = modelConfig.defaultModel.includes(":")
+      ? modelConfig.defaultModel.split(":")
+      : ["openrouter"];
+    const greetingModel = modelConfig.defaultModel.includes(":")
+      ? modelConfig.defaultModel.split(":").slice(1).join(":")
+      : modelConfig.defaultModel;
+    const greetingProviderInfo = modelConfig.providers[greetingProvider];
+    const greetingHasKey = greetingProviderInfo?.type === "local"
+      || (greetingProviderInfo?.apiKey ? !!resolveApiKey(greetingProviderInfo.apiKey) : false);
 
     // Print the greeting immediately (don't wait for org list)
     console.log(renderGreeting({
       version: program.version() ?? "0.1.0",
       org: orgAlias || undefined,
       cwd: process.cwd(),
+      provider: greetingProviderInfo ? `${greetingProvider} (${greetingProviderInfo.type})` : undefined,
+      model: greetingModel || undefined,
+      setupStatus: !greetingProviderInfo ? "no-provider" : !greetingHasKey ? "no-key" : "ready",
     }));
 
     // Show detected context

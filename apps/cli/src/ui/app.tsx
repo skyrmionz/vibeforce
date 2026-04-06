@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager } from "harnessforce-core";
-import { readMemorySources } from "harnessforce-core";
+import { readMemorySources, readConfig, ensureConfigFile, resolveApiKey } from "harnessforce-core";
 import { MarkdownText } from "./markdown.js";
 import { DiffView } from "./diff.js";
 import { StatusBar } from "./status-bar.js";
@@ -328,14 +328,39 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const streamToAgent = useCallback(
     async (message: string) => {
       if (!agent) {
-        const msg = agentLoading
-          ? "Agent is still loading — try again in a moment."
-          : "No API key configured. Use /set-key to set it now:\n\n" +
-            "  /set-key sk-or-your-key-here\n\n" +
-            "Or set it in your terminal before launching:\n\n" +
-            "  export OPENROUTER_API_KEY=sk-or-...\n  harnessforce\n\n" +
-            "Get a key at https://openrouter.ai/keys\n" +
-            "Slash commands still work — type / to see them.";
+        let msg: string;
+        if (agentLoading) {
+          msg = "Agent is still loading — try again in a moment.";
+        } else {
+          // Diagnose what's missing
+          try {
+            ensureConfigFile();
+            const diagConfig = readConfig();
+            const providers = Object.keys(diagConfig.providers);
+            if (providers.length === 0) {
+              msg = "No provider configured.\n\n" +
+                "  /provider openrouter   — use OpenRouter (200+ models)\n" +
+                "  /provider local        — use Ollama/local models\n\n" +
+                "Slash commands still work — type / to see them.";
+            } else {
+              const [pName] = diagConfig.defaultModel.includes(":")
+                ? diagConfig.defaultModel.split(":")
+                : ["openrouter"];
+              const provider = diagConfig.providers[pName];
+              const key = provider?.apiKey ? resolveApiKey(provider.apiKey) : "";
+              if (!key && provider?.type !== "local") {
+                msg = `Provider "${pName}" is set but has no API key.\n\n` +
+                  "  /set-key sk-or-your-key-here\n\n" +
+                  "Get a key at https://openrouter.ai/keys\n" +
+                  "Slash commands still work — type / to see them.";
+              } else {
+                msg = "Agent failed to initialize. Run /provider to check your setup.";
+              }
+            }
+          } catch {
+            msg = "No API key configured. Use /set-key to set it, or /provider for setup help.";
+          }
+        }
         setMessages((prev) => [...prev, { role: "system", content: msg }]);
         return;
       }

@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>An open-source agent harness for Salesforce development</strong><br/>
-  Admin work, Apex development, Agentforce agents, Data Cloud, custom apps -- all from your terminal.
+  <strong>An open-source AI agent for Salesforce development</strong><br/>
+  Admin work, Apex, LWC, Agentforce, Data Cloud, custom apps -- all from your terminal.
 </p>
 
 <p align="center">
@@ -17,9 +17,9 @@
 
 ## What is Harnessforce?
 
-Harnessforce is a terminal-based AI agent that can do anything on the Salesforce platform. It reads your project, understands your org, and executes real work -- writing Apex, deploying metadata, building Agentforce agents, querying Data Cloud, and more.
+Harnessforce is an AI agent that works directly on the Salesforce platform. It reads your project, connects to your org, and does real work -- writing Apex, deploying metadata, building Agentforce agents, querying Data Cloud, automating Setup pages, and more.
 
-It's not a chatbot. It's an agent with 57 tools, 27 specialized skills, and full access to your filesystem, shell, and Salesforce CLI. You describe what you want. It figures out the plan, writes the code, deploys it, and verifies it works.
+It ships with 59 tools, 27 skills, and 84 slash commands. You describe what you want. It plans the approach, writes the code, deploys it, and verifies it works.
 
 **Open source. Model agnostic. Built for Salesforce developers who want to move fast.**
 
@@ -29,7 +29,7 @@ It's not a chatbot. It's an agent with 57 tools, 27 specialized skills, and full
 npx harnessforce
 ```
 
-That's it. This always runs the latest version. On first launch, set your API key:
+This always runs the latest version. On first launch, Harnessforce shows you what's needed to get going. Set your API key:
 
 ```
 /set-key sk-or-your-key-here
@@ -37,83 +37,158 @@ That's it. This always runs the latest version. On first launch, set your API ke
 
 Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) -- one key gives you access to Claude, GPT, Gemini, and 200+ models.
 
-Connect your Salesforce org with `sf org login web`, and Harnessforce will auto-detect it on startup.
+Then connect a Salesforce org:
+
+```bash
+sf org login web
+```
+
+Harnessforce auto-detects authenticated orgs on startup.
+
+## Model Setup
+
+Harnessforce shows your active provider and model in the startup greeting. If anything is missing, it tells you exactly what to do next.
+
+### Switch Models
+
+Any model name works -- not just the ones in the built-in list:
+
+```
+/model openai/gpt-5.4
+/model deepseek/deepseek-v3.2
+/model anthropic/claude-haiku-4
+```
+
+### Local Models (Ollama)
+
+```
+/provider local
+/model llama3:latest
+```
+
+No API key needed -- just have Ollama running (`ollama serve`).
+
+### Other Providers
+
+```
+/provider add anthropic https://api.anthropic.com/v1 sk-ant-...
+/model anthropic:claude-opus-4.6
+```
+
+The provider type (cloud/local/gateway) is auto-detected from the URL.
+
+### Provider Management
+
+```
+/provider            show current setup + what's missing
+/provider list       list all configured providers
+/provider local      switch to Ollama
+/provider openrouter switch to OpenRouter
+/provider add <name> <url> [api-key]
+/provider remove <name>
+```
 
 ## How It Works
 
 ### Agent Architecture
 
-Harnessforce is built on [LangGraph](https://github.com/langchain-ai/langgraphjs) with a ReAct (Reason + Act) orchestration loop. The agent receives your message, reasons about what tools to use, executes them, observes the results, and iterates until the task is complete.
+Built on [LangGraph](https://github.com/langchain-ai/langgraphjs) with a ReAct (Reason + Act) loop. The agent receives your message, reasons about what tools to use, executes them, observes the results, and iterates until the task is complete.
 
 ```
 User message
-  → LLM reasoning (plan the approach)
-    → Tool execution (read files, run sf commands, write code)
-      → Observe results
-        → Continue or respond
+  -> LLM reasoning (plan the approach)
+    -> Tool execution (read files, run sf commands, write code)
+      -> Observe results
+        -> Continue or respond
 ```
 
-A **MemorySaver checkpointer** preserves full conversation state across turns, so the agent remembers everything within a session and can resume previous sessions.
+A MemorySaver checkpointer preserves full conversation state across turns. Resume any previous session with `npx harnessforce --resume <id>`.
 
 ### Write Code, Not Tools
 
-Instead of needing a dedicated tool for every Salesforce operation, Harnessforce follows a "Write Code, Not Tools" philosophy. The agent writes source files -- Apex classes, Flow XML, LWC components, `.agent` bundles, permission sets -- and deploys them via the `sf` CLI, exactly like a developer would.
+Instead of needing a dedicated tool for every Salesforce operation, Harnessforce writes source files -- Apex classes, Flow XML, LWC components, `.agent` bundles, permission sets -- and deploys them via the `sf` CLI, exactly like a developer would.
 
-This means Harnessforce can handle any of Salesforce's ~470+ metadata types out of the box, even ones it hasn't seen before. It discovers the metadata structure, reads the docs, writes the correct XML, and deploys it.
+This means it can handle any of Salesforce's 470+ metadata types out of the box, even ones it hasn't encountered before.
 
 ### Context Intelligence
 
-On startup, Harnessforce scans your project to understand what you're working with. It detects Apex classes, LWC components, Flows, Agentforce agents, your default org, and git state. Based on what it finds, it injects only the relevant Salesforce knowledge into the agent's context -- governor limits, trigger patterns, testing strategies, deployment best practices -- so the agent has deep platform expertise without wasting tokens on irrelevant domains.
+On startup, Harnessforce scans your project directory. It detects Apex classes, LWC components, Flows, Agentforce agents, your default org, and git state. Based on what it finds, it injects only the relevant Salesforce knowledge into context -- governor limits, trigger patterns, testing strategies, deployment best practices -- so the agent has platform expertise without wasting tokens.
 
-### 3-Layer Automation
+### Automation Layers
 
-Not everything in Salesforce has an API. Harnessforce handles this with three layers:
+1. **SF CLI + Metadata API** -- The primary path. Write source files and deploy them.
+2. **Playwright browser automation** -- For Setup pages and UI-only operations that have no API equivalent. 6 browser tools handle navigation, clicking, filling forms, screenshots, and JS execution.
 
-1. **SF CLI + Metadata API** -- The primary path. Write source files and deploy them. Fast, reliable, version-controlled.
-2. **Playwright browser automation** -- For Setup operations that have no API equivalent (enabling features, configuring UI settings).
-3. **Robot Framework + CumulusCI** -- Fallback for Lightning components with Shadow DOM that Playwright can't reach.
+### FORCE.md
 
-### FORCE.md -- Project Instructions
+Like CLAUDE.md for Claude Code, FORCE.md files tell Harnessforce how to work in your project. Three layers merge together:
 
-Like CLAUDE.md for Claude Code, FORCE.md files tell Harnessforce how to work in your project. Three layers merge together: project-level `FORCE.md` (team conventions), user-level `~/.harnessforce/FORCE.md` (personal preferences), and `FORCE.local.md` (private overrides). The agent follows these instructions on every turn.
+- `FORCE.md` in your project root (team conventions)
+- `~/.harnessforce/FORCE.md` (personal preferences)
+- `FORCE.local.md` (private overrides, gitignored)
 
 ### Permission Modes
 
-Harnessforce starts every session in **plan mode** -- it analyzes your request and presents a plan before executing anything. After the first turn, it switches to **default mode** where it executes but confirms before destructive operations. Switch to **yolo mode** with Shift+Tab if you want full auto-approval. Production orgs always require confirmation regardless of mode.
+Harnessforce starts in **plan mode** -- it presents a plan before executing anything. After the first turn, it switches to **default mode** where it executes but confirms destructive operations. Press **Shift+Tab** to cycle to **yolo mode** for full auto-approval.
 
-### Skills System
+### Skills
 
-Skills are markdown files that teach the agent specialized workflows. Harnessforce ships with 27 skills covering Agentforce development (full ADLC lifecycle with a 100-point rubric), testing automation, CI/CD pipelines, data migration, security hardening, and more. The agent can also create new skills on the fly -- when it learns something new, it saves it for future sessions.
+Skills are markdown files that teach the agent specialized workflows. Harnessforce ships with 27 covering Agentforce development (full ADLC lifecycle), test automation, CI/CD pipelines, data migration, security hardening, package development, and more.
+
+Create new skills with `/skill-add <name>` or let the agent create them when it learns something new.
 
 ### Memory
 
-The agent persists learnings to `.harnessforce/agent.md` and reads them back on every turn. This means it remembers your org's quirks, your preferred patterns, and solutions to problems it solved in previous sessions.
+The agent persists learnings to `.harnessforce/agent.md` and reads them back on every turn. It remembers your org's quirks, your preferred patterns, and solutions from previous sessions. On session end, it auto-extracts key learnings.
+
+## Tools (59)
+
+| Category | Count | Examples |
+|----------|-------|---------|
+| Core filesystem | 8 | read_file, write_file, edit_file, execute, glob, grep |
+| Salesforce CLI | 12 | sf_query, sf_deploy, sf_retrieve, sf_run_tests, sf_run_apex |
+| Metadata discovery | 3 | sf_list_metadata_types, sf_describe_all_sobjects |
+| Extended Salesforce | 12 | sf_scratch_org_create, sf_package_create, sf_test_coverage, sf_data_export |
+| Docs | 2 | sf_docs_search, sf_docs_read |
+| Browser automation | 6 | browser_open, browser_click, browser_fill, browser_screenshot |
+| Agentforce | 4 | agent_publish, agent_activate, agent_validate, agent_preview |
+| Data Cloud | 7 | dc_query, dc_list_objects, dc_ingest_streaming, dc_create_segment |
+| Web | 2 | web_search, web_fetch |
+| Planning & knowledge | 3 | write_todos, sf_knowledge, agent_spawn |
 
 ## What Can It Do?
 
 **Salesforce Admin** -- Create custom objects and fields, configure sharing rules, manage profiles and permission sets, set up org features, query data with SOQL.
 
-**Apex and LWC Development** -- Write triggers with tests, build Lightning Web Components, analyze governor limit risks, generate test classes, debug deployment failures.
+**Apex & LWC Development** -- Write triggers with tests, build Lightning Web Components, analyze governor limit risks, generate test classes, debug deployment failures.
 
-**Agentforce Agent Building** -- Full Agent Development Lifecycle support. Design agent personas, write Agent Script (`.agent` files), scaffold Apex actions and Flow XML, deploy bundles, test with structured utterances, analyze session traces from Data Cloud.
+**Agentforce** -- Design agent personas, write Agent Script (`.agent` files), scaffold Apex actions and Flow XML, deploy bundles, test with structured utterances, analyze session traces.
 
 **Data Cloud** -- Query Data Model Objects, set up identity resolution, create segments, stream or bulk ingest data.
 
-**Custom Apps** -- Scaffold Python, React, or Next.js apps with Salesforce integration. Deploy to Heroku. Set up Connected Apps with OAuth.
-
 **DevOps** -- Create and manage scratch orgs, build packages, run test suites with coverage analysis, set up CI/CD pipelines, manage sandbox lifecycles.
 
-## Model Support
+**Custom Apps** -- Scaffold apps with Salesforce integration. Deploy to Heroku. Set up Connected Apps with OAuth.
 
-Defaults to **Claude Opus 4.6** via OpenRouter. Switch models anytime with `/model`:
+## Slash Commands
+
+84 built-in commands plus 27 skill commands. Type `/` to see the full list. Some highlights:
 
 ```
-/model openrouter:openai/gpt-5.4
-/model openrouter:google/gemini-3.1-pro-preview
-/model openrouter:deepseek/deepseek-v3.2
+/model <name>        switch models
+/provider            manage providers
+/set-key <key>       save API key
+/org <alias>         switch orgs
+/deploy              deploy metadata
+/test                run tests
+/query <soql>        run SOQL
+/cost                show token usage
+/compact             free up context
+/threads             list sessions
+/resume <id>         resume a session
+/skill-list          list skills
+/help                see all commands
 ```
-
-Works with any provider -- OpenRouter, direct Anthropic/OpenAI APIs, or local models via Ollama.
 
 ## Development
 
@@ -124,6 +199,11 @@ pnpm install
 pnpm build
 node apps/cli/dist/index.js
 ```
+
+The project is a pnpm monorepo with two packages:
+
+- `libs/harnessforce` -- Core agent library (`harnessforce-core` on npm)
+- `apps/cli` -- Terminal UI (`harnessforce` on npm)
 
 ## License
 

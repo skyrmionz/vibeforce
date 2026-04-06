@@ -6,10 +6,15 @@ const CYAN = "#00A1E0";
 const WHITE = "#FFFFFF";
 const DARK = "#0D1B2A";
 
+export type SetupStatus = 'ready' | 'no-provider' | 'no-key';
+
 export interface GreetingOptions {
   version?: string;
   org?: string;
   cwd?: string;
+  provider?: string;
+  model?: string;
+  setupStatus?: SetupStatus;
 }
 
 /**
@@ -93,23 +98,36 @@ export function renderGreeting(options?: GreetingOptions): string {
   const dim = chalk.dim;
   const bold = chalk.bold;
   const cyan = chalk.hex(CYAN);
+  const yellow = chalk.yellow;
 
   const version = options?.version ?? "unknown";
   const org = options?.org;
   const cwd = options?.cwd ?? process.cwd();
+  const provider = options?.provider;
+  const model = options?.model;
+  const status = options?.setupStatus ?? 'ready';
 
   const astro = renderAstro();
+
+  // Build setup hint based on what's missing
+  let setupHint: string | null = null;
+  if (status === 'no-provider') {
+    setupHint = `${yellow("!")} No provider set — run /provider to get started`;
+  } else if (status === 'no-key') {
+    setupHint = `${yellow("!")} No API key — run /set-key sk-or-your-key-here`;
+  }
 
   // Info panel to the right of the character
   const info = [
     "",
     "",
     `  ${bold(cyan("Harnessforce")) + dim(` v${version}`)}`,
-    "",
+    provider ? `  ${dim("provider:")} ${provider}` : "",
+    model ? `  ${dim("model:")} ${model}` : "",
     org ? `  ${dim("org:")} ${org}` : `  ${dim("no org connected")}`,
     `  ${dim(cwd)}`,
-    "",
-  ];
+    setupHint ? `  ${setupHint}` : "",
+  ].filter(Boolean);
 
   // Combine character (left) + info (right)
   const maxLines = Math.max(astro.length, info.length);
