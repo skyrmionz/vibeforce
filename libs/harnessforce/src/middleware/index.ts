@@ -61,6 +61,11 @@ export type { SummarizationConfig } from './summarization.js';
 export { microcompactMessages } from './microcompact.js';
 export type { MicrocompactOptions } from './microcompact.js';
 
+// Approval gate
+export { ApprovalGate } from './approval-gate.js';
+export type { ApprovalRequest } from './approval-gate.js';
+export { wrapAllTools } from './wrap-tools.js';
+
 // Memory
 export {
   readMemorySources,

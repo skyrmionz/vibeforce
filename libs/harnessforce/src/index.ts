@@ -37,6 +37,8 @@ import {
 import { buildMemoryPrompt, loadForceInstructions } from "./middleware/memory.js";
 import { detectPiiFields, isPiiField } from "./middleware/pii.js";
 import { riskOf } from "./middleware/permissions.js";
+import { ApprovalGate } from "./middleware/approval-gate.js";
+import { wrapAllTools } from "./middleware/wrap-tools.js";
 import { compactMessages as _compactMessages, estimateMessagesTokens as _estimateMessagesTokens } from "./middleware/summarization.js";
 import { sessionCostTracker } from "./cost/tracker.js";
 import { executeHooks } from "./hooks/index.js";
@@ -166,10 +168,14 @@ export {
   buildMemoryPrompt,
   // FORCE.md instructions
   loadForceInstructions,
+  // Approval gate
+  ApprovalGate,
+  wrapAllTools,
 } from "./middleware/index.js";
 export type {
   AuditEntry,
   AuditMiddlewareOptions,
+  ApprovalRequest,
   ConfirmFn,
   DryRunMiddlewareOptions,
   DryRunResult,
@@ -318,6 +324,8 @@ export interface HarnessforceAgent {
     threadId?: string,
     permissionMode?: string,
   ) => AsyncGenerator<HarnessforceStreamEvent, void, unknown>;
+  /** Approval gate for tool permission enforcement */
+  approvalGate: InstanceType<typeof ApprovalGate>;
 }
 
 export type HarnessforceStreamEvent =
@@ -490,15 +498,19 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
   });
 
   // ── Subagent system initialization ──────────────────────────────────────
+  // ── Approval gate (wraps destructive tools with Y/N confirmation) ───────
+  const approvalGate = new ApprovalGate();
+  const gatedTools = wrapAllTools(combinedTools as any, approvalGate);
+
   const { initSubagentSystem } = await import("./tools/agent-spawn.js");
-  initSubagentSystem(llm, combinedTools as any);
+  initSubagentSystem(llm, gatedTools as any);
 
   // ── Checkpointer (replaces manual conversationHistory) ──────────────────
   const checkpointer = new MemorySaver();
 
   const graph = createReactAgent({
     llm,
-    tools: combinedTools,
+    tools: gatedTools,
     prompt: cachedPrompt,
     checkpointer,
   });
@@ -514,12 +526,15 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
     let activeGraph = graph;
     let effectiveMessage = message;
 
+    // Set permission mode on the approval gate for this turn
+    approvalGate.permissionMode = (permissionMode as any) ?? "default";
+
     try {
       // ── Plan mode: filtered graph with read-only tools ──────────────
 
       if (permissionMode === "plan") {
-        const readOnlyTools = combinedTools.filter((t) => {
-          const name = "name" in t ? (t as any).name : undefined;
+        const readOnlyTools = gatedTools.filter((t: any) => {
+          const name = "name" in t ? t.name : undefined;
           return name ? riskOf(name) === "read" : false;
         });
         const planPrompt = new SystemMsg({
@@ -636,19 +651,8 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
           // Hook execution: pre-tool-use
           void executeHooks("pre-tool-use", { tool: event.name });
 
-          // Default mode: yield approval_required for destructive tools
-          if (
-            permissionMode !== "yolo" &&
-            permissionMode !== "plan" &&
-            riskOf(event.name) === "destructive"
-          ) {
-            yield {
-              type: "approval_required",
-              tool: event.name,
-              args: rawArgs as Record<string, unknown>,
-              risk: "destructive",
-            };
-          }
+          // Note: destructive tool approval is now handled by the ApprovalGate
+          // middleware which blocks tool._call() until the user responds Y/N.
 
           // Dry-run validation for sf_deploy
           if (event.name === "sf_deploy") {
@@ -887,5 +891,5 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
     }
   }
 
-  return { graph, stream };
+  return { graph, stream, approvalGate };
 }

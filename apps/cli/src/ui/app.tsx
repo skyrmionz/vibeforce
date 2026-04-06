@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
-import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager } from "harnessforce-core";
+import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager, ApprovalRequest } from "harnessforce-core";
 import { readMemorySources, readConfig, ensureConfigFile, resolveApiKey } from "harnessforce-core";
 import { MarkdownText } from "./markdown.js";
 import { DiffView } from "./diff.js";
@@ -62,6 +62,31 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [exiting, setExiting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [approvalRequest, setApprovalRequest] = useState<{ toolName: string; args: Record<string, unknown>; risk: string } | null>(null);
+
+  // Listen to approval gate events from the agent
+  useEffect(() => {
+    if (!agent?.approvalGate) return;
+    const gate = agent.approvalGate;
+
+    const onNeeded = (request: ApprovalRequest) => {
+      setApprovalRequest({ toolName: request.toolName, args: request.args, risk: request.risk });
+    };
+    const onTimeout = (request: ApprovalRequest) => {
+      setApprovalRequest(null);
+      setMessages((prev) => [...prev, {
+        role: "system" as const,
+        content: `Tool approval timed out (60s). Rejected: ${request.toolName}`,
+      }]);
+    };
+
+    gate.on("approval_needed", onNeeded);
+    gate.on("approval_timeout", onTimeout);
+    return () => {
+      gate.off("approval_needed", onNeeded);
+      gate.off("approval_timeout", onTimeout);
+    };
+  }, [agent]);
 
   // Raw stdin listener for Ctrl+U (ink-text-input intercepts it before useInput can)
   useEffect(() => {
@@ -80,6 +105,20 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const barLine = useMemo(() => "━".repeat(Math.max(termWidth - 2, 20)), [termWidth]);
 
   useInput((_input, key) => {
+    // Approval prompt: capture Y/N when a destructive tool is pending
+    if (approvalRequest && agent?.approvalGate) {
+      if (_input === "y" || _input === "Y") {
+        agent.approvalGate.respond(true);
+        setMessages((prev) => [...prev, { role: "system" as const, content: `Approved: ${approvalRequest.toolName}` }]);
+        setApprovalRequest(null);
+      } else if (_input === "n" || _input === "N" || key.escape) {
+        agent.approvalGate.respond(false);
+        setMessages((prev) => [...prev, { role: "system" as const, content: `Rejected: ${approvalRequest.toolName}` }]);
+        setApprovalRequest(null);
+      }
+      return; // consume input while approval is pending
+    }
+
     if (key.ctrl && _input === "c") {
       setExiting(true);
       // Extract memories from conversation before exit (best-effort, non-blocking)
@@ -95,6 +134,9 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
 
     // ESC to cancel streaming (abort the API stream + preserve partial response)
     if (key.escape && streaming) {
+      // Unblock any pending approval before aborting
+      agent?.approvalGate?.respond(false);
+      setApprovalRequest(null);
       // Abort the underlying API stream (Claude Code pattern)
       abortControllerRef.current?.abort("user-cancel");
       setStreaming(false);
@@ -453,13 +495,9 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
               sessionManager?.appendMessage({ role: "tool", content: `${event.name} => ${display}`, timestamp: new Date().toISOString() });
               break;
             case "approval_required":
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "system",
-                  content: `\u26A0 ${(event as any).tool} requires approval (${(event as any).risk})\n  Args: ${JSON.stringify((event as any).args)}\n  Proceeding automatically in default mode.`,
-                },
-              ]);
+              // Approval is now handled by the ApprovalGate side channel.
+              // This event type is kept for backward compatibility but the gate
+              // blocks tool execution and shows the Y/N prompt via its own events.
               break;
             case "error":
               setMessages((prev) => [
@@ -621,6 +659,17 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
           {agentLoading && messages.length === 0 && (
             <Box marginTop={1} marginBottom={0}>
               <Text color="#00A1E0">{"  Initializing agent..."}</Text>
+            </Box>
+          )}
+
+          {/* Approval prompt — shown when a destructive tool is pending */}
+          {approvalRequest && (
+            <Box flexDirection="column" marginTop={1} paddingX={2} borderStyle="round" borderColor="yellow">
+              <Text color="yellow" bold>Tool Approval Required</Text>
+              <Text>  Tool: <Text bold>{approvalRequest.toolName}</Text></Text>
+              <Text>  Risk: <Text color="red">{approvalRequest.risk}</Text></Text>
+              <Text dimColor>  Args: {JSON.stringify(approvalRequest.args, null, 2).slice(0, 200)}</Text>
+              <Text color="green" bold>  Y = approve    N = reject    ESC = reject</Text>
             </Box>
           )}
 

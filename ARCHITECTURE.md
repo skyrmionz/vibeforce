@@ -221,11 +221,20 @@ Unknown tools default to `write` (fail-safe).
 | Mode | read | write | destructive |
 |------|------|-------|-------------|
 | **plan** | auto | blocked | blocked |
-| **default** | auto | auto | confirm |
+| **default** | auto | auto | Y/N prompt |
 | **yolo** | auto | auto | auto |
-| **safe** | auto | hidden | hidden |
+| **safe** | auto | blocked | blocked |
+
+**Enforcement mechanism:** An `ApprovalGate` wraps every tool's `_call` method. When a destructive tool is called in default mode, the gate blocks execution by returning a Promise that only resolves when the user presses Y or N in the TUI. LangGraph's executor pauses naturally while awaiting the Promise. The TUI shows a bordered approval prompt with tool name, risk level, and args.
+
+- **Plan mode** — tools physically removed from the agent's tool list (hard block)
+- **Default mode** — destructive tools block on Y/N approval via the `ApprovalGate`
+- **Yolo mode** — gate auto-approves everything
+- **Safe mode** — gate auto-rejects write/destructive
 
 In `plan` mode, the agent can only read and explore. It presents a plan for what it would do, then waits for approval. After the first turn, the CLI auto-transitions from plan → default.
+
+**Files:** `libs/harnessforce/src/middleware/approval-gate.ts`, `libs/harnessforce/src/middleware/wrap-tools.ts`
 
 ### Production Org Detection
 
@@ -506,6 +515,8 @@ libs/harnessforce/src/
 │   └── sf-metadata-patterns.ts Metadata XML structures
 ├── middleware/
 │   ├── permissions.ts          Tool risk classification + permission modes
+│   ├── approval-gate.ts        Blocking Y/N approval for destructive tools
+│   ├── wrap-tools.ts           Wraps tool._call with approval gate
 │   ├── memory.ts               FORCE.md + agent.md loading
 │   ├── microcompact.ts         Cache-preserving tool result clearing
 │   └── summarization.ts        LLM-based compaction + fallback truncation
