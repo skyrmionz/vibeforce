@@ -57,7 +57,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const [currentModel, setCurrentModel] = useState(initialModel);
   const [selectedHint, setSelectedHint] = useState(-1);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
-  const [menuJustSelected, setMenuJustSelected] = useState(false);
+  const menuJustSelectedRef = useRef(false);
   const [inputHistory, setInputHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [exiting, setExiting] = useState(false);
@@ -200,7 +200,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
           setInput(`/${cmd.name} `);
           setShowCommandMenu(false);
           setSelectedHint(-1);
-          setMenuJustSelected(true);
+          menuJustSelectedRef.current = true;
         }
       } else if (key.escape) {
         setShowCommandMenu(false);
@@ -245,8 +245,8 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const handleSubmit = useCallback(
     async (value: string) => {
       // Skip if menu just selected a command or menu is still open
-      if (menuJustSelected || (showCommandMenu && selectedHint >= 0)) {
-        setMenuJustSelected(false);
+      if (menuJustSelectedRef.current || (showCommandMenu && selectedHint >= 0)) {
+        menuJustSelectedRef.current = false;
         return;
       }
 
