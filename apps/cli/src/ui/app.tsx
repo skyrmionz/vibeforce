@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
-import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager, ApprovalRequest } from "harnessforce-core";
-import { readMemorySources, readConfig, ensureConfigFile, resolveApiKey } from "harnessforce-core";
+import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager, ApprovalRequest, ProjectContext } from "harnessforce-core";
+import { createHarnessforceAgent, readMemorySources, readConfig, ensureConfigFile, resolveApiKey } from "harnessforce-core";
 import { MarkdownText } from "./markdown.js";
 import { DiffView } from "./diff.js";
 import { StatusBar } from "./status-bar.js";
@@ -29,9 +29,12 @@ interface AppProps {
   initialMessages?: Message[];
   threadId?: string;
   permissionMode?: string;
+  apiKey?: string;
+  systemPrompt?: string;
+  projectContext?: ProjectContext;
 }
 
-export default function App({ agent: initialAgent, agentPromise, skillsDir = "./skills", org, model: initialModel, sessionManager, initialMessages, threadId, permissionMode: initialPermissionMode }: AppProps) {
+export default function App({ agent: initialAgent, agentPromise, skillsDir = "./skills", org, model: initialModel, sessionManager, initialMessages, threadId, permissionMode: initialPermissionMode, apiKey, systemPrompt, projectContext }: AppProps) {
   const { exit } = useApp();
   const [agent, setAgent] = useState<HarnessforceAgent | null>(initialAgent ?? null);
   const [agentLoading, setAgentLoading] = useState(!initialAgent && !!agentPromise);
@@ -49,6 +52,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
       });
     }
   }, []);
+
   const [currentPermissionMode, setCurrentPermissionMode] = useState("plan");
   const [isFirstTurn, setIsFirstTurn] = useState(true);
   const [streaming, setStreaming] = useState(false);
@@ -63,6 +67,35 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const [exiting, setExiting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [approvalRequest, setApprovalRequest] = useState<{ toolName: string; args: Record<string, unknown>; risk: string } | null>(null);
+
+  // Recreate agent when model changes mid-conversation
+  const initialModelRef = useRef(initialModel);
+  useEffect(() => {
+    // Skip the initial render — agent is already created with initialModel
+    if (currentModel === initialModelRef.current) return;
+    if (!apiKey) return;
+
+    setAgentLoading(true);
+    setMessages((prev) => [...prev, { role: "system", content: `Switching model to ${currentModel}...` }]);
+
+    createHarnessforceAgent({
+      model: currentModel,
+      apiKey,
+      skillsDir,
+      systemPrompt,
+      projectContext,
+    })
+      .then((newAgent) => {
+        setAgent(newAgent);
+        initialModelRef.current = currentModel;
+        setAgentLoading(false);
+        setMessages((prev) => [...prev, { role: "system", content: `Model switched to ${currentModel}.` }]);
+      })
+      .catch((err) => {
+        setAgentLoading(false);
+        setMessages((prev) => [...prev, { role: "system", content: `Failed to switch model: ${err.message}` }]);
+      });
+  }, [currentModel]);
 
   // Listen to approval gate events from the agent
   useEffect(() => {
