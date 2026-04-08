@@ -278,6 +278,9 @@ program
         initialMessages,
         threadId,
         permissionMode: opts.permissionMode,
+        apiKey,
+        systemPrompt,
+        projectContext: ctx,
       })
     );
 
