@@ -91,14 +91,14 @@ program
     const modelConfig = readConfig();
 
     // Resolve API key: flag > env vars > config file
-    let apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY;
+    let apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN;
 
     // Check config file for saved API key if not found in env
     if (!apiKey) {
       for (const provider of Object.values(modelConfig.providers)) {
-        if (provider.apiKey && !provider.apiKey.startsWith("${")) {
-          apiKey = provider.apiKey;
-          break;
+        if (provider.apiKey) {
+          const resolved = resolveApiKey(provider.apiKey);
+          if (resolved) { apiKey = resolved; break; }
         }
       }
     }
