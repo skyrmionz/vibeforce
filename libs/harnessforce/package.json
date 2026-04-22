@@ -1,6 +1,6 @@
 {
   "name": "harnessforce-core",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Harnessforce Salesforce agent library",
   "type": "module",
   "main": "dist/index.js",

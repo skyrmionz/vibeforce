@@ -492,6 +492,285 @@ Mode: {A (Preview) | B (Testing Center) | Mixed}
 
 ---
 
+## Test Suite Discovery
+
+### List All Test Suites in an Org
+
+Use `sf agent test list` to discover existing test suites before creating or running:
+
+```bash
+# List all test suites
+sf agent test list -o <org> --json | tee /tmp/test-list.json
+
+# Parse the list
+python3 -c "
+import json
+data = json.load(open('/tmp/test-list.json'))
+for suite in data.get('result', []):
+    name = suite.get('name', suite.get('apiName', '?'))
+    status = suite.get('status', '?')
+    cases = suite.get('testCaseCount', '?')
+    print(f'{name:<40} status={status:<10} cases={cases}')
+"
+```
+
+### Discovery Before Creating
+
+Always list first to avoid duplicates or to find suites to update:
+
+```bash
+# Check if a suite already exists
+EXISTING=$(sf agent test list -o <org> --json 2>/dev/null \
+  | jq -r '.result[] | select(.apiName == "MySuite" or .name == "MySuite") | .apiName')
+
+if [ -n "$EXISTING" ]; then
+  echo "Suite '$EXISTING' already exists. Use --force-overwrite to update."
+  sf agent test create --spec /tmp/spec.yaml --api-name MySuite --force-overwrite -o <org> --json
+else
+  echo "Creating new suite."
+  sf agent test create --spec /tmp/spec.yaml --api-name MySuite -o <org> --json
+fi
+```
+
+---
+
+## CI/CD Integration with JUnit Output
+
+### JUnit Format for CI Pipelines
+
+Use `--result-format junit` to produce JUnit XML output compatible with CI systems (GitHub Actions, Jenkins, GitLab CI):
+
+```bash
+# Run tests and output JUnit XML
+sf agent test run \
+  --api-name MySuite \
+  --wait 10 \
+  --result-format junit \
+  -o <org> \
+  --json | tee /tmp/run.json
+
+# Get results in JUnit format
+JOB_ID=$(python3 -c "import json; print(json.load(open('/tmp/run.json'))['result']['runId'])")
+sf agent test results \
+  --job-id "$JOB_ID" \
+  --result-format junit \
+  -o <org> > /tmp/agent-test-results.xml
+```
+
+### GitHub Actions Integration
+
+```yaml
+# .github/workflows/agent-test.yml
+- name: Run Agentforce tests
+  run: |
+    sf agent test run --api-name ${{ env.TEST_SUITE }} --wait 15 --result-format json -o ${{ env.ORG }} --json | tee /tmp/run.json
+    JOB_ID=$(python3 -c "import json; print(json.load(open('/tmp/run.json'))['result']['runId'])")
+    sf agent test results --job-id "$JOB_ID" --result-format junit -o ${{ env.ORG }} > test-results/agent-tests.xml
+
+- name: Publish Test Results
+  uses: EnricoMi/publish-unit-test-result-action@v2
+  if: always()
+  with:
+    files: test-results/agent-tests.xml
+```
+
+### Jenkins Pipeline Integration
+
+```groovy
+stage('Agentforce Tests') {
+    steps {
+        sh '''
+            sf agent test run --api-name ${TEST_SUITE} --wait 15 --result-format json -o ${ORG} --json | tee /tmp/run.json
+            JOB_ID=$(python3 -c "import json; print(json.load(open('/tmp/run.json'))['result']['runId'])")
+            sf agent test results --job-id "$JOB_ID" --result-format junit -o ${ORG} > test-results/agent-tests.xml
+        '''
+    }
+    post {
+        always {
+            junit 'test-results/agent-tests.xml'
+        }
+    }
+}
+```
+
+---
+
+## Async Test Execution
+
+For long-running test suites, use async execution with `resume` and `results` commands.
+
+### Start an Async Run (No Wait)
+
+```bash
+# Start without --wait to get the job ID immediately
+sf agent test run \
+  --api-name MySuite \
+  --result-format json \
+  -o <org> \
+  --json | tee /tmp/async-run.json
+
+JOB_ID=$(python3 -c "import json; print(json.load(open('/tmp/async-run.json'))['result']['runId'])")
+echo "Job started: $JOB_ID"
+echo "Run 'sf agent test resume' or 'sf agent test results' to check status."
+```
+
+### Resume / Poll for Completion
+
+```bash
+# Resume polls for the job to complete (with optional timeout)
+sf agent test resume \
+  --job-id "$JOB_ID" \
+  --wait 10 \
+  -o <org> \
+  --json | tee /tmp/resume.json
+
+# Check if complete
+python3 -c "
+import json
+data = json.load(open('/tmp/resume.json'))
+status = data.get('result', {}).get('status', 'unknown')
+print(f'Status: {status}')
+if status == 'Completed':
+    print('Tests finished. Fetch results with sf agent test results.')
+elif status in ('InProgress', 'Queued'):
+    print('Still running. Resume again or wait longer.')
+else:
+    print(f'Unexpected status: {status}')
+"
+```
+
+### Fetch Final Results
+
+```bash
+# Always use --job-id (NEVER --use-most-recent, which is unreliable)
+sf agent test results \
+  --job-id "$JOB_ID" \
+  --result-format json \
+  -o <org> \
+  --json | tee /tmp/final-results.json
+```
+
+### Full Async Workflow Script
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+ORG="myorg"
+SUITE="RegressionSuite"
+MAX_POLLS=6
+POLL_WAIT=5
+
+# Start async run
+echo "=== Starting async test run ==="
+RUN_OUTPUT=$(sf agent test run --api-name "$SUITE" --result-format json -o "$ORG" --json 2>/dev/null)
+JOB_ID=$(echo "$RUN_OUTPUT" | python3 -c "import json,sys; print(json.load(sys.stdin)['result']['runId'])")
+echo "Job: $JOB_ID"
+
+# Poll with resume
+for i in $(seq 1 $MAX_POLLS); do
+  echo "=== Poll $i/$MAX_POLLS ==="
+  RESUME_OUTPUT=$(sf agent test resume --job-id "$JOB_ID" --wait "$POLL_WAIT" -o "$ORG" --json 2>/dev/null || true)
+  STATUS=$(echo "$RESUME_OUTPUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('result',{}).get('status','unknown'))" 2>/dev/null || echo "unknown")
+  
+  echo "Status: $STATUS"
+  if [ "$STATUS" = "Completed" ]; then
+    break
+  fi
+done
+
+# Fetch and display results
+echo ""
+echo "=== Final Results ==="
+sf agent test results --job-id "$JOB_ID" --result-format json -o "$ORG" --json | tee /tmp/final-results.json
+
+python3 -c "
+import json
+data = json.load(open('/tmp/final-results.json'))
+for tc in data['result']['testCases']:
+    utterance = tc['inputs']['utterance'][:50]
+    results = {r['name']: r['result'] for r in tc.get('testResults', [])}
+    topic = results.get('topic_assertion', 'N/A')
+    action = results.get('action_assertion', 'N/A')
+    outcome = results.get('output_validation', 'N/A')
+    print(f'{utterance:<50} topic={topic:<6} action={action:<6} outcome={outcome}')
+"
+```
+
+---
+
+## Known Bugs and Workarounds
+
+### Bug: RETRY Constant Error
+
+**Symptom:** Test runs intermittently fail with an error referencing a `RETRY` constant or `Cannot read property 'RETRY'` in the CLI output.
+
+**Cause:** Internal CLI race condition when the test run result is not yet available and the retry logic encounters an undefined constant.
+
+**Workaround:**
+```bash
+# Instead of relying on --wait, use async + resume with explicit polling
+sf agent test run --api-name MySuite --result-format json -o <org> --json | tee /tmp/run.json
+
+JOB_ID=$(python3 -c "import json; print(json.load(open('/tmp/run.json'))['result']['runId'])")
+
+# Wait a few seconds, then fetch results directly
+sleep 10
+sf agent test results --job-id "$JOB_ID" --result-format json -o <org> --json
+
+# If still failing, increase the wait or use resume with a longer --wait
+sf agent test resume --job-id "$JOB_ID" --wait 15 -o <org> --json
+```
+
+**Status:** Known issue in `sf` CLI < 2.130.0. Update CLI to latest: `sf update`
+
+### Bug: Sequential Run Failures
+
+**Symptom:** Running multiple test suites sequentially (e.g., in a CI pipeline) causes the second and subsequent runs to fail with session or state errors.
+
+**Cause:** The Testing Center does not fully clean up session state between runs. The next run inherits stale state from the previous run.
+
+**Workaround:**
+```bash
+# Add a delay between sequential runs
+sf agent test run --api-name Suite1 --wait 10 --result-format json -o <org> --json
+sleep 15  # Required cooldown between runs
+
+sf agent test run --api-name Suite2 --wait 10 --result-format json -o <org> --json
+sleep 15
+
+sf agent test run --api-name Suite3 --wait 10 --result-format json -o <org> --json
+```
+
+Alternative: run suites in parallel using separate job IDs and poll each independently:
+```bash
+# Start all runs in parallel
+JOB1=$(sf agent test run --api-name Suite1 --result-format json -o <org> --json 2>/dev/null \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['result']['runId'])")
+JOB2=$(sf agent test run --api-name Suite2 --result-format json -o <org> --json 2>/dev/null \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['result']['runId'])")
+
+# Poll each independently
+sf agent test resume --job-id "$JOB1" --wait 15 -o <org> --json
+sf agent test resume --job-id "$JOB2" --wait 15 -o <org> --json
+
+# Fetch results
+sf agent test results --job-id "$JOB1" --result-format json -o <org> --json
+sf agent test results --job-id "$JOB2" --result-format json -o <org> --json
+```
+
+**Status:** Known issue. Salesforce tracking internally. The 15-second cooldown is the most reliable workaround.
+
+### Bug: --use-most-recent Returns Wrong Run
+
+**Symptom:** `sf agent test results --use-most-recent` returns results from a previous run, not the one just executed.
+
+**Cause:** Race condition in "most recent" resolution when multiple runs are queued.
+
+**Workaround:** Always capture `--job-id` from the run output and pass it explicitly. Never use `--use-most-recent` in scripts or CI.
+
+---
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -504,6 +783,10 @@ Mode: {A (Preview) | B (Testing Center) | Mixed}
 | Topic hash drift after republish | Re-run topic name discovery |
 | `conciseness` metric returns score=0 | Skip `conciseness`; use `coherence` instead |
 | `instruction_following` crashes UI | Remove from metrics list; use CLI only |
+| RETRY constant error | Update CLI or use async+resume pattern (see Known Bugs) |
+| Sequential runs fail | Add 15s cooldown between runs (see Known Bugs) |
+| `sf agent test list` returns empty | Verify org alias and that suites have been deployed |
+| JUnit output is empty XML | Ensure `--result-format junit` is on the `results` command, not just `run` |
 
 ## Dependencies
 
