@@ -11,6 +11,14 @@ const PRICING: Record<string, { input: number; output: number }> = {
   "google/gemini-2.5-pro": { input: 1.25, output: 5 },
   "google/gemini-2.5-flash": { input: 0.15, output: 0.6 },
   "meta-llama/llama-4-maverick": { input: 0.2, output: 0.6 },
+  // Direct Anthropic (same pricing, no OpenRouter markup)
+  "claude-opus-4.6": { input: 5, output: 25 },
+  "claude-sonnet-4.6": { input: 3, output: 15 },
+  "claude-haiku-4.5": { input: 0.25, output: 1.25 },
+  // Bedrock Gateway (enterprise — effectively zero cost to the user)
+  "us.anthropic.claude-opus-4-6-v1": { input: 0, output: 0 },
+  "us.anthropic.claude-sonnet-4-6-v1": { input: 0, output: 0 },
+  "us.anthropic.claude-haiku-4-5-20251001-v1:0": { input: 0, output: 0 },
 };
 
 export type BudgetWarningLevel = "none" | "50%" | "80%" | "exceeded";

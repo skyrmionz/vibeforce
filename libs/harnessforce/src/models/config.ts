@@ -46,8 +46,16 @@ export function resolveApiKey(key: string): string {
  * API keys are env-var references that get resolved at call time.
  */
 export function getDefaultConfig(): ModelConfig {
+  // Phase 7A: Prefer enterprise Bedrock gateway > direct Anthropic > OpenRouter
+  const hasBedrockGateway = !!process.env.ANTHROPIC_AUTH_TOKEN && !!process.env.ANTHROPIC_BEDROCK_BASE_URL;
+  const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
+  const defaultModel = hasBedrockGateway
+    ? 'bedrock-gateway:us.anthropic.claude-opus-4-6-v1'
+    : hasAnthropicKey
+      ? 'anthropic:claude-opus-4.6'
+      : 'openrouter:anthropic/claude-opus-4.6';
   return {
-    defaultModel: 'openrouter:anthropic/claude-opus-4.6',
+    defaultModel,
     providers: {
       openrouter: {
         name: 'openrouter',
@@ -82,6 +90,37 @@ export function getDefaultConfig(): ModelConfig {
           'deepseek/deepseek-chat-v3-0324:free',
         ],
       },
+      // Phase 7A: Direct Anthropic provider (no OpenRouter markup, ~15-30% cheaper)
+      ...(hasAnthropicKey
+        ? {
+            anthropic: {
+              name: 'anthropic',
+              type: 'cloud' as const,
+              apiKey: '${ANTHROPIC_API_KEY}',
+              models: [
+                'claude-opus-4.6',
+                'claude-sonnet-4.6',
+                'claude-haiku-4.5',
+              ],
+            },
+          }
+        : {}),
+      // Enterprise Bedrock via LLM Gateway Express (zero-cost for enterprise users)
+      ...(hasBedrockGateway
+        ? {
+            'bedrock-gateway': {
+              name: 'bedrock-gateway',
+              type: 'gateway' as const,
+              baseUrl: '${ANTHROPIC_BEDROCK_BASE_URL}',
+              apiKey: '${ANTHROPIC_AUTH_TOKEN}',
+              models: [
+                'us.anthropic.claude-opus-4-6-v1',
+                'us.anthropic.claude-sonnet-4-6-v1',
+                'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+              ],
+            },
+          }
+        : {}),
     },
   };
 }

@@ -7,3 +7,4 @@ export {
   disconnectAllMcpServers,
   listConnectedServers,
 } from "./client.js";
+export { startMcpServer } from "./server.js";

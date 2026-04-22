@@ -134,6 +134,25 @@ export function loadForceInstructions(cwd?: string): string {
     }
   }
 
+  // Phase 6E: CLAUDE.md interop — load Claude Code project instructions alongside FORCE.md
+  const claudeMdPaths = [
+    join(resolve(effectiveCwd), ".claude", "CLAUDE.md"),
+    join(resolve(effectiveCwd), "CLAUDE.md"),
+  ];
+  for (const claudePath of claudeMdPaths) {
+    if (existsSync(claudePath)) {
+      try {
+        const content = readFileSync(claudePath, "utf-8").trim();
+        if (content) {
+          instructions.push(`Contents of ${claudePath} (Claude Code project instructions):\n\n${content}`);
+        }
+      } catch {
+        // Skip unreadable files
+      }
+      break;
+    }
+  }
+
   if (instructions.length === 0) return "";
 
   return "<force-instructions>\n" +

@@ -22,3 +22,11 @@ export {
   addProvider,
   removeProvider,
 } from './config-io.js';
+
+export {
+  type ModelTier,
+  type RoutingConfig,
+  getDefaultRoutingConfig,
+  classifyMessage,
+  resolveRoutingModel,
+} from './router.js';

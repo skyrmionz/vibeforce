@@ -181,6 +181,10 @@ export { executeConcurrently, isConcurrentSafe } from "./concurrent-executor.js"
 // ── Unicode safety ──────────────────────────────────────────────────────
 export { stripDangerousUnicode, hasDangerousUnicode } from "./unicode-safety.js";
 
+// ── Tiered tool loading (Phase 4) ──────────────────────────────────────
+export { TOOL_CATEGORIES, CATEGORY_DESCRIPTIONS } from "./tool-tiers.js";
+export { requestToolsTool, getActivatedCategories, resetActivatedCategories } from "./request-tools.js";
+
 // ── Combined ─────────────────────────────────────────────────────────────
 
 import type { StructuredToolInterface } from "@langchain/core/tools";
@@ -242,4 +246,40 @@ export function getContextualTools(ctx: ToolFilterContext = {}): StructuredToolI
   // To add them later: tools.push(...browserTools)
 
   return tools;
+}
+
+/**
+ * Tiered tool loading (Phase 4) — starts with a minimal tier-1 set plus
+ * the request_tools meta-tool. Agent calls request_tools to activate categories.
+ */
+import { requestToolsTool, getActivatedCategories } from "./request-tools.js";
+import { TOOL_CATEGORIES } from "./tool-tiers.js";
+
+const CATEGORY_TOOL_MAP: Record<string, StructuredToolInterface[]> = {
+  browser: browserTools as StructuredToolInterface[],
+  agentforce: agentforceTools as StructuredToolInterface[],
+  "data-cloud": dataCloudTools as StructuredToolInterface[],
+  "extended-sf": extendedSfTools as StructuredToolInterface[],
+  discovery: discoveryTools as StructuredToolInterface[],
+  docs: docsTools as StructuredToolInterface[],
+};
+
+export function getTieredTools(): StructuredToolInterface[] {
+  const tier1: StructuredToolInterface[] = [
+    ...coreTools,
+    ...coreSfTools,
+    ...webTools,
+    writeTodosTool as StructuredToolInterface,
+    sfKnowledgeTool as StructuredToolInterface,
+    agentSpawnTool as StructuredToolInterface,
+    requestToolsTool as StructuredToolInterface,
+  ];
+
+  // Add activated categories
+  for (const cat of getActivatedCategories()) {
+    const catTools = CATEGORY_TOOL_MAP[cat];
+    if (catTools) tier1.push(...catTools);
+  }
+
+  return tier1;
 }

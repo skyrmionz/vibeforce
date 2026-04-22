@@ -11,7 +11,7 @@ import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { RunnableToolLike } from "@langchain/core/runnables";
 import { MemorySaver, type CompiledStateGraph } from "@langchain/langgraph";
-import { allTools, coreTools } from "./tools/index.js";
+import { allTools, coreTools, getTieredTools } from "./tools/index.js";
 import { loadSkills, getSkillSummaries } from "./skills/loader.js";
 import { SELF_DISCOVERY_PROMPT } from "./prompts/self-discovery.js";
 import { UNSUPPORTED_METADATA_PROMPT } from "./prompts/unsupported-metadata.js";
@@ -28,6 +28,10 @@ import {
   ModelRegistry,
   loadModelConfig,
   type ModelConfig,
+  getDefaultRoutingConfig,
+  classifyMessage,
+  resolveRoutingModel,
+  type RoutingConfig,
 } from "./models/index.js";
 import {
   detectProjectContext,
@@ -124,6 +128,14 @@ export {
   hasDangerousUnicode,
   // All tools combined
   allTools,
+  // Tiered tool loading (Phase 4)
+  TOOL_CATEGORIES,
+  CATEGORY_DESCRIPTIONS,
+  requestToolsTool,
+  getActivatedCategories,
+  resetActivatedCategories,
+  getTieredTools,
+  getContextualTools,
 } from "./tools/index.js";
 export type { SfCommandResult, SfCommandOptions, Todo, SfQueryResult, SfOrgInfo, SfDeployResult, SfOrgLimits } from "./tools/index.js";
 export { getSfData } from "./tools/index.js";
@@ -139,6 +151,7 @@ export {
   loadMcpConfig, saveMcpConfig, addMcpServer, removeMcpServer,
   connectMcpServer, connectAllMcpServers, disconnectMcpServer,
   disconnectAllMcpServers, listConnectedServers,
+  startMcpServer,
 } from "./mcp/index.js";
 export type { McpServerConfig, McpConfig } from "./mcp/index.js";
 
@@ -207,8 +220,11 @@ export {
   setDefaultModel,
   addProvider,
   removeProvider,
+  getDefaultRoutingConfig,
+  classifyMessage,
+  resolveRoutingModel,
 } from "./models/index.js";
-export type { ModelProvider, ModelConfig, ModelInfo } from "./models/index.js";
+export type { ModelProvider, ModelConfig, ModelInfo, ModelTier, RoutingConfig } from "./models/index.js";
 
 // ── Skills ───────────────────────────────────────────────────────────────────
 export {
@@ -313,6 +329,10 @@ export interface CreateHarnessforceAgentOptions {
   memorySources?: string[];
   /** Output style name — "default", "explanatory", or "learning" */
   outputStyle?: string;
+  /** Model routing config (Phase 5) — enables cheap/standard/premium model tiers */
+  routing?: RoutingConfig;
+  /** Use tiered tool loading (Phase 4) — start with ~26 tools, load more on demand */
+  useTieredTools?: boolean;
 }
 
 export interface HarnessforceAgent {
@@ -367,6 +387,8 @@ export async function createHarnessforceAgent(
     skillsDir = "./skills",
     memorySources = [".harnessforce/agent.md", "~/.harnessforce/agent.md"],
     outputStyle,
+    routing = getDefaultRoutingConfig(),
+    useTieredTools = false,
   } = options;
 
   // Load model config and resolve the model
@@ -384,7 +406,7 @@ export async function createHarnessforceAgent(
   const memoryBlock = buildMemoryPrompt(memorySources);
 
   // Context-aware tool selection — only send relevant tools to reduce schema tokens
-  const { getContextualTools } = await import("./tools/index.js");
+  const { getContextualTools, getTieredTools } = await import("./tools/index.js");
   const hasAgentFiles = await (async () => {
     try {
       const { readdirSync } = await import("node:fs");
@@ -399,12 +421,16 @@ export async function createHarnessforceAgent(
     } catch {}
     return false;
   })();
-  const contextualTools = getContextualTools({
-    isSfdxProject: projectContext.isSfdxProject,
-    hasAgentFiles,
-    hasDataCloud: false,
-  });
-  const combinedTools = [...contextualTools, ...extraTools];
+
+  // Phase 4: Tiered tool loading — start with ~26 tools, load more via request_tools
+  const baseTools = useTieredTools
+    ? getTieredTools()
+    : getContextualTools({
+        isSfdxProject: projectContext.isSfdxProject,
+        hasAgentFiles,
+        hasDataCloud: false,
+      });
+  const combinedTools = [...baseTools, ...extraTools];
 
   // ── Plugin tools (load from ~/.harnessforce/plugins/) ───────────────────
   try {
@@ -535,6 +561,8 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
     checkpointer,
   });
 
+  let turnCount = 0;
+
   async function* stream(
     message: string,
     threadId?: string,
@@ -545,6 +573,38 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
     let ptlRetryCount = 0;
     let activeGraph = graph;
     let effectiveMessage = message;
+    let effectiveModelId = modelId;
+    turnCount++;
+
+    // Phase 5: Model routing — pick cheap/standard/premium based on message
+    if (routing.enabled) {
+      const tier = classifyMessage(message, turnCount);
+      const routedModelId = resolveRoutingModel(tier, routing);
+      if (routedModelId !== modelId) {
+        effectiveModelId = routedModelId;
+        const routedLlm = registry.getModel(routedModelId);
+        activeGraph = createReactAgent({
+          llm: routedLlm,
+          tools: gatedTools,
+          prompt: cachedPrompt,
+          checkpointer,
+        });
+      }
+    }
+
+    // Phase 4: Rebuild graph if new tool categories were activated since last turn
+    if (useTieredTools) {
+      const currentTiered = getTieredTools();
+      const currentGated = wrapAllTools([...currentTiered, ...extraTools] as any, approvalGate);
+      if (currentGated.length !== gatedTools.length) {
+        activeGraph = createReactAgent({
+          llm: routing.enabled ? registry.getModel(effectiveModelId) : llm,
+          tools: currentGated,
+          prompt: cachedPrompt,
+          checkpointer,
+        });
+      }
+    }
 
     // Set permission mode on the approval gate for this turn
     approvalGate.permissionMode = (permissionMode as any) ?? "default";
@@ -833,7 +893,7 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
           const usageMeta = event.data?.output?.usage_metadata;
           if (usageMeta) {
             sessionCostTracker.addUsage(
-              modelId,
+              effectiveModelId,
               usageMeta.input_tokens ?? 0,
               usageMeta.output_tokens ?? 0,
             );
@@ -841,7 +901,7 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
         } else if (event.event === "on_llm_end") {
           const usageMeta = event.data?.output?.usage_metadata;
           if (usageMeta) {
-            sessionCostTracker.addUsage(modelId, usageMeta.input_tokens ?? 0, usageMeta.output_tokens ?? 0);
+            sessionCostTracker.addUsage(effectiveModelId, usageMeta.input_tokens ?? 0, usageMeta.output_tokens ?? 0);
           }
         } else if (
           event.event === "on_chat_model_stream" &&

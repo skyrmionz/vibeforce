@@ -1,6 +1,6 @@
 {
   "name": "harnessforce",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "Harnessforce CLI — an open-source agent harness for Salesforce development",
   "type": "module",
   "bin": {
@@ -19,7 +19,7 @@
     "ink": "^6.8.0",
     "ink-text-input": "^6.0.0",
     "react": "^19.2.4",
-    "harnessforce-core": "^1.7.0"
+    "harnessforce-core": "^1.8.0"
   },
   "devDependencies": {
     "@types/figlet": "^1.7.0",

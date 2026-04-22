@@ -304,6 +304,15 @@ program
     await instance.waitUntilExit();
   });
 
+// ── `harnessforce serve` — MCP server mode for Claude Code integration ──
+program
+  .command("serve")
+  .description("Start Harnessforce as an MCP server (for Claude Code integration)")
+  .action(async () => {
+    const { startMcpServer } = await import("harnessforce-core/mcp");
+    await startMcpServer();
+  });
+
 // Register model & provider management commands
 for (const cmd of modelCommands) {
   program.addCommand(cmd);

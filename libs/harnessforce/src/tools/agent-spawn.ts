@@ -81,7 +81,24 @@ export const agentSpawnTool = tool(
         }
       }
 
-      return result || "Subagent completed but produced no output.";
+      if (!result) return "Subagent completed but produced no output.";
+
+      // Phase 7B: Summarize subagent output to ~420 tokens (93% savings)
+      const MAX_SUBAGENT_CHARS = 1680; // ~420 tokens
+      if (result.length > MAX_SUBAGENT_CHARS) {
+        try {
+          const summaryPrompt = `Summarize the following subagent output in under 400 words. Preserve: key findings, file paths, code snippets, and actionable recommendations. Omit: reasoning steps, tool call details, and verbose explanations.\n\n${result.slice(0, 8000)}`;
+          const summaryResult = await _parentLlm!.invoke(summaryPrompt);
+          const summaryText = typeof summaryResult.content === "string"
+            ? summaryResult.content
+            : JSON.stringify(summaryResult.content);
+          return `[Subagent summary — full output was ${result.length} chars]\n\n${summaryText}`;
+        } catch {
+          return result.slice(0, MAX_SUBAGENT_CHARS) +
+            `\n... (truncated, ${result.length} chars total)`;
+        }
+      }
+      return result;
     } catch (err: any) {
       return `Subagent error: ${err.message}`;
     }

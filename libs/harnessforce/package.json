@@ -1,10 +1,20 @@
 {
   "name": "harnessforce-core",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "Harnessforce Salesforce agent library",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "import": "./dist/mcp/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
