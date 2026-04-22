@@ -405,6 +405,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
             if (providers.length === 0) {
               msg = "No provider configured.\n\n" +
                 "  /provider openrouter   — use OpenRouter (200+ models)\n" +
+                "  /provider bedrock      — enterprise Bedrock Gateway (zero cost)\n" +
                 "  /provider local        — use Ollama/local models\n\n" +
                 "Slash commands still work — type / to see them.";
             } else {
@@ -414,10 +415,16 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
               const provider = diagConfig.providers[pName];
               const key = provider?.apiKey ? resolveApiKey(provider.apiKey) : "";
               if (!key && provider?.type !== "local") {
-                msg = `Provider "${pName}" is set but has no API key.\n\n` +
-                  "  /set-key sk-or-your-key-here\n\n" +
-                  "Get a key at https://openrouter.ai/keys\n" +
-                  "Slash commands still work — type / to see them.";
+                const isBedrock = pName === "bedrock-gateway" || provider?.baseUrl?.includes("sfproxy") || provider?.baseUrl?.includes("bedrock");
+                msg = isBedrock
+                  ? `Provider "${pName}" is set but has no auth token.\n\n` +
+                    "  /provider bedrock <gateway-url> <auth-token>\n\n" +
+                    "Get a token at https://eng-ai-model-gateway.sfproxy.devx-preprod.aws-esvc1-useast2.aws.sfdc.cl/\n" +
+                    "Slash commands still work — type / to see them."
+                  : `Provider "${pName}" is set but has no API key.\n\n` +
+                    "  /set-key sk-or-your-key-here\n\n" +
+                    "Get a key at https://openrouter.ai/keys\n" +
+                    "Slash commands still work — type / to see them.";
               } else {
                 msg = "Agent failed to initialize. Run /provider to check your setup.";
               }

@@ -173,12 +173,23 @@ program
 
     // Check for API key before creating agent
     if (!apiKey) {
-      console.log(
-        "\n  ⚠  No API key found. Get one at https://openrouter.ai/keys\n" +
-        "\n  Set it right here:  /set-key sk-or-your-key-here" +
-        "\n  Or in your terminal: export OPENROUTER_API_KEY=sk-or-...\n" +
-        "\n  Slash commands still work — type / to see them.\n"
-      );
+      const isBedrock = greetingProvider === "bedrock-gateway"
+        || !!process.env.ANTHROPIC_BEDROCK_BASE_URL;
+      if (isBedrock) {
+        console.log(
+          "\n  ⚠  No auth token found for Bedrock Gateway.\n" +
+          "\n  Set it up:  /provider bedrock <gateway-url> <auth-token>" +
+          "\n  Gateway:    https://eng-ai-model-gateway.sfproxy.devx-preprod.aws-esvc1-useast2.aws.sfdc.cl/\n" +
+          "\n  Slash commands still work — type / to see them.\n"
+        );
+      } else {
+        console.log(
+          "\n  ⚠  No API key found. Get one at https://openrouter.ai/keys\n" +
+          "\n  Set it right here:  /set-key sk-or-your-key-here" +
+          "\n  Or in your terminal: export OPENROUTER_API_KEY=sk-or-...\n" +
+          "\n  Slash commands still work — type / to see them.\n"
+        );
+      }
     }
 
     // Build system prompt from context

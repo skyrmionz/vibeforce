@@ -114,7 +114,10 @@ export function renderGreeting(options?: GreetingOptions): string {
   if (status === 'no-provider') {
     setupHint = `${yellow("!")} No provider set — run /provider to get started`;
   } else if (status === 'no-key') {
-    setupHint = `${yellow("!")} No API key — run /set-key sk-or-your-key-here`;
+    const isBedrock = provider?.includes("bedrock");
+    setupHint = isBedrock
+      ? `${yellow("!")} No auth token — run /provider bedrock <url> <token>`
+      : `${yellow("!")} No API key — run /set-key sk-or-your-key-here`;
   }
 
   // Info panel to the right of the character

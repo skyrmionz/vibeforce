@@ -218,9 +218,10 @@ const providerCommand: SlashCommand = {
       }
 
       const rawKey = provider.apiKey ? resolveApiKey(provider.apiKey) : "";
+      const isBedrock = pName === "bedrock-gateway" || provider.baseUrl?.includes("sfproxy") || provider.baseUrl?.includes("bedrock");
       const keyStatus = provider.type === "local"
         ? "not needed (local)"
-        : rawKey ? "set" : "missing — run /set-key sk-or-your-key-here";
+        : rawKey ? "set" : isBedrock ? "missing — run /provider bedrock <url> <token>" : "missing — run /set-key sk-or-your-key-here";
       const keyIcon = (provider.type === "local" || rawKey) ? "+" : "x";
       const modelName = config.defaultModel.includes(":")
         ? config.defaultModel.split(":").slice(1).join(":")
@@ -235,7 +236,9 @@ const providerCommand: SlashCommand = {
       ].filter(Boolean);
 
       if (provider.type !== "local" && !rawKey) {
-        lines.push("Get a key at https://openrouter.ai/keys");
+        lines.push(isBedrock
+          ? "Get a token at https://eng-ai-model-gateway.sfproxy.devx-preprod.aws-esvc1-useast2.aws.sfdc.cl/"
+          : "Get a key at https://openrouter.ai/keys");
       } else {
         lines.push("Ready to go! Type a message to start.");
       }

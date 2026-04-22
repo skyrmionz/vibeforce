@@ -165,9 +165,12 @@ export class ModelRegistry {
           );
         }
         if (!apiKey || apiKey === '' || apiKey === 'not-needed') {
+          const isBedrock = provider.name.includes("bedrock") || provider.baseUrl?.includes("sfproxy") || provider.baseUrl?.includes("bedrock");
           throw new Error(
             `No API key for provider "${provider.name}". ` +
-            `Use /set-key to save your key, or set the appropriate env var.`
+            (isBedrock
+              ? `Run /provider bedrock <url> <token>, or visit https://eng-ai-model-gateway.sfproxy.devx-preprod.aws-esvc1-useast2.aws.sfdc.cl/`
+              : `Use /set-key to save your key, or set the appropriate env var.`)
           );
         }
 
