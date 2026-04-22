@@ -83,7 +83,7 @@ export function readConfig(): ModelConfig {
   const raw = yaml.load(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
   const userConfig = parseRawConfig(raw as Parameters<typeof parseRawConfig>[0]);
 
-  // Merge default models so users get new models added in updates
+  // Merge defaults: add missing providers (e.g. bedrock from env vars) and models
   const defaults = getDefaultConfig();
   for (const [providerName, defaultProvider] of Object.entries(defaults.providers)) {
     const userProvider = userConfig.providers[providerName];
@@ -93,7 +93,14 @@ export function readConfig(): ModelConfig {
           userProvider.models.push(model);
         }
       }
+    } else {
+      userConfig.providers[providerName] = defaultProvider;
     }
+  }
+
+  // If bedrock env vars are set, prefer bedrock-gateway as default
+  if (userConfig.providers['bedrock-gateway'] && !userConfig.defaultModel.startsWith('bedrock-gateway:')) {
+    userConfig.defaultModel = defaults.defaultModel;
   }
 
   return userConfig;

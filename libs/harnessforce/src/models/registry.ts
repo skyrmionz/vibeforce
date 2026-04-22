@@ -130,6 +130,7 @@ export class ModelRegistry {
     modelName: string
   ): BaseChatModel {
     const apiKey = provider.apiKey ? resolveApiKey(provider.apiKey) : undefined;
+    const baseUrl = provider.baseUrl ? resolveApiKey(provider.baseUrl) : provider.baseUrl;
 
     switch (provider.type) {
       case 'cloud': {
@@ -151,20 +152,20 @@ export class ModelRegistry {
         return new ChatOpenAI({
           model: modelName,
           configuration: {
-            baseURL: provider.baseUrl ?? 'http://localhost:11434/v1',
+            baseURL: baseUrl ?? 'http://localhost:11434/v1',
           },
           apiKey: apiKey ?? 'not-needed-for-local',
         });
       }
 
       case 'gateway': {
-        if (!provider.baseUrl) {
+        if (!baseUrl) {
           throw new Error(
             `Gateway provider "${provider.name}" requires a baseUrl`
           );
         }
         if (!apiKey || apiKey === '' || apiKey === 'not-needed') {
-          const isBedrock = provider.name.includes("bedrock") || provider.baseUrl?.includes("sfproxy") || provider.baseUrl?.includes("bedrock");
+          const isBedrock = provider.name.includes("bedrock") || baseUrl?.includes("sfproxy") || baseUrl?.includes("bedrock");
           throw new Error(
             `No API key for provider "${provider.name}". ` +
             (isBedrock
@@ -175,7 +176,7 @@ export class ModelRegistry {
 
         // Bedrock Gateway (sfproxy / LLM Gateway Express) — use ChatAnthropic with authToken
         // The gateway expects Authorization: Bearer <token>, not x-api-key
-        const isBedrock = provider.name.includes("bedrock") || provider.baseUrl?.includes("sfproxy") || provider.baseUrl?.includes("bedrock");
+        const isBedrock = provider.name.includes("bedrock") || baseUrl?.includes("sfproxy") || baseUrl?.includes("bedrock");
         if (isBedrock) {
           const clientOptions: Record<string, any> = { authToken: apiKey };
           if (process.env.NODE_EXTRA_CA_CERTS) {
@@ -188,9 +189,12 @@ export class ModelRegistry {
               // CA cert loading failed — proceed without
             }
           }
+          // The gateway supports /v1/messages at the root — strip /bedrock suffix
+          const apiUrl = baseUrl!.replace(/\/bedrock\/?$/, '');
           return new ChatAnthropic({
             model: modelName,
-            anthropicApiUrl: provider.baseUrl,
+            anthropicApiUrl: apiUrl,
+            anthropicApiKey: 'sk-placeholder', // Required by LangChain constructor; overridden by authToken
             clientOptions,
           });
         }
@@ -211,7 +215,7 @@ export class ModelRegistry {
         return new ChatOpenAI({
           model: modelName,
           configuration: {
-            baseURL: provider.baseUrl,
+            baseURL: baseUrl,
             ...(Object.keys(fetchOptions).length > 0 ? { fetchOptions } : {}),
           },
           apiKey,
