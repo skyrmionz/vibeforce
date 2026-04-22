@@ -15,7 +15,7 @@ apps/cli/             → harnessforce (npm)         — Ink-based TUI, commands
 
 The core library builds the LangGraph agent, assembles the system prompt, manages sessions, and streams events. The CLI package renders the terminal UI, handles user input, and translates slash commands.
 
-**Stack:** TypeScript, LangGraph (`createReactAgent`), LangChain (ChatOpenAI/ChatAnthropic), Ink (React for terminals), Playwright (browser automation), Zod (tool schemas).
+**Stack:** TypeScript, LangGraph (`createReactAgent`), LangChain (ChatOpenAI/ChatAnthropic), Ink (React for terminals), Playwright (browser automation), MCP SDK (server + client), Zod (tool schemas).
 
 ---
 
@@ -34,7 +34,7 @@ The system prompt is built from layered sources, each serving a distinct purpose
 │  + Output Style overlay (optional)      │  ← Explanatory / learning mode
 │  + Project Context (detector.ts)        │  ← SFDX project name, API version, org, git state
 │  + Memory (agent.md files)              │  ← Learnings from previous sessions
-│  + FORCE.md instructions                │  ← User/team project instructions (3 layers)
+│  + FORCE.md + CLAUDE.md instructions    │  ← User/team project instructions (4 layers)
 │  + Skills summary (top 10)              │  ← Skill names + triggers for agent awareness
 │  + SF Knowledge reference               │  ← Compact list of 16 topics (NOT full content)
 └─────────────────────────────────────────┘
@@ -44,7 +44,7 @@ The system prompt is built from layered sources, each serving a distinct purpose
 
 - **Domain-specific prompt layers.** 4,200+ lines of Salesforce expertise across 18 prompt files in `libs/harnessforce/src/prompts/`. All lazy-loaded via `sf_knowledge` — the system prompt carries only core behavior rules and a topic reference. The agent loads Agentforce, Data Cloud, metadata patterns, governor limits, etc. on demand.
 - **Lazy-loaded knowledge.** All 16 SF knowledge topics are NOT injected into the system prompt. The agent gets a one-line summary and uses the `sf_knowledge` tool to load full content on demand. Topics: governor limits, Apex architecture, trigger patterns, LWC, flows, SOQL, deployment, testing, API strategy, integration, metadata patterns, Agentforce, Data Cloud, self-discovery, unsupported metadata, extensibility. This saves ~25K tokens per turn.
-- **FORCE.md convention.** Like CLAUDE.md for Claude Code, but Salesforce-aware. Three layers merge: `~/.harnessforce/FORCE.md` (user global), `FORCE.md` (project), `FORCE.local.md` (local overrides). See `libs/harnessforce/src/middleware/memory.ts` → `loadForceInstructions()`.
+- **FORCE.md + CLAUDE.md interop.** Like CLAUDE.md for Claude Code, but Salesforce-aware. Four layers merge: `~/.harnessforce/FORCE.md` (user global), `FORCE.md` (project), `FORCE.local.md` (local overrides), and `.claude/CLAUDE.md` (Claude Code project instructions). See `libs/harnessforce/src/middleware/memory.ts` → `loadForceInstructions()`.
 
 ### Prompt Caching
 
@@ -63,11 +63,14 @@ Since the system prompt is static within a session, every turn after the first h
 Tools are assembled from multiple sources and merged into a single array:
 
 ```
-allTools (59 built-in)
+Tier 1 tools (~26 always available)
+  + Tier 2 tools (activated on demand via request_tools)
   + MCP server tools (discovered at runtime from ~/.harnessforce/mcp.json)
   + Plugin tools (loaded from ~/.harnessforce/plugins/)
   → combinedTools (passed to createReactAgent)
 ```
+
+With tiered tool loading enabled, the agent starts with ~26 tools and uses `request_tools` to activate categories (browser, agentforce, data-cloud, extended-sf, discovery, docs). Without tiered loading, context-aware filtering provides ~25-40 tools based on project type.
 
 MCP tools are prefixed `mcp_{server}_{tool}` to avoid name collisions. See `libs/harnessforce/src/mcp/client.ts`.
 
@@ -76,7 +79,7 @@ MCP tools are prefixed `mcp_{server}_{tool}` to avoid name collisions. See `libs
 ```typescript
 const graph = createReactAgent({
   llm,                    // ChatOpenAI or ChatAnthropic via ModelRegistry
-  tools: combinedTools,   // 59+ tools
+  tools: gatedTools,      // 26-60 tools, wrapped with approval gate
   prompt: cachedPrompt,   // SystemMessage with cache_control
   checkpointer: new MemorySaver(),  // In-memory state per thread_id
 });
@@ -84,9 +87,11 @@ const graph = createReactAgent({
 
 This is LangGraph's built-in ReAct agent. The checkpointer enables multi-turn conversations and session resumption via thread IDs.
 
+When model routing is enabled, the graph is rebuilt per-turn with the appropriate model tier. When tiered tool loading activates new categories, the graph is rebuilt with the expanded tool set.
+
 ---
 
-## Tools (59 Built-In)
+## Tools (60 Built-In)
 
 **File:** `libs/harnessforce/src/tools/index.ts` → `allTools` array
 
@@ -94,16 +99,40 @@ This is LangGraph's built-in ReAct agent. The checkpointer enables multi-turn co
 
 | Category | Count | File | What They Do |
 |----------|-------|------|-------------|
-| Core filesystem | 8 | `tools/core.ts` | read_file, write_file, edit_file, execute, glob, grep, ls, task |
+| Core filesystem | 8 | various | read_file, write_file, edit_file, execute, glob, grep, ls, task |
 | Salesforce CLI | 12 | `tools/salesforce.ts` | sf_query, sf_deploy, sf_retrieve, sf_run_apex, sf_run_tests, sf_data, sf_org_limits, etc. |
 | Metadata discovery | 3 | `tools/discovery.ts` | sf_list_metadata_types, sf_describe_all_sobjects, sf_list_metadata_of_type |
 | Extended Salesforce | 12 | `tools/sf-extended.ts` | scratch orgs, packages, deploy status/cancel, test coverage, data export, sandboxes, event logs |
 | Docs | 2 | `tools/docs.ts` | sf_docs_search, sf_docs_read |
 | Browser automation | 6 | `tools/browser.ts` | browser_open, browser_click, browser_fill, browser_screenshot, browser_execute, browser_close |
 | Agentforce | 4 | `tools/agentforce.ts` | agent_publish, agent_activate, agent_validate, agent_preview |
-| Data Cloud | 7 | `tools/datacloud.ts`, `datacloud-ingest.ts`, `datacloud-config.ts` | dc_query, dc_list_objects, dc_describe, dc_ingest_streaming, dc_ingest_bulk, dc_create_identity_resolution, dc_create_segment |
+| Data Cloud | 7 | `tools/datacloud*.ts` | dc_query, dc_list_objects, dc_describe, dc_ingest_streaming, dc_ingest_bulk, dc_create_identity_resolution, dc_create_segment |
 | Web | 2 | `tools/web-search.ts` | web_search, web_fetch |
-| Planning & knowledge | 3 | `tools/todos.ts`, `sf-knowledge.ts`, `agent-spawn.ts` | write_todos, sf_knowledge, agent_spawn |
+| Planning & knowledge | 4 | various | write_todos, sf_knowledge, agent_spawn, request_tools |
+
+### Tiered Tool Loading
+
+**Files:** `tools/tool-tiers.ts`, `tools/request-tools.ts`
+
+To reduce per-turn token cost, tools are organized into two tiers:
+
+- **Tier 1** (~26 tools, always bound): core filesystem (8), core SF (12), web (2), sf_knowledge, write_todos, agent_spawn, request_tools
+- **Tier 2** (loaded on demand via `request_tools`): browser (6), agentforce (4), data-cloud (7), extended-sf (12), discovery (3), docs (2)
+
+The agent calls `request_tools({ category: "browser" })` to activate a category. The graph is rebuilt with the expanded tool set on the next turn.
+
+Savings: reduces per-turn tool schema tokens from ~60 tools (~18K) to ~26 tools (~8K) = ~10K tokens saved per turn before prompt caching.
+
+### Domain Expertise in Tools
+
+Tools aren't thin CLI wrappers -- they enforce Salesforce best practices:
+
+- **sf_deploy** -- Queries `Organization.IsSandbox` to detect production orgs, auto-adds `--test-level RunLocalTests` for production deploys.
+- **sf_query** -- Parses SOQL before execution: warns on missing WHERE/LIMIT for large standard objects (Account, Contact, Case, Lead, Opportunity, Task, Event), detects non-selective leading wildcards in LIKE clauses.
+- **sf_run_apex** -- Scans anonymous Apex for governor limit patterns before execution: DML/SOQL inside for loops, missing LIMIT on queries.
+- **sf_run_tests** -- Adds `--code-coverage` flag, parses `orgWideCoverage` and warns if below 75% production minimum, returns structured failure summaries (up to 10 failures) instead of raw stack traces.
+- **write_file** -- Validates PascalCase class names on `.cls` files, checks for `with sharing` declaration, validates `@isTest` on test classes, auto-creates companion `-meta.xml` if missing.
+- **agent_spawn** -- Subagent output exceeding ~420 tokens is automatically summarized via LLM before returning to the parent context (93% context savings).
 
 ### How SF Tools Work
 
@@ -118,33 +147,67 @@ execFile("sf", [...args, "--json"], { timeout: 60_000 }, (err, stdout) => {
 
 **Why wrap the CLI instead of using APIs?** Because the `sf` CLI handles auth, session refresh, SFDX project context, and org management. Rebuilding that in JS would be thousands of lines for no benefit. The CLI is the source of truth for Salesforce developers.
 
-**What makes these tools different from generic file/shell tools:**
-- `sf_deploy` includes dry-run validation before destructive deploys
-- `sf_query` has PII field detection that warns about sensitive data
-- `sf_data` supports insert/update/upsert/delete via a unified interface
-- All SF tools parse structured JSON and return formatted results, not raw CLI output
-
 ### Browser Automation
 
 Playwright runs as a singleton browser instance shared across tool calls. This lets the agent navigate Salesforce Setup pages, click through UI-only configuration, fill forms, and take screenshots -- all in one persistent browser session.
-
-```
-browser_open → browser_click → browser_fill → browser_screenshot
-         ↓
-     Single Playwright chromium instance (headless by default)
-```
 
 The agent uses `browser_execute` with `shadowRoot.querySelector()` to pierce Lightning's Shadow DOM -- a Salesforce-specific technique documented in the system prompt.
 
 **File:** `libs/harnessforce/src/tools/browser.ts`
 
-### Tool Guidance
+---
 
-Each core tool has 5-10 lines of best-practice guidance injected into the system prompt. This teaches the agent when to use each tool, common pitfalls, and Salesforce-specific patterns.
+## Model System
 
-**File:** `libs/harnessforce/src/prompts/tool-guidance.ts` (645 lines)
+### Provider Priority
 
-Only core tool guidance (~8 tools) is included by default. Extended guidance is available on demand. This saves ~7K tokens per turn vs including all 59 tools.
+**File:** `libs/harnessforce/src/models/config.ts` → `getDefaultConfig()`
+
+Harnessforce auto-detects the best available provider from environment variables:
+
+1. **Bedrock Gateway** (enterprise) -- detected when `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BEDROCK_BASE_URL` are set. Zero cost for enterprise users with LLM Gateway Express access. Maps directly to the Claude Code `settings.json` env vars.
+2. **Direct Anthropic** -- detected when `ANTHROPIC_API_KEY` is set. ~15-30% cheaper than OpenRouter (no middleman markup).
+3. **OpenRouter** (default fallback) -- requires key via `/set-key`. Provides access to 200+ models from all providers.
+
+### Model Registry
+
+**File:** `libs/harnessforce/src/models/registry.ts`
+
+The `ModelRegistry` class instantiates LangChain chat models from a unified config:
+
+| Provider Type | How It Works | Example |
+|--------------|-------------|---------|
+| `cloud` | Direct API (ChatAnthropic or ChatOpenAI) | Anthropic, OpenAI |
+| `local` | OpenAI-compatible API at localhost | Ollama, vLLM |
+| `gateway` | OpenAI-compatible API with auth at remote URL | OpenRouter, LiteLLM, Bedrock Gateway |
+
+Model ID format: `provider:model` (e.g., `openrouter:anthropic/claude-opus-4.6`, `bedrock-gateway:us.anthropic.claude-opus-4-6-v1`).
+
+Gateway providers support `NODE_EXTRA_CA_CERTS` for corporate SSL certificates (essential for enterprise Bedrock Gateway behind corporate proxies).
+
+Config stored at `~/.harnessforce/models.yaml`. API keys support environment variable references (`${OPENROUTER_API_KEY}`, `${ANTHROPIC_AUTH_TOKEN}`). The `/provider` and `/model` commands manage this from inside the TUI.
+
+### Model Routing
+
+**File:** `libs/harnessforce/src/models/router.ts`
+
+Optional per-turn model routing selects cheap/standard/premium models based on message content:
+
+| Tier | When | Default Model |
+|------|------|--------------|
+| Cheap | Short confirmations ("yes", "ok", "go ahead"), follow-ups after turn 5 | Gemini Flash / Haiku |
+| Standard | Code generation, multi-step tasks, debugging | Sonnet |
+| Premium | Keywords like "refactor", "architect", "design pattern", "migration strategy" | Opus |
+
+Disabled by default. Enable via `routing.enabled: true` in config. When active, the agent graph is rebuilt per-turn with the routed model while preserving the checkpointer and thread_id.
+
+### Cost Tracking
+
+**File:** `libs/harnessforce/src/cost/tracker.ts`
+
+Tracks input/output tokens per model per session with pricing estimates. Supports OpenRouter, direct Anthropic, and Bedrock Gateway pricing (enterprise Bedrock is tracked as zero cost since it's covered by the org's enterprise agreement).
+
+Budget enforcement with tiered warnings at 50%, 80%, and 100% of a configurable session budget (default: $1.00). Accessible via `/cost` command.
 
 ---
 
@@ -168,7 +231,7 @@ All 16 topics are lazy-loaded via `sf_knowledge` tool (loaded when agent needs t
   - sf-apex-architecture.ts     → Service layers, selectors, trigger handlers
   - sf-integration.ts           → Platform Events (HighVolume), CDC, Named Credentials
   - sf-metadata-patterns.ts     → XML structure, Record Types, Custom Metadata Types
-  - agentforce.ts               → ADLC lifecycle, Agent Script DSL
+  - agentforce.ts               → ADLC lifecycle, Agent Script DSL, agent-spec generation, preview sessions
   - datacloud.ts                → Data 360 DMOs, ingestion, identity resolution
   - self-discovery.ts           → How to explore unfamiliar orgs
   - unsupported-metadata.ts     → Metadata types needing browser fallback
@@ -225,16 +288,7 @@ Unknown tools default to `write` (fail-safe).
 | **yolo** | auto | auto | auto |
 | **safe** | auto | blocked | blocked |
 
-**Enforcement mechanism:** An `ApprovalGate` wraps every tool's `_call` method. When a destructive tool is called in default mode, the gate blocks execution by returning a Promise that only resolves when the user presses Y or N in the TUI. LangGraph's executor pauses naturally while awaiting the Promise. The TUI shows a bordered approval prompt with tool name, risk level, and args.
-
-- **Plan mode** — tools physically removed from the agent's tool list (hard block)
-- **Default mode** — destructive tools block on Y/N approval via the `ApprovalGate`
-- **Yolo mode** — gate auto-approves everything
-- **Safe mode** — gate auto-rejects write/destructive
-
-In `plan` mode, the agent can only read and explore. It presents a plan for what it would do, then waits for approval. After the first turn, the CLI auto-transitions from plan → default.
-
-**Files:** `libs/harnessforce/src/middleware/approval-gate.ts`, `libs/harnessforce/src/middleware/wrap-tools.ts`
+**Enforcement mechanism:** An `ApprovalGate` wraps every tool's `_call` method. When a destructive tool is called in default mode, the gate blocks execution by returning a Promise that only resolves when the user presses Y or N in the TUI.
 
 ### Production Org Detection
 
@@ -251,7 +305,7 @@ The `stream()` method in `index.ts` is an async generator that processes LangGra
 ```
 stream(message, threadId, permissionMode)
   │
-  ├── Pre-turn: microcompact → proactive compaction (if >60K tokens)
+  ├── Pre-turn: model routing → tiered tool rebuild → microcompact → proactive compaction (if >40K tokens) → budget check
   │
   ├── on_tool_start:
   │     → Unicode sanitization
@@ -261,6 +315,7 @@ stream(message, threadId, permissionMode)
   │     → Dry-run validation for sf_deploy
   │
   ├── on_tool_end:
+  │     → Smart output filtering (structured test results, slim query/describe output)
   │     → Output truncation (4K char cap, full result saved to disk)
   │     → PII detection on sf_query results
   │     → Post-tool hooks
@@ -269,7 +324,7 @@ stream(message, threadId, permissionMode)
   │     → Token-by-token streaming to TUI
   │
   ├── on_llm_end:
-  │     → Cost tracking (input/output tokens per model)
+  │     → Cost tracking (input/output tokens per effective model)
   │
   └── Error recovery:
         → prompt_too_long: retry up to 3x with progressive compaction
@@ -282,17 +337,73 @@ stream(message, threadId, permissionMode)
 
 1. **Microcompact** (`middleware/microcompact.ts`): In-place clearing of old tool results. Keeps recent 3 turns, replaces older tool result content with `[Old tool result cleared]`. Preserves message array identity so the MemorySaver cache prefix stays warm.
 
-2. **Proactive compaction** (`middleware/summarization.ts`): When history exceeds 60K tokens, uses LLM-based summarization (or falls back to string truncation). Writes the compacted state back to MemorySaver via `updateState()`.
+2. **Proactive compaction** (`middleware/summarization.ts`): When history exceeds 40K tokens (lowered from 60K for faster triggering), uses LLM-based summarization to compress older messages to ~200 words. Keeps 5 most recent messages. Falls back to string truncation if the LLM call fails. Writes compacted state back to MemorySaver via `updateState()`.
 
 3. **Reactive recovery**: On `prompt_too_long` errors, retries with progressively aggressive compaction (45K → 30K → 15K target tokens).
+
+### Smart Output Filtering
+
+Before truncation, tool results are content-aware filtered to reduce token waste:
+
+- **sf_run_tests**: Extracts test name + pass/fail status + org-wide coverage percentage. Drops raw stack traces, shows structured failure summary (up to 5 failures).
+- **sf_query**: If >50 records, returns first 10 + count + message to narrow the query.
+- **sf_describe_object**: If >50 fields, returns slim name/type/label/required only, drops picklist values and relationship details.
 
 ### Tool Output Persistence
 
 Tool results exceeding 4K characters are truncated in context but the full output is saved to `.harnessforce/tool-results/{timestamp}-{tool}.txt`. The truncated version includes a note: "Full output saved to {path}" so the agent can re-read if needed.
 
-### Cost Tracking
+---
 
-`libs/harnessforce/src/cost/tracker.ts` tracks input/output tokens per model per session. Supports OpenRouter pricing estimates. Accessible via `/cost` command.
+## MCP Integration
+
+Harnessforce supports MCP in both directions: as a **client** (connecting to external MCP servers) and as a **server** (exposing its tools to Claude Code and other MCP clients).
+
+### MCP Client
+
+**File:** `libs/harnessforce/src/mcp/client.ts`
+
+Connects to external MCP servers via stdio transport. Config at `~/.harnessforce/mcp.json`:
+
+```json
+{
+  "servers": {
+    "my-server": {
+      "command": "npx",
+      "args": ["-y", "some-mcp-server"],
+      "env": { "API_KEY": "..." }
+    }
+  }
+}
+```
+
+On startup, Harnessforce connects to each server, calls `listTools()`, and wraps discovered tools as LangChain StructuredTools prefixed `mcp_{server}_{tool}`. These merge into `combinedTools` alongside the built-in 60.
+
+### MCP Server
+
+**File:** `libs/harnessforce/src/mcp/server.ts`
+
+**Command:** `harnessforce serve`
+
+Exposes all 60 Harnessforce tools as an MCP server for Claude Code integration. This lets Claude Code users access full Salesforce domain expertise through their existing Claude subscription at zero additional LLM cost.
+
+Key features:
+- All tools exposed with proper JSON Schema (converted from Zod via a built-in converter)
+- Risk annotations mapped from `TOOL_RISK_MAP`: read tools get `readOnlyHint: true`, destructive tools get `destructiveHint: true` (triggers confirmation in Claude Code)
+- All 16 SF knowledge topics registered as MCP resources (`sf-knowledge://apex-architecture`, etc.) readable on demand
+- Stdio transport for Claude Code compatibility
+
+Claude Code config (`~/.claude/mcp.json`):
+```json
+{
+  "mcpServers": {
+    "harnessforce": {
+      "command": "npx",
+      "args": ["harnessforce", "serve"]
+    }
+  }
+}
+```
 
 ---
 
@@ -300,23 +411,14 @@ Tool results exceeding 4K characters are truncated in context but the full outpu
 
 **File:** `libs/harnessforce/src/sessions/manager.ts`
 
-Sessions persist as JSONL files at `.harnessforce/sessions/{id}.jsonl`. Each line is a message:
-
-```json
-{"role":"user","content":"create an Apex trigger","timestamp":"2026-04-06T10:00:00Z"}
-{"role":"assistant","content":"I'll create...","timestamp":"2026-04-06T10:00:05Z"}
-```
-
-The MemorySaver checkpointer handles in-memory state per `thread_id`. Session resumption: `npx harnessforce --resume <id>` reloads the JSONL and passes messages as initial context.
-
-On startup, the CLI hints about the most recent session: "Last session: abc123... (42 messages). To continue: `npx harnessforce --resume abc123`"
+Sessions persist as JSONL files at `.harnessforce/sessions/{id}.jsonl`. The MemorySaver checkpointer handles in-memory state per `thread_id`. Session resumption: `npx harnessforce --resume <id>` reloads the JSONL and passes messages as initial context.
 
 ---
 
 ## Skills System
 
 **File:** `libs/harnessforce/src/skills/loader.ts`
-**Directory:** `skills/` (27 files)
+**Directory:** `skills/` (30 files)
 
 Skills are markdown files with YAML frontmatter:
 
@@ -331,11 +433,9 @@ trigger: when the user asks to build or create an Agentforce agent
 [detailed instructions...]
 ```
 
-The top 10 skills are summarized in the system prompt (name + trigger only). All 27 become slash commands -- typing `/agentforce-build` expands the skill's full content into a prompt sent to the agent.
+The top 10 skills are summarized in the system prompt (name + trigger only). All 30 become slash commands -- typing `/agentforce-build` expands the skill's full content into a prompt sent to the agent.
 
-**Shipped skills:** agentforce-build, agentforce-test, agentforce-observability, agent-persona, apex-patterns, lwc-development, flow-advanced, test-automation, deployment-checklist, ci-cd-pipeline, data-migration, data-cloud-setup, security-hardening, scratch-org-lifecycle, package-development, connected-app-setup, heroku-deploy, app-scaffold, org-setup, metadata-generation, integration-patterns, omnistudio-overview, performance-optimization, visualforce-app, robot-framework-fallback, remember, skill-creator.
-
-**The agent can create new skills** with `/skill-add <name>` or by writing markdown files to the skills directory.
+**Shipped skills (30):** agent-persona, agent-spec-generation, agentforce-build, agentforce-observability, agentforce-test, apex-patterns, app-scaffold, ci-cd-pipeline, connected-app-setup, data-cloud-setup, data-migration, deployment-checklist, flow-advanced, headless-360, heroku-deploy, integration-patterns, lwc-development, metadata-generation, omnistudio-overview, orchestrator, org-setup, package-development, performance-optimization, remember, robot-framework-fallback, scratch-org-lifecycle, security-hardening, skill-creator, test-automation, visualforce-app.
 
 ---
 
@@ -347,10 +447,11 @@ The top 10 skills are summarized in the system prompt (name + trigger only). All
 
 1. **Agent memory** (`.harnessforce/agent.md`): Learnings from past sessions. The agent reads this every turn and writes discoveries back. Auto-extracted on session end via `libs/harnessforce/src/services/extract-memories.ts`.
 
-2. **FORCE.md** (project instructions): Three layers merge in priority order:
+2. **FORCE.md + CLAUDE.md** (project instructions): Four layers merge in priority order:
    - `~/.harnessforce/FORCE.md` — user-global preferences
    - `FORCE.md` in parent directories up to project root — team conventions
    - `FORCE.local.md` — local overrides (gitignored)
+   - `.claude/CLAUDE.md` or `CLAUDE.md` — Claude Code project instructions (interop)
 
 3. **Session history**: MemorySaver checkpointer + JSONL persistence for cross-process resumption.
 
@@ -372,47 +473,7 @@ Shell commands that execute in response to agent lifecycle events:
 | `pre-deploy` | Before sf_deploy |
 | `post-deploy` | After sf_deploy |
 
-Configured in `.harnessforce/settings.json`. Hooks receive context via environment variables (`HARNESSFORCE_TOOL_NAME`, `HARNESSFORCE_HOOK_EVENT`). Non-blocking, 30s timeout, errors don't crash the agent.
-
----
-
-## MCP Integration
-
-**File:** `libs/harnessforce/src/mcp/client.ts`
-
-Connects to external MCP servers via stdio transport. Config at `~/.harnessforce/mcp.json`:
-
-```json
-{
-  "servers": {
-    "my-server": {
-      "command": "npx",
-      "args": ["-y", "some-mcp-server"],
-      "env": { "API_KEY": "..." }
-    }
-  }
-}
-```
-
-On startup, Harnessforce connects to each server, calls `listTools()`, and wraps discovered tools as LangChain StructuredTools prefixed `mcp_{server}_{tool}`. These merge into `combinedTools` alongside the built-in 59.
-
----
-
-## Model Support
-
-**File:** `libs/harnessforce/src/models/registry.ts`
-
-The `ModelRegistry` class instantiates LangChain chat models from a unified config:
-
-| Provider Type | How It Works | Example |
-|--------------|-------------|---------|
-| `cloud` | Direct API (ChatAnthropic or ChatOpenAI) | Anthropic, OpenAI |
-| `local` | OpenAI-compatible API at localhost | Ollama, vLLM |
-| `gateway` | OpenAI-compatible API with auth at remote URL | OpenRouter, LiteLLM |
-
-Model ID format: `provider:model` (e.g., `openrouter:anthropic/claude-opus-4.6`).
-
-Config stored at `~/.harnessforce/models.yaml`. API keys support environment variable references (`${OPENROUTER_API_KEY}`). The `/provider` and `/model` commands manage this from inside the TUI.
+Configured in `.harnessforce/settings.json`. Non-blocking, 30s timeout, errors don't crash the agent.
 
 ---
 
@@ -427,25 +488,25 @@ Built with Ink (React for terminals). Key architecture:
 - **Tool rendering**: Tool results truncated to 500 chars in display. `edit_file` results render as unified diffs (red/green). Turns with 3+ tool calls get a summary line.
 - **Command menu**: Type `/` to see autocomplete suggestions. Arrow keys navigate, Enter selects.
 - **Permission cycling**: Shift+Tab cycles plan → default → yolo.
-- **Markdown rendering**: `apps/cli/src/ui/markdown.tsx` handles bold, code blocks, tables, headings, lists.
 
 ### Startup Flow (`apps/cli/src/index.tsx`)
 
 1. Read model config, resolve API key (flag → env → config file)
-2. Detect SFDX project context (parallel git checks)
-3. Print greeting with Agent Astro pixel art + provider/model/org/setup status
-4. Discover orgs in background (non-blocking `sf org list`)
-5. Create agent in background (TUI renders immediately, doesn't wait)
-6. Hint about recent sessions for resumption
+2. Auto-detect provider priority: Bedrock Gateway → Direct Anthropic → OpenRouter
+3. Detect SFDX project context (parallel git checks)
+4. Print greeting with Agent Astro pixel art + provider/model/org/setup status
+5. Discover orgs in background (non-blocking `sf org list`)
+6. Create agent in background (TUI renders immediately, doesn't wait)
+7. Hint about recent sessions for resumption
 
 ### Slash Commands
 
-84 built-in slash commands + 27 skill commands. Two types:
+84 built-in slash commands + 30 skill commands. Two types:
 
-- **Local commands**: Execute in-process, return result immediately (e.g., `/model`, `/provider`, `/query`, `/describe`, `/cost`)
+- **Local commands**: Execute in-process, return result immediately (e.g., `/model`, `/provider`, `/provider bedrock`, `/query`, `/describe`, `/cost`, `/why`)
 - **Prompt commands**: Expand into a prompt string sent to the agent (e.g., `/apex`, `/deploy`, `/agentforce-build`)
 
-**File:** `apps/cli/src/commands/registry.ts` (84 command definitions)
+**File:** `apps/cli/src/commands/registry.ts`
 
 ---
 
@@ -455,21 +516,24 @@ Built with Ink (React for terminals). Key architecture:
 
 Claude Code is a general-purpose coding agent. It has no awareness of Salesforce, no `sf` CLI integration, no Agentforce tools, no Data Cloud tools, no browser automation for Setup pages, no SFDX project detection, no governor limit knowledge, no deployment safety checks, and no skill system for domain workflows.
 
-Harnessforce replicates Claude Code's core patterns (prompt caching, compaction, abort handling, session persistence, hooks, permission modes) but adds an entire Salesforce-specific layer on top: 35 SF/Agentforce/Data Cloud tools, 16 lazy-loaded knowledge topics, 27 domain skills, context-aware prompt injection, PII detection on query results, and production org safety gates.
+Harnessforce replicates Claude Code's core patterns (prompt caching, compaction, abort handling, session persistence, hooks, permission modes) but adds an entire Salesforce-specific layer on top: 35 SF/Agentforce/Data Cloud tools, 16 lazy-loaded knowledge topics, 30 domain skills, context-aware prompt injection, PII detection on query results, production org safety gates, and domain expertise baked into tool logic itself.
+
+Harnessforce can also run as a Claude Code MCP server, so the two tools complement each other.
 
 ### vs LangChain Deep Agents
 
-Deep Agents is a reference architecture for building LangGraph agents. Harnessforce uses the same foundation (`createReactAgent`, `MemorySaver`, `streamEvents`) but adds everything needed to make it production-ready for Salesforce work: a full TUI, 59 tools, middleware (compaction, permissions, hooks, cost tracking), a skills system, MCP extensibility, multi-provider model support, and 4,200+ lines of Salesforce domain expertise.
+Deep Agents is a reference architecture for building LangGraph agents. Harnessforce uses the same foundation (`createReactAgent`, `MemorySaver`, `streamEvents`) but adds everything needed to make it production-ready for Salesforce work: a full TUI, 60 tools, middleware (compaction, permissions, hooks, cost tracking), a skills system, MCP extensibility (client + server), multi-provider model support with routing, and 4,200+ lines of Salesforce domain expertise.
 
 ### The Key Insight
 
 Generic agent harnesses give you a chat loop with file/shell tools. That's necessary but not sufficient for specialized work. Harnessforce's value comes from the layers built around the generic agent:
 
-1. **Domain tools** — SF CLI wrapping, browser automation for Setup, Agentforce lifecycle, Data Cloud operations
+1. **Domain tools** — SF CLI wrapping with best-practice enforcement, browser automation for Setup, Agentforce lifecycle, Data Cloud operations
 2. **Domain knowledge** — 16 lazy-loaded topics covering every major Salesforce subsystem
-3. **Domain skills** — 27 workflow templates that teach the agent how to approach SF-specific tasks
-4. **Domain safety** — Production org detection, PII field masking, deploy dry-runs, risk-classified tools
+3. **Domain skills** — 30 workflow templates that teach the agent how to approach SF-specific tasks
+4. **Domain safety** — Production org detection, SOQL guardrails, governor limit scanning, deploy dry-runs, risk-classified tools
 5. **Domain context** — Auto-detection of SFDX projects, orgs, git state injected into every conversation
+6. **Cost optimization** — Tiered tools, model routing, aggressive compaction, smart output filtering, budget enforcement
 
 ---
 
@@ -479,9 +543,16 @@ Generic agent harnesses give you a chat loop with file/shell tools. That's neces
 libs/harnessforce/src/
 ├── index.ts                    Agent factory + stream event loop (main entry)
 ├── tools/
-│   ├── index.ts                allTools array (59 tools)
-│   ├── core.ts                 read_file, write_file, edit_file, execute, glob, grep, ls, task
-│   ├── salesforce.ts           12 core SF tools (wrapping sf CLI)
+│   ├── index.ts                allTools (60), getContextualTools(), getTieredTools()
+│   ├── read-file.ts            read_file
+│   ├── write-file.ts           write_file (+ Apex conventions enforcement)
+│   ├── edit-file.ts            edit_file
+│   ├── execute.ts              execute (shell command)
+│   ├── glob.ts                 glob
+│   ├── grep.ts                 grep
+│   ├── ls.ts                   ls
+│   ├── task.ts                 task
+│   ├── salesforce.ts           12 core SF tools (+ SOQL guardrails, production safety, coverage enforcement)
 │   ├── sf-cli.ts               runSfCommand() — the sf CLI wrapper
 │   ├── sf-extended.ts          12 extended SF tools (scratch orgs, packages, etc.)
 │   ├── discovery.ts            3 metadata discovery tools
@@ -493,17 +564,19 @@ libs/harnessforce/src/
 │   ├── docs.ts                 2 SF docs search/read tools
 │   ├── web-search.ts           2 web tools
 │   ├── sf-knowledge.ts         Lazy-loaded SF knowledge (16 topics)
-│   ├── agent-spawn.ts          Subagent with isolated context
-│   └── todos.ts                Task/planning tool
+│   ├── agent-spawn.ts          Subagent with isolated context + output summarization
+│   ├── todos.ts                Task/planning tool
+│   ├── tool-tiers.ts           Tier 1/Tier 2 tool category definitions
+│   └── request-tools.ts        Meta-tool: activate tool categories on demand
 ├── prompts/
-│   ├── system.ts               Main system prompt (234 lines)
-│   ├── tool-guidance.ts        Per-tool best practices (645 lines)
+│   ├── system.ts               Main system prompt
+│   ├── tool-guidance.ts        Per-tool best practices
 │   ├── self-discovery.ts       Org exploration guidance
 │   ├── unsupported-metadata.ts Metadata needing browser fallback
-│   ├── agentforce.ts           Agentforce/ADLC prompt (520 lines)
+│   ├── agentforce.ts           Agentforce/ADLC prompt (+ agent-spec, preview sessions, known bugs)
 │   ├── datacloud.ts            Data Cloud prompt
 │   ├── output-styles.ts        Explanatory/learning output modes
-│   ├── sf-apex-architecture.ts 426 lines of Apex patterns
+│   ├── sf-apex-architecture.ts Apex patterns
 │   ├── sf-trigger-patterns.ts  Trigger best practices
 │   ├── sf-testing.ts           Test patterns and strategies
 │   ├── sf-lwc.ts               LWC component patterns
@@ -517,15 +590,16 @@ libs/harnessforce/src/
 │   ├── permissions.ts          Tool risk classification + permission modes
 │   ├── approval-gate.ts        Blocking Y/N approval for destructive tools
 │   ├── wrap-tools.ts           Wraps tool._call with approval gate
-│   ├── memory.ts               FORCE.md + agent.md loading
+│   ├── memory.ts               FORCE.md + CLAUDE.md + agent.md loading
 │   ├── microcompact.ts         Cache-preserving tool result clearing
-│   └── summarization.ts        LLM-based compaction + fallback truncation
+│   └── summarization.ts        LLM-based compaction (200 words) + fallback truncation
 ├── context/
 │   └── detector.ts             SFDX project + git state detection
 ├── models/
-│   ├── config.ts               ModelConfig types + defaults
+│   ├── config.ts               ModelConfig types + defaults (auto-detect Bedrock/Anthropic/OpenRouter)
 │   ├── config-io.ts            YAML read/write for ~/.harnessforce/models.yaml
-│   └── registry.ts             ModelRegistry — multi-provider model instantiation
+│   ├── registry.ts             ModelRegistry — multi-provider model instantiation (+ SSL cert support)
+│   └── router.ts               Tiered model routing (cheap/standard/premium per turn)
 ├── sessions/
 │   └── manager.ts              JSONL session persistence + resumption
 ├── skills/
@@ -533,17 +607,19 @@ libs/harnessforce/src/
 ├── hooks/
 │   └── manager.ts              Lifecycle hook execution
 ├── mcp/
-│   ├── client.ts               MCP server connection + tool wrapping
-│   └── config.ts               MCP config loading
+│   ├── client.ts               MCP client — connect to external MCP servers
+│   ├── server.ts               MCP server — expose tools + knowledge to Claude Code
+│   ├── config.ts               MCP config loading (~/.harnessforce/mcp.json)
+│   └── index.ts                MCP module exports
 ├── plugins/
 │   └── loader.ts               Plugin auto-loading from ~/.harnessforce/plugins/
 ├── services/
 │   └── extract-memories.ts     Auto-extract learnings on session end
 └── cost/
-    └── tracker.ts              Per-model token/cost tracking
+    └── tracker.ts              Per-model token/cost tracking + budget enforcement
 
 apps/cli/src/
-├── index.tsx                   CLI entry point (startup, shutdown, session recovery)
+├── index.tsx                   CLI entry point (startup, shutdown, session recovery, `serve` command)
 ├── ui/
 │   ├── app.tsx                 Main TUI component (streaming, input, rendering)
 │   ├── greeting.ts             Agent Astro pixel art + provider/model/org display
@@ -551,10 +627,11 @@ apps/cli/src/
 │   ├── diff.tsx                Unified diff visualization (red/green)
 │   └── status-bar.tsx          Bottom bar (mode, model, org, tokens)
 └── commands/
-    ├── registry.ts             84 slash commands (local + prompt types)
+    ├── registry.ts             84+ slash commands (includes /provider bedrock, /why)
     ├── model.ts                CLI model/provider subcommands
     ├── skill.ts                CLI skill subcommands
     └── tool.ts                 CLI tool subcommands
 
-skills/                         27 markdown skill files
+skills/                         30 markdown skill files
+WHY.md                          Project vision document (wired to /why command)
 ```

@@ -18,7 +18,7 @@ General-purpose agents are powerful, but they treat Salesforce like any other pl
 
 - **Domain knowledge on demand** — 16 Salesforce knowledge topics (Apex architecture, governor limits, trigger patterns, testing strategies, deployment workflows, Agentforce ADLC, Data Cloud, and more) loaded exactly when needed. Not a generic context dump, but opinionated guidance grounded in what actually works in production.
 
-- **Skills as recipes, not docs** — 27+ operational workflows for real Salesforce tasks: scaffolding apps, building Agentforce agents, running deployment checklists, setting up CI/CD, migrating data. Each skill is a step-by-step recipe with executable commands, not a reference page.
+- **Skills as recipes, not docs** — 30 operational workflows for real Salesforce tasks: scaffolding apps, building Agentforce agents, running deployment checklists, setting up CI/CD, migrating data. Each skill is a step-by-step recipe with executable commands, not a reference page.
 
 - **Platform-aware safety** — Production org detection, DML bulk warnings, governor limit scanning in anonymous Apex, test coverage enforcement before deployment. The harness prevents costly mistakes before they happen.
 
