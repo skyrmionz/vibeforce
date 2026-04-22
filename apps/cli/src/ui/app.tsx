@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Box, Text, useApp, useInput } from "ink";
-import TextInput from "ink-text-input";
+import chalk from "chalk";
 import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager, ApprovalRequest } from "harnessforce-core";
 import { readMemorySources, readConfig, ensureConfigFile, resolveApiKey } from "harnessforce-core";
 import { MarkdownText } from "./markdown.js";
@@ -61,9 +61,8 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [exiting, setExiting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const menuJustSelectedRef = useRef(false);
-  const ctrlURef = useRef(false);
   const [approvalRequest, setApprovalRequest] = useState<{ toolName: string; args: Record<string, unknown>; risk: string } | null>(null);
+  const cursorOffset = useRef(0);
 
   // Listen to approval gate events from the agent
   useEffect(() => {
@@ -89,26 +88,23 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
     };
   }, [agent]);
 
-  // Raw stdin listener for Ctrl+U (ink-text-input sees it as "u" key, so we flag it here first)
-  useEffect(() => {
-    const handler = (data: Buffer) => {
-      if (data.length === 1 && data[0] === 0x15) {
-        ctrlURef.current = true;
-        setInput("");
-      }
-    };
-    process.stdin.on("data", handler);
-    return () => { process.stdin.removeListener("data", handler); };
-  }, []);
-
   // Track terminal width reactively so zoom/resize reflows the UI
   const [termWidth, setTermWidth] = useState(() => process.stdout.columns || 80);
   useEffect(() => {
-    const onResize = () => setTermWidth(process.stdout.columns || 80);
+    const onResize = () => {
+      process.stdout.write("\x1B[2J\x1B[H");
+      setTermWidth(process.stdout.columns || 80);
+    };
     process.stdout.on("resize", onResize);
     return () => { process.stdout.removeListener("resize", onResize); };
   }, []);
   const barLine = useMemo(() => "━".repeat(Math.max(termWidth - 2, 20)), [termWidth]);
+
+  // Refs for menu state — declared early so useInput can access them
+  const showCommandMenuRef = useRef(false);
+  const selectedHintRef = useRef(-1);
+  const hintsRef = useRef<SlashCommand[]>([]);
+  const handleSubmitRef = useRef<(value: string) => void>(() => {});
 
   useInput((_input, key) => {
     // Approval prompt: capture Y/N when a destructive tool is pending
@@ -122,31 +118,32 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
         setMessages((prev) => [...prev, { role: "system" as const, content: `Rejected: ${approvalRequest.toolName}` }]);
         setApprovalRequest(null);
       }
-      return; // consume input while approval is pending
-    }
-
-    if (key.ctrl && _input === "c") {
-      setExiting(true);
-      // Extract memories from conversation before exit (best-effort, non-blocking)
-      import("harnessforce-core").then(({ extractAndSaveMemories }) => {
-        extractAndSaveMemories(messages.map(m => ({ role: m.role, content: m.content }))).catch(() => {});
-      }).catch(() => {});
-      setTimeout(() => {
-        exit();
-        process.exit(0);
-      }, 200); // Slightly longer to allow memory extraction
       return;
     }
 
-    // ESC to cancel streaming (abort the API stream + preserve partial response)
+    // Ctrl+C — exit
+    if (key.ctrl && _input === "c") {
+      setExiting(true);
+      import("harnessforce-core").then(({ extractAndSaveMemories }) => {
+        extractAndSaveMemories(messages.map(m => ({ role: m.role, content: m.content }))).catch(() => {});
+      }).catch(() => {});
+      setTimeout(() => { exit(); process.exit(0); }, 200);
+      return;
+    }
+
+    // Ctrl+U — clear line
+    if (key.ctrl && _input === "u") {
+      setInput("");
+      cursorOffset.current = 0;
+      return;
+    }
+
+    // ESC to cancel streaming
     if (key.escape && streaming) {
-      // Unblock any pending approval before aborting
       agent?.approvalGate?.respond(false);
       setApprovalRequest(null);
-      // Abort the underlying API stream (Claude Code pattern)
       abortControllerRef.current?.abort("user-cancel");
       setStreaming(false);
-      // Preserve partial response in history
       setCurrentResponse((partial) => {
         if (partial.trim()) {
           setMessages((prev) => [
@@ -166,6 +163,13 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
       return;
     }
 
+    // ESC to close command menu
+    if (key.escape && showCommandMenuRef.current) {
+      setShowCommandMenu(false);
+      setSelectedHint(-1);
+      return;
+    }
+
     // Shift+Tab to cycle permission modes
     if (key.shift && key.tab) {
       const modes = ["default", "plan", "yolo"];
@@ -175,21 +179,23 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
       return;
     }
 
-    // Up/Down arrow for input history (when NOT in command menu)
-    if (!showCommandMenu && key.upArrow && inputHistory.length > 0) {
-      const newIndex = historyIndex < inputHistory.length - 1 ? historyIndex + 1 : historyIndex;
-      setHistoryIndex(newIndex);
-      setInput(inputHistory[inputHistory.length - 1 - newIndex] ?? "");
-      return;
-    }
-    if (!showCommandMenu && key.downArrow) {
-      const newIndex = historyIndex > 0 ? historyIndex - 1 : -1;
-      setHistoryIndex(newIndex);
-      if (newIndex === -1) {
-        setInput("");
-      } else {
-        setInput(inputHistory[inputHistory.length - 1 - newIndex] ?? "");
+    // Skip tab key
+    if (key.tab) return;
+
+    // Enter — submit or select from menu
+    if (key.return) {
+      if (showCommandMenuRef.current && selectedHintRef.current >= 0) {
+        const cmd = hintsRef.current[selectedHintRef.current];
+        if (cmd) {
+          const val = `/${cmd.name} `;
+          setInput(val);
+          cursorOffset.current = val.length;
+          setShowCommandMenu(false);
+          setSelectedHint(-1);
+          return;
+        }
       }
+      handleSubmitRef.current(input);
       return;
     }
 
@@ -197,15 +203,72 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
     if (showCommandMenuRef.current && hintsRef.current.length > 0) {
       if (key.downArrow) {
         setSelectedHint((prev) => Math.min(prev + 1, hintsRef.current.length - 1));
+        return;
       } else if (key.upArrow) {
         setSelectedHint((prev) => Math.max(prev - 1, 0));
-      } else if (key.return) {
-        // handleSubmit (fired by ink-text-input) already handled the selection
-        // No additional action needed here
-      } else if (key.escape) {
-        setShowCommandMenu(false);
-        setSelectedHint(-1);
+        return;
       }
+    }
+
+    // Up/Down arrow for input history (when NOT in command menu)
+    if (key.upArrow && inputHistory.length > 0) {
+      const newIndex = historyIndex < inputHistory.length - 1 ? historyIndex + 1 : historyIndex;
+      setHistoryIndex(newIndex);
+      const val = inputHistory[inputHistory.length - 1 - newIndex] ?? "";
+      setInput(val);
+      cursorOffset.current = val.length;
+      return;
+    }
+    if (key.downArrow) {
+      const newIndex = historyIndex > 0 ? historyIndex - 1 : -1;
+      setHistoryIndex(newIndex);
+      if (newIndex === -1) {
+        setInput("");
+        cursorOffset.current = 0;
+      } else {
+        const val = inputHistory[inputHistory.length - 1 - newIndex] ?? "";
+        setInput(val);
+        cursorOffset.current = val.length;
+      }
+      return;
+    }
+
+    // Left/Right arrow for cursor movement
+    if (key.leftArrow) {
+      cursorOffset.current = Math.max(0, cursorOffset.current - 1);
+      setInput(v => v); // trigger re-render
+      return;
+    }
+    if (key.rightArrow) {
+      setInput(v => {
+        cursorOffset.current = Math.min(v.length, cursorOffset.current + 1);
+        return v;
+      });
+      return;
+    }
+
+    // Backspace / Delete
+    if (key.backspace || key.delete) {
+      if (cursorOffset.current > 0) {
+        setInput(v => {
+          const next = v.slice(0, cursorOffset.current - 1) + v.slice(cursorOffset.current);
+          cursorOffset.current--;
+          return next;
+        });
+      }
+      return;
+    }
+
+    // Skip other ctrl combos
+    if (key.ctrl) return;
+
+    // Regular character input
+    if (_input) {
+      setInput(v => {
+        const next = v.slice(0, cursorOffset.current) + _input + v.slice(cursorOffset.current);
+        cursorOffset.current += _input.length;
+        return next;
+      });
     }
   });
 
@@ -246,32 +309,13 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
     }
   }, [hints]);
 
-  // Refs to give handleSubmit access to current menu state without stale closures
-  const showCommandMenuRef = useRef(false);
-  const selectedHintRef = useRef(-1);
-  const hintsRef = useRef<SlashCommand[]>([]);
+  // Sync refs with latest state for use inside useInput/handleSubmit
   showCommandMenuRef.current = showCommandMenu;
   selectedHintRef.current = selectedHint;
   hintsRef.current = hints;
 
   const handleSubmit = useCallback(
     async (value: string) => {
-      // Skip if menu just selected a command (ref avoids stale closure)
-      if (menuJustSelectedRef.current) {
-        menuJustSelectedRef.current = false;
-        return;
-      }
-
-      // If command menu is open, select the highlighted item instead of submitting raw text
-      if (showCommandMenuRef.current && selectedHintRef.current >= 0) {
-        const cmd = hintsRef.current[selectedHintRef.current];
-        if (cmd) {
-          setInput(`/${cmd.name} `);
-          setShowCommandMenu(false);
-          setSelectedHint(-1);
-          return;
-        }
-      }
 
       const trimmed = value.trim();
       if (!trimmed) return;
@@ -293,6 +337,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
       }
 
       setInput("");
+      cursorOffset.current = 0;
 
       // ── Shell command (! prefix) ─────────────────────────────────
       if (trimmed.startsWith("!")) {
@@ -389,6 +434,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
     },
     [agent, streaming, exit, skillsDir, commandContext]
   );
+  handleSubmitRef.current = handleSubmit;
 
   const streamToAgent = useCallback(
     async (message: string) => {
@@ -710,23 +756,16 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
               <Text color="#00A1E0" bold>
                 {"❯ "}
               </Text>
-              <TextInput
-                value={input}
-                onChange={(val) => {
-                  if (val.includes('\u0015')) {
-                    setInput("");
-                    return;
-                  }
-                  // Suppress the "u" that ink-text-input inserts from Ctrl+U
-                  if (ctrlURef.current) {
-                    ctrlURef.current = false;
-                    return;
-                  }
-                  setInput(val);
-                }}
-                onSubmit={handleSubmit}
-                placeholder={streaming ? "Type to interrupt or add context..." : "Ask Harnessforce anything... (type / for commands)"}
-              />
+              <Text>
+                {input.length > 0
+                  ? (() => {
+                      const before = input.slice(0, cursorOffset.current);
+                      const cursorChar = input[cursorOffset.current] ?? " ";
+                      const after = input.slice(cursorOffset.current + 1);
+                      return before + chalk.inverse(cursorChar) + after;
+                    })()
+                  : chalk.inverse(" ") + chalk.gray(streaming ? "Type to interrupt or add context..." : "Ask Harnessforce anything... (type / for commands)")}
+              </Text>
             </Box>
             <Text color="#00A1E0">{barLine}</Text>
           </Box>

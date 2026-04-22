@@ -190,7 +190,7 @@ export function loadModelConfig(configPath?: string): ModelConfig {
   const raw = yaml.load(content) as RawYamlConfig;
   const userConfig = parseRawConfig(raw);
 
-  // Merge default models into user config so new models are available
+  // Merge defaults into user config: add missing providers and models
   const defaults = getDefaultConfig();
   for (const [providerName, defaultProvider] of Object.entries(defaults.providers)) {
     const userProvider = userConfig.providers[providerName];
@@ -201,7 +201,15 @@ export function loadModelConfig(configPath?: string): ModelConfig {
           userProvider.models.push(model);
         }
       }
+    } else {
+      // Provider detected from env vars but missing from user config — inject it
+      userConfig.providers[providerName] = defaultProvider;
     }
+  }
+
+  // If bedrock env vars are set, prefer bedrock-gateway as default
+  if (userConfig.providers['bedrock-gateway'] && !userConfig.defaultModel.startsWith('bedrock-gateway:')) {
+    userConfig.defaultModel = defaults.defaultModel;
   }
 
   return userConfig;
