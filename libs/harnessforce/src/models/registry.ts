@@ -158,7 +158,6 @@ export class ModelRegistry {
       }
 
       case 'gateway': {
-        // Gateways (LiteLLM, OpenRouter, Bedrock Gateway) use OpenAI-compatible API
         if (!provider.baseUrl) {
           throw new Error(
             `Gateway provider "${provider.name}" requires a baseUrl`
@@ -174,7 +173,29 @@ export class ModelRegistry {
           );
         }
 
-        // Bedrock Gateway may need custom SSL certs
+        // Bedrock Gateway (sfproxy / LLM Gateway Express) — use ChatAnthropic with authToken
+        // The gateway expects Authorization: Bearer <token>, not x-api-key
+        const isBedrock = provider.name.includes("bedrock") || provider.baseUrl?.includes("sfproxy") || provider.baseUrl?.includes("bedrock");
+        if (isBedrock) {
+          const clientOptions: Record<string, any> = { authToken: apiKey };
+          if (process.env.NODE_EXTRA_CA_CERTS) {
+            try {
+              const fs = require('node:fs');
+              const https = require('node:https');
+              const ca = fs.readFileSync(process.env.NODE_EXTRA_CA_CERTS);
+              clientOptions.httpAgent = new https.Agent({ ca });
+            } catch {
+              // CA cert loading failed — proceed without
+            }
+          }
+          return new ChatAnthropic({
+            model: modelName,
+            anthropicApiUrl: provider.baseUrl,
+            clientOptions,
+          });
+        }
+
+        // Other gateways (OpenRouter, LiteLLM) — use OpenAI-compatible API
         const fetchOptions: Record<string, any> = {};
         if (process.env.NODE_EXTRA_CA_CERTS) {
           try {
