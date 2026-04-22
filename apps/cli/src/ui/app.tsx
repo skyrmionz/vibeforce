@@ -57,11 +57,12 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   const [currentModel, setCurrentModel] = useState(initialModel);
   const [selectedHint, setSelectedHint] = useState(-1);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
-  const [menuJustSelected, setMenuJustSelected] = useState(false);
   const [inputHistory, setInputHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [exiting, setExiting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const menuJustSelectedRef = useRef(false);
+  const ctrlURef = useRef(false);
   const [approvalRequest, setApprovalRequest] = useState<{ toolName: string; args: Record<string, unknown>; risk: string } | null>(null);
 
   // Listen to approval gate events from the agent
@@ -88,11 +89,11 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
     };
   }, [agent]);
 
-  // Raw stdin listener for Ctrl+U (ink-text-input intercepts it before useInput can)
+  // Raw stdin listener for Ctrl+U (ink-text-input sees it as "u" key, so we flag it here first)
   useEffect(() => {
     const handler = (data: Buffer) => {
-      // Ctrl+U = 0x15
       if (data.length === 1 && data[0] === 0x15) {
+        ctrlURef.current = true;
         setInput("");
       }
     };
@@ -100,8 +101,13 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
     return () => { process.stdin.removeListener("data", handler); };
   }, []);
 
-  // Cache terminal width and bar string to avoid recalculating on every render
-  const termWidth = useMemo(() => process.stdout.columns || 80, []);
+  // Track terminal width reactively so zoom/resize reflows the UI
+  const [termWidth, setTermWidth] = useState(() => process.stdout.columns || 80);
+  useEffect(() => {
+    const onResize = () => setTermWidth(process.stdout.columns || 80);
+    process.stdout.on("resize", onResize);
+    return () => { process.stdout.removeListener("resize", onResize); };
+  }, []);
   const barLine = useMemo(() => "━".repeat(Math.max(termWidth - 2, 20)), [termWidth]);
 
   useInput((_input, key) => {
@@ -188,20 +194,14 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
     }
 
     // Arrow key navigation for command menu
-    if (showCommandMenu && hints.length > 0) {
+    if (showCommandMenuRef.current && hintsRef.current.length > 0) {
       if (key.downArrow) {
-        setSelectedHint((prev) => Math.min(prev + 1, hints.length - 1));
+        setSelectedHint((prev) => Math.min(prev + 1, hintsRef.current.length - 1));
       } else if (key.upArrow) {
         setSelectedHint((prev) => Math.max(prev - 1, 0));
-      } else if (key.return && selectedHint >= 0) {
-        // Fill input with selected command and block handleSubmit
-        const cmd = hints[selectedHint];
-        if (cmd) {
-          setInput(`/${cmd.name} `);
-          setShowCommandMenu(false);
-          setSelectedHint(-1);
-          setMenuJustSelected(true);
-        }
+      } else if (key.return) {
+        // handleSubmit (fired by ink-text-input) already handled the selection
+        // No additional action needed here
       } else if (key.escape) {
         setShowCommandMenu(false);
         setSelectedHint(-1);
@@ -238,16 +238,39 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
       setSelectedHint(-1);
     } else {
       setShowCommandMenu(hints.length > 0);
-      setSelectedHint((prev) => Math.min(prev, hints.length - 1));
+      // Auto-select first item so Enter always picks something
+      setSelectedHint((prev) => {
+        if (prev < 0 && hints.length > 0) return 0;
+        return Math.min(prev, hints.length - 1);
+      });
     }
   }, [hints]);
 
+  // Refs to give handleSubmit access to current menu state without stale closures
+  const showCommandMenuRef = useRef(false);
+  const selectedHintRef = useRef(-1);
+  const hintsRef = useRef<SlashCommand[]>([]);
+  showCommandMenuRef.current = showCommandMenu;
+  selectedHintRef.current = selectedHint;
+  hintsRef.current = hints;
+
   const handleSubmit = useCallback(
     async (value: string) => {
-      // Skip if menu just selected a command or menu is still open
-      if (menuJustSelected || (showCommandMenu && selectedHint >= 0)) {
-        setMenuJustSelected(false);
+      // Skip if menu just selected a command (ref avoids stale closure)
+      if (menuJustSelectedRef.current) {
+        menuJustSelectedRef.current = false;
         return;
+      }
+
+      // If command menu is open, select the highlighted item instead of submitting raw text
+      if (showCommandMenuRef.current && selectedHintRef.current >= 0) {
+        const cmd = hintsRef.current[selectedHintRef.current];
+        if (cmd) {
+          setInput(`/${cmd.name} `);
+          setShowCommandMenu(false);
+          setSelectedHint(-1);
+          return;
+        }
       }
 
       const trimmed = value.trim();
@@ -301,9 +324,9 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
       // ── Slash command handling ──────────────────────────────────
       if (trimmed.startsWith("/")) {
         // Just "/" alone — if a hint is selected, use it; otherwise show menu
-        if (trimmed === "/" && showCommandMenu && selectedHint >= 0 && hints[selectedHint]) {
-          const cmd = hints[selectedHint];
-          setInput(`/${cmd.name} `);
+        if (trimmed === "/" && showCommandMenuRef.current && selectedHintRef.current >= 0 && hintsRef.current[selectedHintRef.current]) {
+          const cmd = hintsRef.current[selectedHintRef.current];
+          setInput(`/${cmd!.name} `);
           setShowCommandMenu(false);
           setSelectedHint(-1);
           return;
@@ -685,6 +708,11 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
                 onChange={(val) => {
                   if (val.includes('\u0015')) {
                     setInput("");
+                    return;
+                  }
+                  // Suppress the "u" that ink-text-input inserts from Ctrl+U
+                  if (ctrlURef.current) {
+                    ctrlURef.current = false;
                     return;
                   }
                   setInput(val);
