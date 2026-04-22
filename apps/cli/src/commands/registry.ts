@@ -175,7 +175,7 @@ function detectProviderType(url: string): ModelProvider["type"] {
     const parsed = new URL(url);
     if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") return "local";
     const host = parsed.hostname.toLowerCase();
-    if (host.includes("openrouter") || host.includes("litellm")) return "gateway";
+    if (host.includes("openrouter") || host.includes("litellm") || host.includes("sfproxy") || host.includes("bedrock")) return "gateway";
     return "cloud";
   } catch {
     return "cloud";
@@ -201,6 +201,8 @@ const providerCommand: SlashCommand = {
           "  OpenRouter (200+ models, one API key):",
           "    /provider openrouter",
           "    /set-key sk-or-your-key-here\n",
+          "  Enterprise Bedrock Gateway (Salesforce LLM Gateway Express):",
+          "    /provider bedrock <gateway-url> <auth-token>\n",
           "  Local models (Ollama):",
           "    /provider local",
           "    /model llama3:latest",
@@ -291,6 +293,81 @@ const providerCommand: SlashCommand = {
       setDefaultModel("local:llama3:latest");
       if (ctx.setModel) ctx.setModel("local:llama3:latest");
       return `Switched to local provider (${baseUrl}).\n\nSet your model:\n  /model <model-name>\n\nMake sure Ollama is running: ollama serve`;
+    }
+
+    // /provider bedrock <url> <auth-token> — enterprise Bedrock Gateway / LLM Gateway Express
+    if (sub === "bedrock") {
+      const gatewayUrl = parts[1];
+      const authToken = parts[2];
+
+      if (!gatewayUrl || !authToken) {
+        return [
+          "Set up enterprise Bedrock Gateway (LLM Gateway Express):\n",
+          "  /provider bedrock <gateway-url> <auth-token>\n",
+          "Example:",
+          "  /provider bedrock https://eng-ai-model-gateway.sfproxy.../bedrock sk-your-token\n",
+          "What you need:",
+          "  1. Gateway URL — your org's LLM Gateway Express Bedrock endpoint",
+          "  2. Auth token — your LLM Gateway Express bearer token\n",
+          "This is equivalent to the Claude Code settings.json env vars:",
+          '  ANTHROPIC_BEDROCK_BASE_URL = "<gateway-url>"',
+          '  ANTHROPIC_AUTH_TOKEN = "<auth-token>"',
+          '  CLAUDE_CODE_USE_BEDROCK = "1"',
+          '  CLAUDE_CODE_SKIP_BEDROCK_AUTH = "1"',
+        ].join("\n");
+      }
+
+      try {
+        const { writeFileSync, mkdirSync, existsSync } = await import("node:fs");
+        const { join } = await import("node:path");
+        const home = process.env.HOME ?? process.env.USERPROFILE ?? "~";
+        const configDir = join(home, ".harnessforce");
+        const configPath = join(configDir, "models.yaml");
+
+        if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
+
+        const content = [
+          `default_model: "bedrock-gateway:us.anthropic.claude-opus-4-6-v1"`,
+          `providers:`,
+          `  bedrock-gateway:`,
+          `    type: gateway`,
+          `    base_url: "${gatewayUrl}"`,
+          `    api_key: "${authToken}"`,
+          `    models:`,
+          `      - us.anthropic.claude-opus-4-6-v1`,
+          `      - us.anthropic.claude-sonnet-4-6-v1`,
+          `      - us.anthropic.claude-haiku-4-5-20251001-v1:0`,
+          `  openrouter:`,
+          `    type: gateway`,
+          `    base_url: "https://openrouter.ai/api/v1"`,
+          `    api_key: "\${OPENROUTER_API_KEY}"`,
+          `    models:`,
+          `      - anthropic/claude-opus-4.6`,
+          `      - anthropic/claude-4.6-sonnet-20260217`,
+          `      - google/gemini-2.5-flash`,
+          ``,
+        ].join("\n");
+
+        writeFileSync(configPath, content, "utf-8");
+
+        // Set env vars for current process
+        process.env.ANTHROPIC_AUTH_TOKEN = authToken;
+        process.env.ANTHROPIC_BEDROCK_BASE_URL = gatewayUrl;
+
+        if (ctx.setModel) ctx.setModel("bedrock-gateway:us.anthropic.claude-opus-4-6-v1");
+
+        return [
+          "Bedrock Gateway configured!\n",
+          `  Gateway: ${gatewayUrl}`,
+          "  Auth token: set",
+          "  Default model: us.anthropic.claude-opus-4-6-v1\n",
+          "Restart harnessforce to connect.\n",
+          "Tip: For SSL certificate issues, set NODE_EXTRA_CA_CERTS:",
+          "  export NODE_EXTRA_CA_CERTS=/path/to/your/certs.pem",
+        ].join("\n");
+      } catch (err: any) {
+        return `Error configuring Bedrock Gateway: ${err.message}`;
+      }
     }
 
     // /provider add <name> <url> [key]

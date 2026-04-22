@@ -158,7 +158,7 @@ export class ModelRegistry {
       }
 
       case 'gateway': {
-        // Gateways (LiteLLM, OpenRouter, etc.) use OpenAI-compatible API
+        // Gateways (LiteLLM, OpenRouter, Bedrock Gateway) use OpenAI-compatible API
         if (!provider.baseUrl) {
           throw new Error(
             `Gateway provider "${provider.name}" requires a baseUrl`
@@ -167,12 +167,29 @@ export class ModelRegistry {
         if (!apiKey || apiKey === '' || apiKey === 'not-needed') {
           throw new Error(
             `No API key for provider "${provider.name}". ` +
-            `Use /set-key to save your OpenRouter key, or set OPENROUTER_API_KEY.`
+            `Use /set-key to save your key, or set the appropriate env var.`
           );
         }
+
+        // Bedrock Gateway may need custom SSL certs
+        const fetchOptions: Record<string, any> = {};
+        if (process.env.NODE_EXTRA_CA_CERTS) {
+          try {
+            const fs = require('node:fs');
+            const https = require('node:https');
+            const ca = fs.readFileSync(process.env.NODE_EXTRA_CA_CERTS);
+            fetchOptions.agent = new https.Agent({ ca });
+          } catch {
+            // CA cert loading failed — proceed without
+          }
+        }
+
         return new ChatOpenAI({
           model: modelName,
-          configuration: { baseURL: provider.baseUrl },
+          configuration: {
+            baseURL: provider.baseUrl,
+            ...(Object.keys(fetchOptions).length > 0 ? { fetchOptions } : {}),
+          },
           apiKey,
         });
       }
