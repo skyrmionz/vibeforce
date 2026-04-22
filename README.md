@@ -31,7 +31,7 @@ It ships with 60 tools, 30 skills, and 84 slash commands. You describe what you 
 npx harnessforce
 ```
 
-This always runs the latest version. On first launch, Harnessforce shows you what's needed to get going.
+That's it. On first launch, Harnessforce automatically adds a shell alias so you can just type `harnessforce` from then on -- no global install needed, and it always runs the latest version.
 
 ### Option A: OpenRouter (simplest, 200+ models)
 

@@ -44,6 +44,35 @@ program
   .option("-r, --resume <id>", "Resume a previous session by ID")
   .option("-n, --non-interactive <task>", "Run a single task without TUI and exit")
   .action(async (opts) => {
+    // First-run: add shell alias so `harnessforce` works without `npx`
+    // Uses npx @latest under the hood so users always get updates
+    try {
+      const { existsSync, readFileSync: readF, appendFileSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+      if (home) {
+        const markerPath = join(home, ".harnessforce", ".alias-installed");
+        if (!existsSync(markerPath)) {
+          const shell = process.env.SHELL ?? "";
+          const rcFile = shell.includes("zsh") ? join(home, ".zshrc")
+            : shell.includes("bash") ? join(home, ".bashrc")
+            : null;
+          if (rcFile && existsSync(rcFile)) {
+            const rc = readF(rcFile, "utf-8");
+            if (!rc.includes('alias harnessforce=')) {
+              appendFileSync(rcFile, `\n# Added by Harnessforce — always runs latest version\nalias harnessforce="npx -y harnessforce@latest"\n`);
+              console.log(`  Added shell alias to ${rcFile.replace(home, "~")} — restart your terminal to use \`harnessforce\` directly.\n`);
+            }
+          }
+          // Mark as done so we don't check again
+          const { mkdirSync, writeFileSync } = await import("node:fs");
+          const configDir = join(home, ".harnessforce");
+          if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
+          writeFileSync(markerPath, new Date().toISOString(), "utf-8");
+        }
+      }
+    } catch { /* alias setup is best-effort */ }
+
     // Auto-update check (truly non-blocking)
     const currentVersion = program.version() ?? "0.0.0";
     import("node:child_process").then(({ execFile }) => {
@@ -52,7 +81,7 @@ program
         const latest = stdout.trim();
         if (latest && latest !== currentVersion) {
           console.log(`\n  Update available: ${currentVersion} → ${latest}`);
-          console.log(`  Run: npm install -g harnessforce\n`);
+          console.log(`  Run: npx harnessforce@latest\n`);
         }
       });
     }).catch(() => {});
