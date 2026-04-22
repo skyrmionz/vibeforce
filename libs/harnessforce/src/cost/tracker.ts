@@ -13,9 +13,28 @@ const PRICING: Record<string, { input: number; output: number }> = {
   "meta-llama/llama-4-maverick": { input: 0.2, output: 0.6 },
 };
 
+export type BudgetWarningLevel = "none" | "50%" | "80%" | "exceeded";
+
+export interface BudgetCheck {
+  warningLevel: BudgetWarningLevel;
+  spent: number;
+  budget: number;
+  message: string | null;
+}
+
 export class CostTracker {
   private usage: Map<string, { input: number; output: number }> = new Map();
   private startTime = Date.now();
+  private budget: number;
+  private lastWarning: BudgetWarningLevel = "none";
+
+  constructor(budget = 1.0) {
+    this.budget = budget;
+  }
+
+  setBudget(amount: number): void {
+    this.budget = amount;
+  }
 
   addUsage(model: string, inputTokens: number, outputTokens: number): void {
     const existing = this.usage.get(model) ?? { input: 0, output: 0 };
@@ -24,10 +43,29 @@ export class CostTracker {
     this.usage.set(model, existing);
   }
 
+  checkBudget(): BudgetCheck {
+    const spent = this.getTotalCost();
+    const ratio = spent / this.budget;
+
+    if (ratio >= 1.0 && this.lastWarning !== "exceeded") {
+      this.lastWarning = "exceeded";
+      return { warningLevel: "exceeded", spent, budget: this.budget, message: `Session budget exceeded ($${spent.toFixed(4)} / $${this.budget.toFixed(2)}). Consider starting a new session or running /compact.` };
+    }
+    if (ratio >= 0.8 && this.lastWarning !== "80%" && this.lastWarning !== "exceeded") {
+      this.lastWarning = "80%";
+      return { warningLevel: "80%", spent, budget: this.budget, message: `Session at 80% of budget ($${spent.toFixed(4)} / $${this.budget.toFixed(2)}). Consider wrapping up or switching to a cheaper model.` };
+    }
+    if (ratio >= 0.5 && this.lastWarning === "none") {
+      this.lastWarning = "50%";
+      return { warningLevel: "50%", spent, budget: this.budget, message: `Session at 50% of budget ($${spent.toFixed(4)} / $${this.budget.toFixed(2)}).` };
+    }
+    return { warningLevel: "none", spent, budget: this.budget, message: null };
+  }
+
   getTotalCost(): number {
     let total = 0;
     for (const [model, tokens] of this.usage) {
-      const pricing = PRICING[model] ?? { input: 3, output: 15 }; // default estimate
+      const pricing = PRICING[model] ?? { input: 3, output: 15 };
       total += (tokens.input / 1_000_000) * pricing.input;
       total += (tokens.output / 1_000_000) * pricing.output;
     }

@@ -200,3 +200,46 @@ export const allTools: StructuredToolInterface[] = [
   sfKnowledgeTool,
   agentSpawnTool,
 ] as StructuredToolInterface[];
+
+/**
+ * Context-aware tool selection — returns only tools relevant to the current project.
+ * Reduces tool schema tokens from ~59 tools to ~22-28 for typical projects.
+ */
+export interface ToolFilterContext {
+  isSfdxProject?: boolean;
+  hasAgentFiles?: boolean;
+  hasDataCloud?: boolean;
+}
+
+export function getContextualTools(ctx: ToolFilterContext = {}): StructuredToolInterface[] {
+  const tools: StructuredToolInterface[] = [
+    ...coreTools,
+    ...coreSfTools,
+    ...discoveryTools,
+    ...webTools,
+    writeTodosTool as StructuredToolInterface,
+    sfKnowledgeTool as StructuredToolInterface,
+    agentSpawnTool as StructuredToolInterface,
+  ];
+
+  if (ctx.hasAgentFiles) {
+    tools.push(...(agentforceTools as StructuredToolInterface[]));
+  }
+
+  if (ctx.hasDataCloud) {
+    tools.push(...(dataCloudTools as StructuredToolInterface[]));
+  }
+
+  // Extended SF (scratch orgs, packages, sandboxes) — include if SFDX project
+  if (ctx.isSfdxProject) {
+    tools.push(...(extendedSfTools as StructuredToolInterface[]));
+  }
+
+  // Docs tools are lightweight, always include
+  tools.push(...(docsTools as StructuredToolInterface[]));
+
+  // Browser tools omitted by default — loaded on demand when user requests UI automation
+  // To add them later: tools.push(...browserTools)
+
+  return tools;
+}

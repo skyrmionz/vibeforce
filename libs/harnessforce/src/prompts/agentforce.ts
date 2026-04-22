@@ -514,6 +514,46 @@ Every agent MUST be evaluated against these safety categories before deployment:
 8. **Preview and fix loop** — max 3 iterations with trace analysis
 9. **Deploy** — publish + activate (dependencies first)
 10. **Test** — structured test suites with safety probes
+
+---
+
+## New CLI Commands (sf agent generate)
+
+### Agent Spec Generation
+\`\`\`bash
+sf agent generate agent-spec \\
+  --type service \\
+  --role "Customer Support Agent" \\
+  --company-name "Acme Corp" \\
+  --tone professional \\
+  --max-topics 5 \\
+  --output-dir ./agent-specs \\
+  --json
+\`\`\`
+
+This AI-generates a YAML agent spec from parameters. Review and refine the spec, then convert:
+
+\`\`\`bash
+sf agent generate authoring-bundle --spec ./agent-specs/agent-spec.yaml --output-dir ./force-app/main/default --json
+\`\`\`
+
+### Programmatic Preview Sessions
+Instead of interactive preview, use programmatic start/send/end for automation:
+\`\`\`bash
+sf agent preview start --agent-name MyAgent --authoring-bundle MyAgent -o DevOrg --json
+sf agent preview send --message "What is my order status?" --authoring-bundle MyAgent --json
+sf agent preview end --authoring-bundle MyAgent --json
+\`\`\`
+The \`--authoring-bundle\` flag compiles from local .agent files and enables local trace file generation.
+
+### AiAgent Unified Metadata (New)
+The \`AiAgent\` metadata type is a unified representation that spiders all agent dependencies. It supersedes \`GenAiPlannerBundle\` for new agents. Use \`AiAuthoringBundle\` (Agent Script) for authoring.
+
+### Known CLI Bugs (as of 2026)
+- \`sf agent test resume\` may throw "no constant with the specified name: RETRY" — workaround: poll with \`sf agent test results\` instead
+- Sequential \`sf agent test run\` commands can fail randomly — run individually or add delays between runs
+- \`AiEvaluationDefinition\` created in Testing Center builder may not be visible via CLI — create via CLI for CLI usage
 `;
+
 
 export default AGENTFORCE_PROMPT;

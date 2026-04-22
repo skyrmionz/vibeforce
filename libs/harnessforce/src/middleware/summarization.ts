@@ -101,7 +101,7 @@ export async function summarizeMessagesWithLLM(
       return `[${role}]: ${content}`;
     }).join("\n");
 
-    const prompt = `Summarize this conversation in 500 words or less. Preserve: key decisions, files modified, errors encountered, and the user's current goal. Omit: tool output details, intermediate reasoning, repeated attempts.\n\n${transcript}`;
+    const prompt = `Summarize this conversation in 200 words or less. Preserve: key decisions, files modified, errors encountered, and the user's current goal. Omit: tool output details, intermediate reasoning, repeated attempts, verbose command output.\n\n${transcript}`;
 
     const summary = await llmCall(prompt);
 

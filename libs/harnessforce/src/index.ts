@@ -383,8 +383,28 @@ export async function createHarnessforceAgent(
   // ── Memory ──────────────────────────────────────────────────────────────
   const memoryBlock = buildMemoryPrompt(memorySources);
 
-  // Combine all tools (raw — middleware is handled at event-stream level)
-  const combinedTools = [...allTools, ...extraTools];
+  // Context-aware tool selection — only send relevant tools to reduce schema tokens
+  const { getContextualTools } = await import("./tools/index.js");
+  const hasAgentFiles = await (async () => {
+    try {
+      const { readdirSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      const dirs = projectContext.packageDirectories ?? ["force-app"];
+      for (const dir of dirs) {
+        try {
+          const files = readdirSync(join(process.cwd(), dir), { recursive: true }) as string[];
+          if (files.some((f) => String(f).endsWith(".agent"))) return true;
+        } catch { /* dir doesn't exist */ }
+      }
+    } catch {}
+    return false;
+  })();
+  const contextualTools = getContextualTools({
+    isSfdxProject: projectContext.isSfdxProject,
+    hasAgentFiles,
+    hasDataCloud: false,
+  });
+  const combinedTools = [...contextualTools, ...extraTools];
 
   // ── Plugin tools (load from ~/.harnessforce/plugins/) ───────────────────
   try {
@@ -581,14 +601,14 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
               content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
             })),
           );
-          if (historyTokens > 60_000) {
+          if (historyTokens > 40_000) {
             // Try LLM-based summarization first, fall back to string truncation
             const { summarizeMessagesWithLLM: _summarizeLLM } = await import("./middleware/summarization.js");
             const rawMsgs = state.values.messages.map((m: any) => ({
               role: m._getType?.() === "human" ? "user" : "assistant",
               content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
             }));
-            const splitIdx = rawMsgs.length - 8;
+            const splitIdx = rawMsgs.length - 5;
             const olderMsgs = rawMsgs.slice(0, Math.max(0, splitIdx));
             const recentMsgs = rawMsgs.slice(Math.max(0, splitIdx));
 
@@ -620,6 +640,15 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
         }
       } catch {
         // best-effort — don't block the turn if compaction fails
+      }
+
+      // ── Budget check: warn before spending more ────────────────────────
+      const budgetCheck = sessionCostTracker.checkBudget();
+      if (budgetCheck.message) {
+        yield {
+          type: "system" as const,
+          content: budgetCheck.message,
+        } as any;
       }
 
       const eventStream = activeGraph.streamEvents(
@@ -686,6 +715,54 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
               ? output
               : output?.content ?? JSON.stringify(output);
           let contentStr = typeof content === "string" ? content : String(content);
+
+          // Smart output filtering: reduce verbose tool results before truncation
+          if (event.name === "sf_run_tests" || event.name === "sf_test_coverage") {
+            try {
+              const parsed = JSON.parse(contentStr);
+              const tests = parsed?.result?.tests ?? parsed?.tests ?? [];
+              if (Array.isArray(tests) && tests.length > 0) {
+                const summary = tests.map((t: any) => {
+                  const status = t.outcome ?? t.Outcome ?? "Unknown";
+                  const name = t.fullName ?? t.FullName ?? t.methodName ?? "?";
+                  return `  ${status === "Pass" ? "PASS" : "FAIL"} ${name}`;
+                });
+                const coverage = parsed?.result?.summary?.orgWideCoverage ?? parsed?.summary?.orgWideCoverage ?? "?";
+                contentStr = `Test Results (${tests.length} tests):\n${summary.join("\n")}\n\nOrg-wide Coverage: ${coverage}`;
+                if (parsed?.result?.summary?.failing > 0) {
+                  const failures = tests.filter((t: any) => (t.outcome ?? t.Outcome) !== "Pass");
+                  const failDetails = failures.slice(0, 5).map((f: any) =>
+                    `  ${f.fullName ?? f.methodName}: ${f.message ?? "no message"}`
+                  );
+                  contentStr += `\n\nFailures:\n${failDetails.join("\n")}`;
+                }
+              }
+            } catch { /* not JSON, leave as-is */ }
+          }
+
+          if (event.name === "sf_query") {
+            try {
+              const parsed = JSON.parse(contentStr);
+              const records = parsed?.records ?? parsed?.result?.records ?? [];
+              if (Array.isArray(records) && records.length > 50) {
+                const sample = records.slice(0, 10);
+                contentStr = JSON.stringify({ totalSize: records.length, records: sample, note: `Showing 10 of ${records.length} records. Use LIMIT or narrow your WHERE clause.` }, null, 2);
+              }
+            } catch { /* not JSON, leave as-is */ }
+          }
+
+          if (event.name === "sf_describe_object") {
+            try {
+              const parsed = JSON.parse(contentStr);
+              const fields = parsed?.fields ?? [];
+              if (Array.isArray(fields) && fields.length > 50) {
+                const slim = fields.map((f: any) => ({
+                  name: f.name, type: f.type, label: f.label, required: f.nillable === false,
+                }));
+                contentStr = JSON.stringify({ name: parsed.name, label: parsed.label, fieldCount: fields.length, fields: slim }, null, 2);
+              }
+            } catch { /* not JSON, leave as-is */ }
+          }
 
           // Truncate large tool outputs + persist full result to disk (Claude Code pattern)
           const MAX_TOOL_OUTPUT = 4_000;

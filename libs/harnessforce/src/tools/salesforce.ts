@@ -110,10 +110,28 @@ export class SfQueryTool extends StructuredTool {
   });
 
   async _call({ soql, alias }: z.infer<typeof this.schema>): Promise<string> {
+    // SOQL guardrails: warn about non-selective patterns
+    const warnings: string[] = [];
+    const upper = soql.toUpperCase();
+    const largeObjects = ["ACCOUNT", "CONTACT", "CASE", "LEAD", "OPPORTUNITY", "TASK", "EVENT"];
+    const fromMatch = upper.match(/FROM\s+(\w+)/);
+    const objectName = fromMatch?.[1] ?? "";
+
+    if (largeObjects.includes(objectName) && !upper.includes("WHERE") && !upper.includes("LIMIT")) {
+      warnings.push(`Warning: Query on ${objectName} without WHERE or LIMIT — may return large result set or hit governor limits.`);
+    } else if (largeObjects.includes(objectName) && !upper.includes("WHERE")) {
+      warnings.push(`Tip: Consider adding a WHERE clause on indexed fields (Id, Name, CreatedDate) for better performance on ${objectName}.`);
+    }
+
+    if (/LIKE\s+'%/.test(soql)) {
+      warnings.push("Warning: Leading wildcard in LIKE clause — this query is non-selective and cannot use indexes.");
+    }
+
     const result = await runSfCommand("data", ["query", "--query", soql], {
       alias,
     });
-    return JSON.stringify(result.data, null, 2);
+    const output = JSON.stringify(result.data, null, 2);
+    return warnings.length > 0 ? `${warnings.join("\n")}\n\n${output}` : output;
   }
 }
 
@@ -132,13 +150,37 @@ export class SfRunApexTool extends StructuredTool {
   });
 
   async _call({ code, alias }: z.infer<typeof this.schema>): Promise<string> {
+    // Governor limit pattern detection
+    const warnings: string[] = [];
+    const lines = code.split("\n");
+    let inForLoop = false;
+    let forLoopDepth = 0;
+
+    for (const line of lines) {
+      const trimmed = line.trim().toLowerCase();
+      if (/\bfor\s*\(/.test(trimmed)) { inForLoop = true; forLoopDepth++; }
+      if (inForLoop) {
+        if (/\b(insert|update|delete|upsert)\s/.test(trimmed) || /database\.(insert|update|delete|upsert)/.test(trimmed)) {
+          warnings.push("Warning: DML statement inside a loop — this will hit the 150 DML statements governor limit. Move DML outside the loop and operate on collections.");
+        }
+        if (/\[select\s/.test(trimmed) || /database\.query/.test(trimmed)) {
+          warnings.push("Warning: SOQL query inside a loop — this will hit the 100 SOQL queries governor limit. Query before the loop and filter in-memory.");
+        }
+      }
+      if (trimmed.includes("}") && inForLoop) {
+        forLoopDepth--;
+        if (forLoopDepth <= 0) { inForLoop = false; forLoopDepth = 0; }
+      }
+    }
+
     const tmpFile = join(tmpdir(), `apex-${randomUUID()}.apex`);
     await writeFile(tmpFile, code, "utf-8");
     try {
       const result = await runSfCommand("apex", ["run", "--file", tmpFile], {
         alias,
       });
-      return JSON.stringify(result.data, null, 2);
+      const output = JSON.stringify(result.data, null, 2);
+      return warnings.length > 0 ? `${warnings.join("\n")}\n\n${output}` : output;
     } finally {
       await unlink(tmpFile).catch(() => {});
     }
@@ -163,12 +205,25 @@ export class SfDeployTool extends StructuredTool {
     sourcePath,
     alias,
   }: z.infer<typeof this.schema>): Promise<string> {
-    const result = await runSfCommand(
-      "project",
-      ["deploy", "start", "--source-dir", sourcePath],
-      { alias },
-    );
-    return JSON.stringify(result.data, null, 2);
+    // Production safety: detect org type and enforce best practices
+    let orgWarning = "";
+    try {
+      const orgInfo = await runSfCommand("org", ["display"], { alias });
+      const orgData = orgInfo.data as any;
+      const isSandbox = orgData?.isSandbox ?? orgData?.IsSandbox;
+      if (isSandbox === false) {
+        orgWarning = "⚠️ PRODUCTION ORG DETECTED — Deploying with --test-level RunLocalTests for safety.\n";
+      }
+    } catch { /* can't determine org type — proceed with caution */ }
+
+    const deployArgs = ["deploy", "start", "--source-dir", sourcePath];
+    if (orgWarning) {
+      deployArgs.push("--test-level", "RunLocalTests");
+    }
+
+    const result = await runSfCommand("project", deployArgs, { alias });
+    const output = JSON.stringify(result.data, null, 2);
+    return orgWarning ? `${orgWarning}\n${output}` : output;
   }
 }
 
@@ -312,10 +367,32 @@ export class SfRunTestsTool extends StructuredTool {
   }: z.infer<typeof this.schema>): Promise<string> {
     const result = await runSfCommand(
       "apex",
-      ["run", "test", "--tests", tests, "--result-format", "json"],
+      ["run", "test", "--tests", tests, "--result-format", "json", "--code-coverage"],
       { alias },
     );
-    return JSON.stringify(result.data, null, 2);
+    const data = result.data as any;
+    let output = JSON.stringify(data, null, 2);
+
+    // Coverage enforcement: parse results and warn if below 75%
+    const coveragePct = data?.summary?.orgWideCoverage ?? data?.result?.summary?.orgWideCoverage;
+    if (coveragePct) {
+      const pct = parseInt(String(coveragePct).replace("%", ""), 10);
+      if (!isNaN(pct) && pct < 75) {
+        output = `⚠️ Coverage is ${pct}% — below the 75% minimum required for production deployment. Add more tests before deploying.\n\n${output}`;
+      }
+    }
+
+    // Structured failure summary
+    const testResults = data?.tests ?? data?.result?.tests ?? [];
+    const failures = testResults.filter((t: any) => (t.outcome ?? t.Outcome) !== "Pass");
+    if (failures.length > 0) {
+      const failSummary = failures.slice(0, 10).map((f: any) =>
+        `  FAIL ${f.fullName ?? f.methodName ?? "?"}: ${f.message ?? "no message"}`
+      ).join("\n");
+      output = `${failures.length} test(s) failed:\n${failSummary}\n\n${output}`;
+    }
+
+    return output;
   }
 }
 

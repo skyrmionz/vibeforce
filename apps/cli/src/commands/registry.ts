@@ -1720,6 +1720,24 @@ const reloadCommand: SlashCommand = {
   },
 };
 
+const whyCommand: SlashCommand = {
+  name: "why",
+  description: "Show why Harnessforce exists and what makes it different",
+  type: "local",
+  execute: async () => {
+    const { existsSync, readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const paths = [
+      join(process.cwd(), "WHY.md"),
+      join(process.cwd(), "..", "WHY.md"),
+    ];
+    for (const p of paths) {
+      if (existsSync(p)) return readFileSync(p, "utf-8");
+    }
+    return "WHY.md not found. Run harnessforce from the project root directory.";
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
@@ -1764,6 +1782,7 @@ const builtInCommands: SlashCommand[] = [
   feedbackCommand,
   tokensCommand,
   reloadCommand,
+  whyCommand,
   // Salesforce local commands
   orgListCommand,
   orgOpenCommand,
