@@ -86,6 +86,35 @@ program
       });
     }).catch(() => {});
 
+    // Bootstrap env vars from Claude Code's settings if available.
+    // Claude Code stores auth tokens in ~/.claude/settings.json — Harnessforce
+    // reads them so enterprise users get zero-config Bedrock Gateway access.
+    try {
+      const { existsSync: _exists, readFileSync: _read } = await import("node:fs");
+      const { join: _join } = await import("node:path");
+      const _home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+      if (_home) {
+        const settingsPath = _join(_home, ".claude", "settings.json");
+        if (_exists(settingsPath)) {
+          const settings = JSON.parse(_read(settingsPath, "utf-8"));
+          if (settings?.env && typeof settings.env === "object") {
+            const relevantKeys = [
+              "ANTHROPIC_AUTH_TOKEN",
+              "ANTHROPIC_BEDROCK_BASE_URL",
+              "ANTHROPIC_API_KEY",
+              "OPENROUTER_API_KEY",
+              "NODE_EXTRA_CA_CERTS",
+            ];
+            for (const key of relevantKeys) {
+              if (settings.env[key] && !process.env[key]) {
+                process.env[key] = settings.env[key];
+              }
+            }
+          }
+        }
+      }
+    } catch { /* Claude Code settings read is best-effort */ }
+
     // Read model config (used for API key resolution + greeting)
     ensureConfigFile();
     const modelConfig = readConfig();
