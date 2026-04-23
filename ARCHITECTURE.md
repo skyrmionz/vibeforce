@@ -181,7 +181,7 @@ The `ModelRegistry` class instantiates LangChain chat models from a unified conf
 | `local` | OpenAI-compatible API at localhost | Ollama, vLLM |
 | `gateway` | OpenAI-compatible API with auth at remote URL | OpenRouter, LiteLLM, Bedrock Gateway |
 
-Model ID format: `provider:model` (e.g., `openrouter:anthropic/claude-opus-4.6`, `bedrock-gateway:us.anthropic.claude-opus-4-6-v1`).
+Model ID format: `provider:model` (e.g., `openrouter:anthropic/claude-opus-4.6`, `bedrock:us.anthropic.claude-opus-4-6-v1`).
 
 Gateway providers support `NODE_EXTRA_CA_CERTS` for corporate SSL certificates (essential for enterprise Bedrock Gateway behind corporate proxies).
 

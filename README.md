@@ -43,13 +43,15 @@ Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) -- one key gives y
 
 ### Option B: Enterprise Bedrock Gateway (zero cost)
 
-For Salesforce employees or anyone with LLM Gateway Express access:
+For Salesforce employees or anyone with LLM Gateway Express access.
+
+**If you already use Claude Code**, Harnessforce reads `~/.claude/settings.json` automatically. If your Claude Code is configured with `ANTHROPIC_AUTH_TOKEN` and `ANTHROPIC_BEDROCK_BASE_URL`, just run `npx harnessforce` -- no setup needed.
+
+**Manual setup** (if you don't use Claude Code):
 
 ```
 /provider bedrock <gateway-url> <auth-token>
 ```
-
-This maps to the same credentials used in Claude Code's `settings.json`:
 
 | Claude Code setting | Harnessforce equivalent |
 |---|---|
@@ -104,10 +106,12 @@ All 16 Salesforce knowledge topics are also available as MCP resources (`sf-know
 
 Harnessforce shows your active provider and model in the startup greeting. If anything is missing, it tells you exactly what to do next.
 
-Provider priority (auto-detected from environment):
-1. **Bedrock Gateway** -- if `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BEDROCK_BASE_URL` are set
+Provider priority (auto-detected from environment and `~/.claude/settings.json`):
+1. **Bedrock Gateway** -- if `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BEDROCK_BASE_URL` are set (or found in Claude Code settings)
 2. **Direct Anthropic** -- if `ANTHROPIC_API_KEY` is set
 3. **OpenRouter** -- fallback (requires key via `/set-key`)
+
+Each provider uses its own API key -- switching providers mid-session works seamlessly via `/provider`.
 
 ### Switch Models
 
