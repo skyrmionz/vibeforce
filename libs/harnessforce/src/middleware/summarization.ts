@@ -76,7 +76,7 @@ End of conversation summary. The recent messages follow below.
 </context_summary>`;
 
   return {
-    role: "system",
+    role: "user",
     content: summary,
     timestamp: new Date().toISOString(),
   };
@@ -106,7 +106,7 @@ export async function summarizeMessagesWithLLM(
     const summary = await llmCall(prompt);
 
     return {
-      role: "system",
+      role: "user",
       content: `<context_summary>\n${summary}\n</context_summary>`,
       timestamp: new Date().toISOString(),
     };

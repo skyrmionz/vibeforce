@@ -680,10 +680,9 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
             const summary = await _summarizeLLM(olderMsgs, llmCall);
             const compacted = [summary, ...recentMsgs];
             // Write compacted history back via updateState
-            const { HumanMessage, AIMessage, SystemMessage } = await import("@langchain/core/messages");
+            const { HumanMessage, AIMessage } = await import("@langchain/core/messages");
             const newMessages = compacted.map((m) => {
-              if (m.role === "user") return new HumanMessage(m.content);
-              if (m.role === "system") return new SystemMessage(m.content);
+              if (m.role === "user" || m.role === "system") return new HumanMessage(m.content);
               return new AIMessage(m.content);
             });
             await activeGraph.updateState(
@@ -968,10 +967,9 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
               })),
               { maxTokens: targetTokens, keepRecentMessages: keepRecent },
             );
-            const { HumanMessage: HM, AIMessage: AM, SystemMessage: SM } = await import("@langchain/core/messages");
+            const { HumanMessage: HM, AIMessage: AM } = await import("@langchain/core/messages");
             const newMsgs = compacted.map((m) => {
-              if (m.role === "user") return new HM(m.content);
-              if (m.role === "system") return new SM(m.content);
+              if (m.role === "user" || m.role === "system") return new HM(m.content);
               return new AM(m.content);
             });
             await activeGraph.updateState(
