@@ -230,7 +230,7 @@ program
 
     // Check for API key before creating agent
     if (!hasAnyKey) {
-      const isBedrock = greetingProvider === "bedrock-gateway"
+      const isBedrock = greetingProvider === "bedrock"
         || !!process.env.ANTHROPIC_BEDROCK_BASE_URL;
       if (isBedrock) {
         console.log(

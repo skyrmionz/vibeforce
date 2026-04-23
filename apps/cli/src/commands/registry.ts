@@ -186,7 +186,7 @@ function detectProviderType(url: string): ModelProvider["type"] {
 
 const providerCommand: SlashCommand = {
   name: "provider",
-  description: "Manage model providers — /provider [list|local|openrouter|add|remove]",
+  description: "Manage model providers — /provider [list|openrouter|bedrock|local|add|remove]",
   type: "local",
   execute: async (args, ctx) => {
     ensureConfigFile();
@@ -220,7 +220,7 @@ const providerCommand: SlashCommand = {
       }
 
       const rawKey = provider.apiKey ? resolveApiKey(provider.apiKey) : "";
-      const isBedrock = pName === "bedrock-gateway" || provider.baseUrl?.includes("sfproxy") || provider.baseUrl?.includes("bedrock");
+      const isBedrock = pName === "bedrock" || provider.baseUrl?.includes("sfproxy") || provider.baseUrl?.includes("bedrock");
       const keyStatus = provider.type === "local"
         ? "not needed (local)"
         : rawKey ? "set" : isBedrock ? "missing — run /provider bedrock <url> <token>" : "missing — run /set-key sk-or-your-key-here";
@@ -334,9 +334,9 @@ const providerCommand: SlashCommand = {
         if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
 
         const content = [
-          `default_model: "bedrock-gateway:us.anthropic.claude-opus-4-6-v1"`,
+          `default_model: "bedrock:us.anthropic.claude-opus-4-6-v1"`,
           `providers:`,
-          `  bedrock-gateway:`,
+          `  bedrock:`,
           `    type: gateway`,
           `    base_url: "${gatewayUrl}"`,
           `    api_key: "${authToken}"`,
@@ -361,7 +361,7 @@ const providerCommand: SlashCommand = {
         process.env.ANTHROPIC_AUTH_TOKEN = authToken;
         process.env.ANTHROPIC_BEDROCK_BASE_URL = gatewayUrl;
 
-        if (ctx.setModel) ctx.setModel("bedrock-gateway:us.anthropic.claude-opus-4-6-v1");
+        if (ctx.setModel) ctx.setModel("bedrock:us.anthropic.claude-opus-4-6-v1");
         if (ctx.recreateAgent) await ctx.recreateAgent();
 
         return [

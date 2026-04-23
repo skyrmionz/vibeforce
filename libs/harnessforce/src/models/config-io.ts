@@ -103,7 +103,7 @@ export function readConfig(): ModelConfig {
   // Only override if the config still has the generic fallback default.
   const rawDefaultModel = (raw as any)?.default_model as string | undefined;
   const isExplicitUserChoice = rawDefaultModel && !rawDefaultModel.includes('claude-sonnet-4-20250514');
-  if (!isExplicitUserChoice && userConfig.providers['bedrock-gateway'] && !userConfig.defaultModel.startsWith('bedrock-gateway:')) {
+  if (!isExplicitUserChoice && userConfig.providers['bedrock'] && !userConfig.defaultModel.startsWith('bedrock:')) {
     userConfig.defaultModel = defaults.defaultModel;
   }
 

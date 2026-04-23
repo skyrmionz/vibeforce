@@ -50,7 +50,7 @@ export function getDefaultConfig(): ModelConfig {
   const hasBedrockGateway = !!process.env.ANTHROPIC_AUTH_TOKEN && !!process.env.ANTHROPIC_BEDROCK_BASE_URL;
   const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
   const defaultModel = hasBedrockGateway
-    ? 'bedrock-gateway:us.anthropic.claude-opus-4-6-v1'
+    ? 'bedrock:us.anthropic.claude-opus-4-6-v1'
     : hasAnthropicKey
       ? 'anthropic:claude-opus-4.6'
       : 'openrouter:anthropic/claude-opus-4.6';
@@ -108,8 +108,8 @@ export function getDefaultConfig(): ModelConfig {
       // Enterprise Bedrock via LLM Gateway Express (zero-cost for enterprise users)
       ...(hasBedrockGateway
         ? {
-            'bedrock-gateway': {
-              name: 'bedrock-gateway',
+            'bedrock': {
+              name: 'bedrock',
               type: 'gateway' as const,
               baseUrl: '${ANTHROPIC_BEDROCK_BASE_URL}',
               apiKey: '${ANTHROPIC_AUTH_TOKEN}',
@@ -209,7 +209,7 @@ export function loadModelConfig(configPath?: string): ModelConfig {
 
   // Only auto-switch to bedrock if user hasn't explicitly chosen a different provider.
   const isExplicitUserChoice = raw.default_model && !raw.default_model.includes('claude-sonnet-4-20250514');
-  if (!isExplicitUserChoice && userConfig.providers['bedrock-gateway'] && !userConfig.defaultModel.startsWith('bedrock-gateway:')) {
+  if (!isExplicitUserChoice && userConfig.providers['bedrock'] && !userConfig.defaultModel.startsWith('bedrock:')) {
     userConfig.defaultModel = defaults.defaultModel;
   }
 

@@ -273,13 +273,20 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
   });
 
   // Recreate the agent when provider/model changes (reads fresh config from disk)
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   const recreateAgent = useCallback(async () => {
     try {
       const ctx = await detectProjectContext(process.cwd());
       const contextPrompt = buildContextPrompt(ctx);
+      // Summarize recent conversation so the new agent has context
+      const recent = messagesRef.current.slice(-10);
+      const historySummary = recent.length > 0
+        ? "\n\nConversation so far:\n" + recent.map((m) => `${m.role}: ${m.content.slice(0, 300)}`).join("\n")
+        : "";
       const newAgent = await createHarnessforceAgent({
         skillsDir,
-        systemPrompt: contextPrompt || undefined,
+        systemPrompt: (contextPrompt || "") + historySummary || undefined,
         projectContext: ctx,
       });
       setAgent(newAgent);
@@ -481,7 +488,7 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
               const provider = diagConfig.providers[pName];
               const key = provider?.apiKey ? resolveApiKey(provider.apiKey) : "";
               if (!key && provider?.type !== "local") {
-                const isBedrock = pName === "bedrock-gateway" || provider?.baseUrl?.includes("sfproxy") || provider?.baseUrl?.includes("bedrock");
+                const isBedrock = pName === "bedrock" || provider?.baseUrl?.includes("sfproxy") || provider?.baseUrl?.includes("bedrock");
                 msg = isBedrock
                   ? `Provider "${pName}" is set but has no auth token.\n\n` +
                     "  /provider bedrock <gateway-url> <auth-token>\n\n" +
