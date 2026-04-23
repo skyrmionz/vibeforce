@@ -98,8 +98,12 @@ export function readConfig(): ModelConfig {
     }
   }
 
-  // If bedrock env vars are set, prefer bedrock-gateway as default
-  if (userConfig.providers['bedrock-gateway'] && !userConfig.defaultModel.startsWith('bedrock-gateway:')) {
+  // Only auto-switch to bedrock if user hasn't explicitly chosen a different provider.
+  // If the user config has an explicit default_model (read from disk), respect their choice.
+  // Only override if the config still has the generic fallback default.
+  const rawDefaultModel = (raw as any)?.default_model as string | undefined;
+  const isExplicitUserChoice = rawDefaultModel && !rawDefaultModel.includes('claude-sonnet-4-20250514');
+  if (!isExplicitUserChoice && userConfig.providers['bedrock-gateway'] && !userConfig.defaultModel.startsWith('bedrock-gateway:')) {
     userConfig.defaultModel = defaults.defaultModel;
   }
 

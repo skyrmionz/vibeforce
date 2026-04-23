@@ -66,6 +66,7 @@ export interface CommandContext {
   setModel?: (id: string) => void;
   clearMessages?: () => void;
   setPermissionMode?: (mode: string) => void;
+  recreateAgent?: () => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +121,7 @@ const setKeyCommand: SlashCommand = {
   name: "set-key",
   description: "Save your OpenRouter API key (persists to ~/.harnessforce/models.yaml)",
   type: "local",
-  execute: async (args) => {
+  execute: async (args, ctx) => {
     const key = args.trim();
     if (!key) {
       return "Usage: /set-key sk-or-your-key-here\n\nGet a key at https://openrouter.ai/keys";
@@ -162,7 +163,8 @@ const setKeyCommand: SlashCommand = {
       // Also set in current process
       process.env.OPENROUTER_API_KEY = key;
 
-      return `API key saved. Restart harnessforce to connect.`;
+      if (ctx?.recreateAgent) await ctx.recreateAgent();
+      return `API key saved. Agent reconnected — ready to go!`;
     } catch (err: any) {
       return `Error saving key: ${err.message}`;
     }
@@ -281,6 +283,7 @@ const providerCommand: SlashCommand = {
       if (!key) {
         return "Switched to OpenRouter.\n\nNext: set your API key:\n  /set-key sk-or-your-key-here\n\nGet one at https://openrouter.ai/keys";
       }
+      if (ctx.recreateAgent) await ctx.recreateAgent();
       return "Switched to OpenRouter. Ready to go!";
     }
 
@@ -295,6 +298,7 @@ const providerCommand: SlashCommand = {
       });
       setDefaultModel("local:llama3:latest");
       if (ctx.setModel) ctx.setModel("local:llama3:latest");
+      if (ctx.recreateAgent) await ctx.recreateAgent();
       return `Switched to local provider (${baseUrl}).\n\nSet your model:\n  /model <model-name>\n\nMake sure Ollama is running: ollama serve`;
     }
 
@@ -358,13 +362,14 @@ const providerCommand: SlashCommand = {
         process.env.ANTHROPIC_BEDROCK_BASE_URL = gatewayUrl;
 
         if (ctx.setModel) ctx.setModel("bedrock-gateway:us.anthropic.claude-opus-4-6-v1");
+        if (ctx.recreateAgent) await ctx.recreateAgent();
 
         return [
           "Bedrock Gateway configured!\n",
           `  Gateway: ${gatewayUrl}`,
           "  Auth token: set",
           "  Default model: us.anthropic.claude-opus-4-6-v1\n",
-          "Restart harnessforce to connect.\n",
+          "Agent reconnected with new provider.\n",
           "Tip: For SSL certificate issues, set NODE_EXTRA_CA_CERTS:",
           "  export NODE_EXTRA_CA_CERTS=/path/to/your/certs.pem",
         ].join("\n");

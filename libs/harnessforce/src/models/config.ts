@@ -207,8 +207,9 @@ export function loadModelConfig(configPath?: string): ModelConfig {
     }
   }
 
-  // If bedrock env vars are set, prefer bedrock-gateway as default
-  if (userConfig.providers['bedrock-gateway'] && !userConfig.defaultModel.startsWith('bedrock-gateway:')) {
+  // Only auto-switch to bedrock if user hasn't explicitly chosen a different provider.
+  const isExplicitUserChoice = raw.default_model && !raw.default_model.includes('claude-sonnet-4-20250514');
+  if (!isExplicitUserChoice && userConfig.providers['bedrock-gateway'] && !userConfig.defaultModel.startsWith('bedrock-gateway:')) {
     userConfig.defaultModel = defaults.defaultModel;
   }
 

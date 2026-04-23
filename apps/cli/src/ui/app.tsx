@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { Box, Text, useApp, useInput } from "ink";
 import chalk from "chalk";
 import type { HarnessforceAgent, HarnessforceStreamEvent, SessionManager, ApprovalRequest } from "harnessforce-core";
-import { readMemorySources, readConfig, ensureConfigFile, resolveApiKey } from "harnessforce-core";
+import { readMemorySources, readConfig, ensureConfigFile, resolveApiKey, createHarnessforceAgent, detectProjectContext, buildContextPrompt } from "harnessforce-core";
 import { MarkdownText } from "./markdown.js";
 import { DiffView } from "./diff.js";
 import { StatusBar } from "./status-bar.js";
@@ -272,6 +272,25 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
     }
   });
 
+  // Recreate the agent when provider/model changes (reads fresh config from disk)
+  const recreateAgent = useCallback(async () => {
+    try {
+      const ctx = await detectProjectContext(process.cwd());
+      const contextPrompt = buildContextPrompt(ctx);
+      const newAgent = await createHarnessforceAgent({
+        skillsDir,
+        systemPrompt: contextPrompt || undefined,
+        projectContext: ctx,
+      });
+      setAgent(newAgent);
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "system" as const, content: `Error reconnecting agent: ${err.message}` },
+      ]);
+    }
+  }, [skillsDir]);
+
   // Build command context
   const commandContext: CommandContext = useMemo(
     () => ({
@@ -281,8 +300,9 @@ export default function App({ agent: initialAgent, agentPromise, skillsDir = "./
       setModel: (id: string) => setCurrentModel(id),
       clearMessages: () => setMessages([]),
       setPermissionMode: (mode: string) => setCurrentPermissionMode(mode),
+      recreateAgent,
     }),
-    [skillsDir, org, currentModel]
+    [skillsDir, org, currentModel, recreateAgent]
   );
 
   // Autocomplete hints: filter commands by prefix when input starts with /

@@ -119,15 +119,14 @@ program
     ensureConfigFile();
     const modelConfig = readConfig();
 
-    // Resolve API key: flag > env vars > config file
-    let apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN;
-
-    // Check config file for saved API key if not found in env
-    if (!apiKey) {
+    // Check if any provider has a usable API key (each provider has its own key)
+    let hasAnyKey = !!opts.apiKey || !!process.env.OPENROUTER_API_KEY || !!process.env.ANTHROPIC_API_KEY || !!process.env.ANTHROPIC_AUTH_TOKEN;
+    if (!hasAnyKey) {
       for (const provider of Object.values(modelConfig.providers)) {
+        if (provider.type === "local") { hasAnyKey = true; break; }
         if (provider.apiKey) {
           const resolved = resolveApiKey(provider.apiKey);
-          if (resolved) { apiKey = resolved; break; }
+          if (resolved) { hasAnyKey = true; break; }
         }
       }
     }
@@ -230,7 +229,7 @@ program
     }
 
     // Check for API key before creating agent
-    if (!apiKey) {
+    if (!hasAnyKey) {
       const isBedrock = greetingProvider === "bedrock-gateway"
         || !!process.env.ANTHROPIC_BEDROCK_BASE_URL;
       if (isBedrock) {
@@ -264,7 +263,6 @@ program
       try {
         agent = await createHarnessforceAgent({
           model: opts.model,
-          apiKey,
           skillsDir: opts.skillsDir,
           systemPrompt,
           projectContext: ctx,
@@ -323,10 +321,10 @@ program
     }
 
     // Create agent in background — TUI renders immediately
-    const agentPromise = apiKey
+    // The registry resolves per-provider API keys from config, no single key needed
+    const agentPromise = hasAnyKey
       ? createHarnessforceAgent({
           model: opts.model,
-          apiKey,
           skillsDir: opts.skillsDir,
           systemPrompt,
           projectContext: ctx,
