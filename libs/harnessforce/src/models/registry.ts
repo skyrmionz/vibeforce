@@ -6,6 +6,7 @@ import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatOpenAI } from '@langchain/openai';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { type ModelConfig, type ModelProvider, resolveApiKey } from './config.js';
+import { TIMEOUTS } from '../config/timeouts.js';
 
 export interface ModelInfo {
   id: string; // e.g. "anthropic:claude-opus-4.6"
@@ -138,12 +139,14 @@ export class ModelRegistry {
           return new ChatAnthropic({
             model: modelName,
             anthropicApiKey: apiKey,
+            clientOptions: { timeout: TIMEOUTS.LLM_REQUEST },
           });
         }
         // OpenAI and other cloud providers
         return new ChatOpenAI({
           model: modelName,
           apiKey,
+          timeout: TIMEOUTS.LLM_REQUEST,
         });
       }
 
@@ -155,6 +158,7 @@ export class ModelRegistry {
             baseURL: baseUrl ?? 'http://localhost:11434/v1',
           },
           apiKey: apiKey ?? 'not-needed-for-local',
+          timeout: TIMEOUTS.LLM_REQUEST,
         });
       }
 
@@ -178,7 +182,7 @@ export class ModelRegistry {
         // The gateway expects Authorization: Bearer <token>, not x-api-key
         const isBedrock = provider.name.includes("bedrock") || baseUrl?.includes("sfproxy") || baseUrl?.includes("bedrock");
         if (isBedrock) {
-          const clientOptions: Record<string, any> = { authToken: apiKey };
+          const clientOptions: Record<string, any> = { authToken: apiKey, timeout: TIMEOUTS.LLM_REQUEST };
           if (process.env.NODE_EXTRA_CA_CERTS) {
             try {
               const fs = require('node:fs');
@@ -219,6 +223,7 @@ export class ModelRegistry {
             ...(Object.keys(fetchOptions).length > 0 ? { fetchOptions } : {}),
           },
           apiKey,
+          timeout: TIMEOUTS.LLM_REQUEST,
         });
       }
 

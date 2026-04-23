@@ -24,4 +24,6 @@ export const TIMEOUTS = {
   PACKAGE_VERSION: 300_000,
   /** Sandbox creation */
   SANDBOX: 600_000,
+  /** LLM API call (per-request, not per-turn) */
+  LLM_REQUEST: 120_000,
 } as const;

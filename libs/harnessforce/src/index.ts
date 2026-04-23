@@ -714,7 +714,7 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
         { messages: [{ role: "user", content: effectiveMessage }] },
         {
           version: "v2",
-          recursionLimit: 40,
+          recursionLimit: 100,
           configurable: { thread_id: tid },
           ...(abortSignal ? { signal: abortSignal } : {}),
         },
@@ -942,6 +942,26 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
     } catch (err: any) {
       const errMsg = err.message ?? String(err);
 
+      // ── Recursion limit — agent made too many tool calls in one turn ──
+      if (/recursion|GraphRecursionError/i.test(errMsg) || err.name === "GraphRecursionError") {
+        yield {
+          type: "error" as const,
+          error: "Agent hit the tool call limit for this turn. Try breaking the task into smaller steps, or say 'continue' to keep going.",
+        };
+        yield { type: "done" };
+        return;
+      }
+
+      // ── Timeout — LLM API call took too long ──────────────────────
+      if (/timeout|ETIMEDOUT|ECONNRESET|AbortError/i.test(errMsg)) {
+        yield {
+          type: "error" as const,
+          error: "LLM request timed out. The API may be slow. Try again or switch models with /model.",
+        };
+        yield { type: "done" };
+        return;
+      }
+
       // ── Reactive compaction + retry (Claude Code pattern) ──────────
       const isContextOverflow =
         /prompt_too_long|context_length_exceeded|maximum context length/i.test(errMsg);
@@ -990,7 +1010,7 @@ Use sf_knowledge before writing Apex, deploying metadata, or building agents to 
               { messages: [{ role: "user", content: effectiveMessage }] },
               {
                 version: "v2",
-                recursionLimit: 40,
+                recursionLimit: 100,
                 configurable: { thread_id: tid },
                 ...(abortSignal ? { signal: abortSignal } : {}),
               },
